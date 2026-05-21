@@ -66,11 +66,19 @@ Nach `git clone` ein einziges Kommando:
 bash scripts/setup.sh
 ```
 
-Das Skript fragt dich nach den Discord-Credentials (Token, IDs, Secret), generiert
-alle restlichen Secrets, schreibt die 3 Env-Files, installiert Dependencies,
-initialisiert die DB und registriert die Slash-Commands. Danach nur noch starten.
+Das Skript fragt dich:
+- Discord-Credentials (Token, Client-ID, Client-Secret, Guild-ID, Owner-ID)
+- ob lokal (Dev) oder mit eigener Domain (Production)
+- bei Production: Domain (z. B. `bot.deinedomain.de`), dann Caddy-Setup
+  für Reverse-Proxy + Auto-HTTPS, optional pm2 für 24/7-Betrieb
+
+und macht dann automatisch:
+- alle 3 Env-Files schreiben (mit auto-generierten Secrets)
+- `npm ci` + Prisma `db push` + Slash-Commands registrieren
+- bei Production: Build + Caddy installieren/konfigurieren + pm2 starten
 
 Voraussetzungen: Node.js v20+, npm, openssl (auf Linux meist vorinstalliert).
+Für Production-Modus zusätzlich: `sudo` + offene Ports 80/443.
 
 ## Setup (manuell, Schritt für Schritt)
 
@@ -152,26 +160,17 @@ Dashboard: http://localhost:3000
 ## Production-Deploy (z. B. auf VPS)
 
 ```bash
-# Code holen
 git clone https://github.com/ChristophBentz/discord-bot-final.git
 cd discord-bot-final
-
-# Setup (interaktiv, fragt nach Credentials)
-bash scripts/setup.sh
-
-# Build
-npm --workspace bot run build
-npm --workspace web run build
-
-# Mit pm2 dauerhaft laufen lassen
-sudo npm install -g pm2
-pm2 start "npm --workspace bot run start" --name discord-bot
-pm2 start "npm --workspace web run start" --name discord-web --cwd web
-pm2 save
-pm2 startup     # folge der Anweisung für Auto-Start
+bash scripts/setup.sh        # → "Online" wählen, Domain eintippen
+                             #   Skript installiert Caddy, holt HTTPS-Zertifikat,
+                             #   baut TypeScript, startet via pm2
 ```
 
-Updates pushen:
+Im Discord Developer Portal **vor** dem Setup die Redirect-URL eintragen:
+`https://deine-domain.de/api/auth/callback/discord` (das Skript zeigt dir das auch nochmal).
+
+Updates ausrollen:
 ```bash
 git pull
 npm ci                                              # bei package.json-Änderungen

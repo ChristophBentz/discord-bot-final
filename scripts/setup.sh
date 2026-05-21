@@ -121,11 +121,49 @@ prompt_required DISCORD_CLIENT_SECRET "DISCORD_CLIENT_SECRET" ""
 prompt_required DISCORD_GUILD_ID  "DISCORD_GUILD_ID   " "^[0-9]{17,20}$"
 prompt_optional OWNER_DISCORD_ID  "OWNER_DISCORD_ID   (optional)"
 
-# NEXTAUTH_URL — Default localhost, optional anpassbar
-read -r -p "  NEXTAUTH_URL       [http://localhost:3000]: " NEXTAUTH_URL
-NEXTAUTH_URL="${NEXTAUTH_URL:-http://localhost:3000}"
+# ─── Production / Domain ─────────────────────────────────────────────────────
+step "Hosting"
+echo
+echo "  Wo läuft das Dashboard?"
+echo "    [1] ${C_BLUE}Lokal${C_RESET} — nur http://localhost:3000 (Development)"
+echo "    [2] ${C_BLUE}Online${C_RESET} — eigene Domain mit HTTPS (Production)"
+echo
+read -r -p "  Auswahl [1/2, Default 1]: " HOSTING_CHOICE
+HOSTING_CHOICE="${HOSTING_CHOICE:-1}"
+
+PRODUCTION=false
+DOMAIN=""
+if [[ "$HOSTING_CHOICE" == "2" ]]; then
+  PRODUCTION=true
+  echo
+  while [[ -z "$DOMAIN" ]]; do
+    read -r -p "  Domain (z.B. bot.jumpy.gg, ohne https://): " DOMAIN
+    DOMAIN="${DOMAIN#https://}"
+    DOMAIN="${DOMAIN#http://}"
+    DOMAIN="${DOMAIN%/}"
+    if [[ -z "$DOMAIN" || ! "$DOMAIN" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+      warn "Sieht nicht wie eine Domain aus."
+      DOMAIN=""
+    fi
+  done
+  NEXTAUTH_URL="https://$DOMAIN"
+  echo
+  ok "Public-URL:  $NEXTAUTH_URL"
+  echo
+  echo "  ${C_YELLOW}WICHTIG:${C_RESET} Im Discord Developer Portal musst du diese Redirect-URL"
+  echo "           hinzufügen (sonst funktioniert der Login nicht):"
+  echo
+  echo "    ${C_GREEN}$NEXTAUTH_URL/api/auth/callback/discord${C_RESET}"
+  echo
+  echo "  https://discord.com/developers/applications/$DISCORD_CLIENT_ID/oauth2"
+  echo
+  read -r -p "  Bestätige mit Enter, sobald die URL dort eingetragen ist…"
+else
+  NEXTAUTH_URL="http://localhost:3000"
+fi
 
 # Bot-API Port — Default 4001
+echo
 read -r -p "  BOT_API_PORT       [4001]: " BOT_API_PORT
 BOT_API_PORT="${BOT_API_PORT:-4001}"
 
@@ -241,27 +279,130 @@ else
   exit 1
 fi
 
+# ─── Production: Caddy + pm2 (optional) ──────────────────────────────────────
+if [[ "$PRODUCTION" == "true" ]]; then
+  step "Production-Setup"
+
+  # Sudo verfügbar?
+  if ! command -v sudo >/dev/null 2>&1; then
+    warn "sudo nicht vorhanden — Caddy/pm2-Install überspringe ich."
+    SKIP_PRIV=true
+  else
+    SKIP_PRIV=false
+  fi
+
+  # 1) Production-Build
+  read -r -p "  TypeScript jetzt für Production bauen? [Y/n] " ans
+  if [[ -z "$ans" || "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
+    echo "  ${C_DIM}npm --workspace bot run build${C_RESET}"
+    npm --workspace bot run build >/dev/null
+    ok "Bot kompiliert"
+    echo "  ${C_DIM}npm --workspace web run build${C_RESET}"
+    npm --workspace web run build >/dev/null
+    ok "Web kompiliert"
+  fi
+
+  # 2) Caddy — Reverse Proxy + Auto-HTTPS
+  if [[ "$SKIP_PRIV" != "true" ]]; then
+    read -r -p "  Caddy als Reverse-Proxy für $DOMAIN einrichten? [Y/n] " ans
+    if [[ -z "$ans" || "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
+      if ! command -v caddy >/dev/null 2>&1; then
+        echo "  Installiere Caddy…"
+        sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl >/dev/null 2>&1 || true
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
+        sudo apt update -qq
+        sudo apt install -y caddy
+      fi
+      ok "Caddy installiert ($(caddy version 2>/dev/null | head -1))"
+
+      # Caddyfile schreiben
+      CADDYFILE="/etc/caddy/Caddyfile"
+      BLOCK="$DOMAIN {
+    reverse_proxy localhost:3000
+}"
+      if grep -q "^$DOMAIN " "$CADDYFILE" 2>/dev/null; then
+        warn "Caddyfile enthält schon einen Block für $DOMAIN — überspringe."
+      else
+        echo "$BLOCK" | sudo tee -a "$CADDYFILE" >/dev/null
+        ok "Caddyfile aktualisiert: $CADDYFILE"
+      fi
+
+      sudo systemctl reload caddy && ok "Caddy reloaded — HTTPS-Zertifikat wird automatisch geholt"
+
+      # Firewall (falls ufw aktiv)
+      if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "Status: active"; then
+        sudo ufw allow 80 >/dev/null && sudo ufw allow 443 >/dev/null
+        ok "Firewall: Port 80 + 443 freigegeben"
+      fi
+    fi
+  fi
+
+  # 3) pm2
+  if [[ "$SKIP_PRIV" != "true" ]]; then
+    read -r -p "  Mit pm2 starten + Auto-Start beim Boot? [Y/n] " ans
+    if [[ -z "$ans" || "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
+      if ! command -v pm2 >/dev/null 2>&1; then
+        echo "  Installiere pm2…"
+        sudo npm install -g pm2 >/dev/null
+      fi
+      ok "pm2 installiert ($(pm2 -v))"
+
+      # Alte Prozesse stoppen (falls vorhanden)
+      pm2 delete discord-bot 2>/dev/null || true
+      pm2 delete discord-web 2>/dev/null || true
+
+      pm2 start "npm --workspace bot run start" --name discord-bot
+      pm2 start "npm --workspace web run start" --name discord-web --cwd web
+      pm2 save
+
+      # Auto-Start beim Boot
+      PM2_USER=$(whoami)
+      PM2_HOME_PATH="$HOME"
+      sudo env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$PM2_USER" --hp "$PM2_HOME_PATH" || true
+      ok "pm2 läuft — discord-bot + discord-web aktiv"
+    fi
+  fi
+fi
+
 # ─── Fertig ──────────────────────────────────────────────────────────────────
-cat <<EOF
+echo
+echo "${C_GREEN}╭──────────────────────────────────────────────╮${C_RESET}"
+echo "${C_GREEN}│   ✓ Setup fertig!                            │${C_RESET}"
+echo "${C_GREEN}╰──────────────────────────────────────────────╯${C_RESET}"
+echo
 
-${C_GREEN}╭──────────────────────────────────────────────╮
-│   ✓ Setup fertig!                            │
-╰──────────────────────────────────────────────╯${C_RESET}
+if [[ "$PRODUCTION" == "true" ]]; then
+  cat <<EOF
+${C_BLUE}Dashboard:${C_RESET}  $NEXTAUTH_URL
 
-Jetzt starten:
+Bot + Web laufen via pm2 — nützliche Commands:
 
-  ${C_BLUE}Development${C_RESET}  (Hot-Reload, zwei Terminals)
-    Terminal 1:  npm run bot:dev
-    Terminal 2:  npm run web:dev
-    Dashboard:   $NEXTAUTH_URL
+  pm2 status                       # Übersicht
+  pm2 logs                         # alle Logs live
+  pm2 logs discord-bot             # nur Bot
+  pm2 restart discord-bot          # nach Code-Update
+  pm2 restart discord-bot discord-web
 
-  ${C_BLUE}Production${C_RESET}  (mit pm2, einmalig: sudo npm i -g pm2)
-    npm --workspace bot run build
-    npm --workspace web run build
-    pm2 start "npm --workspace bot run start"  --name discord-bot
-    pm2 start "npm --workspace web run start"  --name discord-web --cwd web
-    pm2 save && pm2 startup
+${C_DIM}Updates pushen:
+  git pull
+  npm ci
+  cd packages/db && npx prisma db push && cd ../..
+  npm --workspace bot run build
+  npm --workspace web run build
+  npm --workspace bot run register     # bei neuen Slash-Commands
+  pm2 restart discord-bot discord-web${C_RESET}
+
+EOF
+else
+  cat <<EOF
+Jetzt starten ${C_DIM}(Hot-Reload, zwei Terminals)${C_RESET}:
+
+  Terminal 1:  npm run bot:dev
+  Terminal 2:  npm run web:dev
+  Dashboard:   $NEXTAUTH_URL
 
 ${C_DIM}Bei Problemen: git pull && bash scripts/setup.sh${C_RESET}
 
 EOF
+fi
