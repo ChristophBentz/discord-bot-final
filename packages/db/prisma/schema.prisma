@@ -24,15 +24,15 @@ model Config {
 
   // Logging — ein Channel, zuschaltbar pro Kategorie
   logChannelId      String?
-  logMessageDelete  Boolean @default(true)
-  logMessageEdit    Boolean @default(true)
-  logMemberJoin     Boolean @default(true)
-  logMemberLeave    Boolean @default(true)
-  logMemberBan      Boolean @default(true)
-  logMemberUnban    Boolean @default(true)
-  logMemberNickname Boolean @default(true)
-  logMemberRoles    Boolean @default(true)
-  logVoice          Boolean @default(true)
+  logMessageDelete  Boolean @default(false)
+  logMessageEdit    Boolean @default(false)
+  logMemberJoin     Boolean @default(false)
+  logMemberLeave    Boolean @default(false)
+  logMemberBan      Boolean @default(false)
+  logMemberUnban    Boolean @default(false)
+  logMemberNickname Boolean @default(false)
+  logMemberRoles    Boolean @default(false)
+  logVoice          Boolean @default(false)
 
   // Welcome / Leave
   welcomeEnabled   Boolean @default(false)
@@ -47,9 +47,9 @@ model Config {
   muteRoleId String?
 
   // AutoMod
-  autoModEnabled            Boolean @default(true)
-  autoModDM                 Boolean @default(true)
-  autoModBypassMods         Boolean @default(true)
+  autoModEnabled            Boolean @default(false)
+  autoModDM                 Boolean @default(false)
+  autoModBypassMods         Boolean @default(false)
   autoModBlockInvites       Boolean @default(false)
   autoModMassMentionEnabled Boolean @default(false)
   autoModMassMentionLimit   Int     @default(5)
@@ -60,7 +60,7 @@ model Config {
   autoModExcludedChannelsEnabled Boolean @default(false)
 
   // Leveling
-  levelingEnabled   Boolean @default(true)
+  levelingEnabled   Boolean @default(false)
   levelUpChannelId  String?
   xpPerMessageMin   Int     @default(15)
   xpPerMessageMax   Int     @default(25)
@@ -68,7 +68,7 @@ model Config {
   xpPerMinuteVoice  Int     @default(5)
 
   // Achievements
-  achievementNotifyDM      Boolean @default(true)
+  achievementNotifyDM      Boolean @default(false)
   achievementNotifyChannel Boolean @default(false)
   achievementChannelId     String?
 
