@@ -365,9 +365,12 @@ export function ComposeForm({
               value={embedDesc}
               onChange={(e) => setEmbedDesc(e.target.value)}
               rows={5}
-              maxLength={4000}
+              maxLength={4096}
               className="input min-h-[100px] resize-y w-full"
             />
+            <p className="mt-1 text-xs text-ink-subtle">
+              {embedDesc.length} / 4096 (Discord-Hard-Limit für Embed-Beschreibung)
+            </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
