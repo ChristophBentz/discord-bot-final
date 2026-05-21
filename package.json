@@ -11,7 +11,13 @@
     "db:generate": "npm --workspace @repo/db run generate",
     "db:migrate": "npm --workspace @repo/db run migrate",
     "db:studio": "npm --workspace @repo/db run studio",
+    "build:db": "npm --workspace @repo/db run build",
+    "build:bot": "npm --workspace bot run build",
+    "build:web": "npm --workspace web run build",
+    "build": "npm run build:db && npm run build:bot && npm run build:web",
+    "prebot:dev": "npm run build:db --silent",
     "bot:dev": "npm --workspace bot run dev",
+    "preweb:dev": "npm run build:db --silent",
     "web:dev": "npm --workspace web run dev"
   },
   "overrides": {

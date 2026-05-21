@@ -291,15 +291,12 @@ if [[ "$PRODUCTION" == "true" ]]; then
     SKIP_PRIV=false
   fi
 
-  # 1) Production-Build
+  # 1) Production-Build (db → bot → web in der richtigen Reihenfolge)
   read -r -p "  TypeScript jetzt für Production bauen? [Y/n] " ans
   if [[ -z "$ans" || "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
-    echo "  ${C_DIM}npm --workspace bot run build${C_RESET}"
-    npm --workspace bot run build >/dev/null
-    ok "Bot kompiliert"
-    echo "  ${C_DIM}npm --workspace web run build${C_RESET}"
-    npm --workspace web run build >/dev/null
-    ok "Web kompiliert"
+    echo "  ${C_DIM}npm run build (db → bot → web)${C_RESET}"
+    npm run build >/dev/null
+    ok "Alle Packages kompiliert"
   fi
 
   # 2) Caddy — Reverse Proxy + Auto-HTTPS
@@ -393,9 +390,8 @@ ${C_DIM}Updates pushen:
   git pull
   npm ci
   cd packages/db && npx prisma db push && cd ../..
-  npm --workspace bot run build
-  npm --workspace web run build
-  npm --workspace bot run register     # nur bei neuen Slash-Commands
+  npm run build                       # baut db + bot + web in der richtigen Reihenfolge
+  npm --workspace bot run register    # nur bei neuen Slash-Commands
   pm2 restart all${C_RESET}
 
 EOF

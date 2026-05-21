@@ -175,14 +175,18 @@ Updates ausrollen:
 git pull
 npm ci                                              # bei package.json-Änderungen
 cd packages/db && npx prisma db push && cd ../..   # bei Schema-Änderungen
-npm --workspace bot run build
-npm --workspace web run build
+npm run build                                       # baut db + bot + web in der richtigen Reihenfolge
 npm --workspace bot run register                    # bei neuen Commands
 pm2 restart all                                     # Bot + Web auf einmal
 ```
 
 pm2-Services sind in `ecosystem.config.cjs` definiert — `pm2 start ecosystem.config.cjs`
 startet Bot und Web zusammen.
+
+**Hinweis Build-Reihenfolge:** `@repo/db` muss vor `bot` und `web` kompiliert werden,
+sonst findet Node `dist/index.js` des db-Pakets nicht. Das Root-Skript `npm run build`
+erledigt das korrekt. Für Dev (`bot:dev` / `web:dev`) wird `@repo/db` automatisch
+via pre-Hooks gebaut.
 
 ## Berechtigungen
 

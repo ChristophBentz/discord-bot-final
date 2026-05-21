@@ -15,7 +15,12 @@ async function walk(dir: string): Promise<string[]> {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...(await walk(full)));
-    } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".js")) {
+    } else if (
+      // .d.ts überspringen — sind nur TypeScript-Deklarationen, kein ausführbarer Code.
+      // Im dist/-Build liegen die neben den .js-Files und würden sonst doppelt geladen.
+      !entry.name.endsWith(".d.ts") &&
+      (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))
+    ) {
       files.push(full);
     }
   }
