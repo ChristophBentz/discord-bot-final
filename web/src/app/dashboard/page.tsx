@@ -51,6 +51,24 @@ const icons = {
   ticket: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8Z" /><path d="M13 6v12" /></svg>
   ),
+  warning: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="M12 3 2 21h20L12 3Z" /><path d="M12 10v5M12 18h.01" /></svg>
+  ),
+  medal: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="M7 3h10l-3 6H10L7 3Z" /><circle cx="12" cy="15" r="5" /><path d="m10 14 2 2 4-4" /></svg>
+  ),
+  plus: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>
+  ),
+  gift: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></svg>
+  ),
+  send: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="m22 2-7 20-4-9-9-4 20-7Z" /><path d="M22 2 11 13" /></svg>
+  ),
+  settings: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>
+  ),
 };
 
 function formatVoiceTime(seconds: number): string {
@@ -105,16 +123,40 @@ export default async function DashboardOverview() {
       description: "Bot-Status und globale Einstellungen.",
       href: "/dashboard/general",
       iconColor: "slate",
-      icon: icons.terminal,
+      icon: icons.settings,
       enabled: Boolean(config.botStatusText),
     },
     {
-      title: "Logging",
-      description: "Audit-Events an einen Channel weiterleiten.",
+      title: "Audit Logs",
+      description: "Server-Events an einen Channel weiterleiten.",
       href: "/dashboard/logging",
       iconColor: "blue",
       icon: icons.doc,
       enabled: Boolean(config.logChannelId),
+    },
+    {
+      title: "Moderation",
+      description: "Kick, Ban, Timeout und Warnungen.",
+      href: "/dashboard/moderation",
+      iconColor: "red",
+      icon: icons.shield,
+      enabled: true,
+    },
+    {
+      title: "AutoMod",
+      description: "Wortfilter, Invite-Block, Anti-Spam.",
+      href: "/dashboard/automod",
+      iconColor: "red",
+      icon: icons.warning,
+      enabled: config.autoModEnabled,
+    },
+    {
+      title: "Welcome",
+      description: "Begrüßung neuer Mitglieder + Auto-Rollen.",
+      href: "/dashboard/welcome",
+      iconColor: "green",
+      icon: icons.envelope,
+      enabled: config.welcomeEnabled || config.leaveEnabled || config.autoRolesEnabled,
     },
     {
       title: "Leveling",
@@ -125,20 +167,52 @@ export default async function DashboardOverview() {
       enabled: config.levelingEnabled,
     },
     {
-      title: "Moderation",
-      description: "Kick, Ban, Mute und Warnungen.",
-      iconColor: "red",
-      icon: icons.shield,
-      enabled: false,
-      soon: true,
+      title: "Achievements",
+      description: "Custom-Erfolge mit Bild und Auto-Vergabe.",
+      href: "/dashboard/achievements",
+      iconColor: "amber",
+      icon: icons.medal,
+      enabled: true,
     },
     {
-      title: "Welcome",
-      description: "Begrüßung neuer Mitglieder.",
-      iconColor: "green",
-      icon: icons.envelope,
-      enabled: Boolean(config.welcomeChannelId),
-      soon: true,
+      title: "Tickets",
+      description: "Support-Threads via Bot-Panel.",
+      href: "/dashboard/tickets",
+      iconColor: "pink",
+      icon: icons.ticket,
+      enabled: config.ticketsEnabled,
+    },
+    {
+      title: "Temp-Channels",
+      description: "Join-to-Create Voice-Channels.",
+      href: "/dashboard/temp-channels",
+      iconColor: "teal",
+      icon: icons.plus,
+      enabled: config.tempChannelEnabled,
+    },
+    {
+      title: "Musik",
+      description: "YouTube, Spotify, SoundCloud im Voice.",
+      href: "/dashboard/music",
+      iconColor: "orange",
+      icon: icons.music,
+      enabled: config.musicEnabled,
+    },
+    {
+      title: "Free Games",
+      description: "Auto-Posts: Epic, Steam, GOG, Konsolen.",
+      href: "/dashboard/free-games",
+      iconColor: "violet",
+      icon: icons.gift,
+      enabled: config.freeGamesEnabled,
+    },
+    {
+      title: "Nachrichten",
+      description: "Text, Embeds, Umfragen, Dateien senden.",
+      href: "/dashboard/compose",
+      iconColor: "blue",
+      icon: icons.send,
+      enabled: true,
     },
     {
       title: "Reaction Rolls",
@@ -153,22 +227,6 @@ export default async function DashboardOverview() {
       description: "Eigene Slash-Befehle definieren.",
       iconColor: "teal",
       icon: icons.terminal,
-      enabled: false,
-      soon: true,
-    },
-    {
-      title: "Tickets",
-      description: "Support-Anfragen über Reactions.",
-      iconColor: "pink",
-      icon: icons.ticket,
-      enabled: false,
-      soon: true,
-    },
-    {
-      title: "Musik",
-      description: "Hochqualitative Audio-Wiedergabe.",
-      iconColor: "orange",
-      icon: icons.music,
       enabled: false,
       soon: true,
     },
