@@ -332,7 +332,13 @@ if [[ "$PRODUCTION" == "true" ]]; then
         ok "Caddyfile aktualisiert: $CADDYFILE"
       fi
 
-      sudo systemctl reload caddy && ok "Caddy reloaded — HTTPS-Zertifikat wird automatisch geholt"
+      # enable+start (frisch installiert oder gestoppt), dann reload für Config-Pickup
+      sudo systemctl enable --now caddy >/dev/null 2>&1
+      if sudo systemctl reload-or-restart caddy; then
+        ok "Caddy läuft — HTTPS-Zertifikat wird automatisch geholt"
+      else
+        warn "Caddy reload fehlgeschlagen — check 'sudo journalctl -u caddy -n 30'"
+      fi
 
       # Firewall (falls ufw aktiv)
       if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "Status: active"; then
