@@ -328,3 +328,41 @@ export function memberWarnEmbed(args: {
     .setTimestamp(new Date())
     .setFooter({ text: `User-ID: ${args.user.id}` });
 }
+
+export function memberForceMoveEmbed(args: {
+  user: User;
+  fromChannelId: string;
+  toChannelId: string;
+  executor: { id: string };
+}): EmbedBuilder {
+  return new EmbedBuilder()
+    .setColor(LOG_COLORS.voiceMove)
+    .setAuthor({ name: args.user.username, iconURL: args.user.displayAvatarURL({ size: 64 }) })
+    .setTitle("↪️ Voice-Move (von Mod)")
+    .setDescription(`<@${args.user.id}>`)
+    .addFields(
+      { name: "Von", value: `<#${args.fromChannelId}>`, inline: true },
+      { name: "Nach", value: `<#${args.toChannelId}>`, inline: true },
+      { name: "Verschoben von", value: `<@${args.executor.id}>`, inline: false },
+    )
+    .setTimestamp(new Date())
+    .setFooter({ text: `User-ID: ${args.user.id}` });
+}
+
+export function memberForceDisconnectEmbed(args: {
+  user: User;
+  fromChannelId: string;
+  executor: { id: string };
+}): EmbedBuilder {
+  return new EmbedBuilder()
+    .setColor(LOG_COLORS.voiceLeave)
+    .setAuthor({ name: args.user.username, iconURL: args.user.displayAvatarURL({ size: 64 }) })
+    .setTitle("📤 Voice-Disconnect (von Mod)")
+    .setDescription(`<@${args.user.id}>`)
+    .addFields(
+      { name: "Aus Channel", value: `<#${args.fromChannelId}>`, inline: true },
+      { name: "Getrennt von", value: `<@${args.executor.id}>`, inline: true },
+    )
+    .setTimestamp(new Date())
+    .setFooter({ text: `User-ID: ${args.user.id}` });
+}

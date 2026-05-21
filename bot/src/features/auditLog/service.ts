@@ -117,3 +117,23 @@ export async function fetchAuditExecutor(
     return { executor: null, reason: null };
   }
 }
+
+// Wie fetchAuditExecutor, aber ohne targetId-Match — für Audit-Events die keinen
+// konkreten Target setzen (MemberMove, MemberDisconnect: Discord gruppiert die).
+// Nimmt den jüngsten Eintrag im Zeitfenster.
+export async function fetchRecentAudit(
+  guild: Guild,
+  type: AuditLogEvent,
+  windowMs = 5000,
+): Promise<{ executor: AuditExecutor | null; reason: string | null }> {
+  try {
+    const logs = await guild.fetchAuditLogs({ type, limit: 1 });
+    const entry = logs.entries.first();
+    if (!entry || !entry.executor) return { executor: null, reason: null };
+    if (Date.now() - entry.createdTimestamp > windowMs) return { executor: null, reason: null };
+    return { executor: { id: entry.executor.id }, reason: entry.reason ?? null };
+  } catch (err) {
+    logger.warn({ err }, "Audit-Log-Abruf fehlgeschlagen");
+    return { executor: null, reason: null };
+  }
+}

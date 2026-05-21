@@ -29,7 +29,7 @@ const CATEGORIES: Array<{ key: keyof Initial; label: string; description: string
   { key: "logMemberNickname", label: "Nickname geändert", description: "Vorher- und Nachher-Name." },
   { key: "logMemberRoles", label: "Rollen geändert", description: "Welche Rollen hinzukommen oder weggehen." },
   { key: "logVoice", label: "Voice-Channel", description: "Beitreten, Verlassen und Wechseln zwischen Voice-Channeln." },
-  { key: "logModeration", label: "Moderation (Kick, Timeout, Warn)", description: "Wenn ein Mod einen User kickt, timeoutet oder verwarnt. Mit Moderator + Grund." },
+  { key: "logModeration", label: "Moderation", description: "Wenn ein Mod einen User kickt, timeoutet, verwarnt, im Voice verschiebt oder rauswirft. Mit Moderator + Grund." },
 ];
 
 export function LoggingForm({
