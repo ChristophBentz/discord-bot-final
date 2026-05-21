@@ -210,7 +210,7 @@ export function MessageHistory({
                 value={editEmbed.description ?? ""}
                 onChange={(e) => setEditEmbed({ ...editEmbed, description: e.target.value })}
                 rows={5}
-                maxLength={4096}
+                maxLength={40960}
                 className="input min-h-[100px] resize-y w-full"
               />
             </div>

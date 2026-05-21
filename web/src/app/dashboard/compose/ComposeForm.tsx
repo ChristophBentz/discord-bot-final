@@ -365,11 +365,16 @@ export function ComposeForm({
               value={embedDesc}
               onChange={(e) => setEmbedDesc(e.target.value)}
               rows={5}
-              maxLength={4096}
+              maxLength={40960}
               className="input min-h-[100px] resize-y w-full"
             />
             <p className="mt-1 text-xs text-ink-subtle">
-              {embedDesc.length} / 4096 (Discord-Hard-Limit für Embed-Beschreibung)
+              {embedDesc.length} / 40960
+              {embedDesc.length > 4096 && (
+                <span className="ml-2 text-amber-400">
+                  · wird in {Math.ceil(embedDesc.length / 4096)} Embeds gesplittet (in einer Discord-Nachricht)
+                </span>
+              )}
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

@@ -48,6 +48,33 @@ function buildEmbedFromSpec(spec: EmbedSpec): EmbedBuilder {
   return e;
 }
 
+// Erstellt ein oder mehrere Embeds aus einem Spec — splittet die Description
+// in mehrere Embeds wenn sie über das Discord-Limit (4096) geht.
+// Title/Color/Image/Footer landen NUR im ersten Embed, weitere sind reine
+// Description-Continuation-Embeds in der gleichen Discord-Message.
+function buildEmbedsFromSpec(spec: EmbedSpec): EmbedBuilder[] {
+  const description = spec.description ?? "";
+  const chunks = description ? chunkMessage(description, 4096) : [""];
+
+  return chunks.map((chunk, i) => {
+    const e = new EmbedBuilder();
+    if (chunk) e.setDescription(chunk);
+    if (typeof spec.color === "number") e.setColor(spec.color);
+    // Erste Embed bekommt alle Metadaten
+    if (i === 0) {
+      if (spec.title) e.setTitle(spec.title);
+      if (spec.url) e.setURL(spec.url);
+      if (spec.thumbnailUrl) e.setThumbnail(spec.thumbnailUrl);
+    }
+    // Letzte Embed bekommt Bild + Footer (damit alles am Ende zusammen erscheint)
+    if (i === chunks.length - 1) {
+      if (spec.imageUrl) e.setImage(spec.imageUrl);
+      if (spec.footerText) e.setFooter({ text: spec.footerText });
+    }
+    return e;
+  });
+}
+
 async function ensureSendableChannel(
   client: Client,
   channelId: string,
@@ -111,11 +138,15 @@ export async function handleSendMessage(
 
     if (type === "embed") {
       if (!body.embed) return { ok: false, error: "embed fehlt." };
-      const embed = buildEmbedFromSpec(body.embed);
       const optionalContent = (body.content ?? "").trim() || undefined;
+      const embeds = buildEmbedsFromSpec(body.embed);
+      if (embeds.length === 0) return { ok: false, error: "Embed ist leer." };
+      if (embeds.length > 10) {
+        return { ok: false, error: "Beschreibung zu lang — max. 10 Embeds (~40000 Zeichen)." };
+      }
       const msg = await channel.send({
         content: optionalContent,
-        embeds: [embed],
+        embeds,
         allowedMentions: { parse: ["users", "roles"] },
       });
       await prisma.botMessage.create({
@@ -236,11 +267,14 @@ export async function handleEditMessage(
     }
     if (row.type === "embed") {
       if (!body.embed) return { ok: false, error: "embed fehlt." };
-      const embed = buildEmbedFromSpec(body.embed);
+      const embeds = buildEmbedsFromSpec(body.embed);
+      if (embeds.length > 10) {
+        return { ok: false, error: "Beschreibung zu lang — max. 10 Embeds (~40000 Zeichen)." };
+      }
       const optionalContent = (body.content ?? "").trim() || null;
       await msg.edit({
         content: optionalContent ?? "",
-        embeds: [embed],
+        embeds,
         allowedMentions: { parse: ["users", "roles"] },
       });
       await prisma.botMessage.update({
