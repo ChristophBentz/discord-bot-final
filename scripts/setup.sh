@@ -373,12 +373,39 @@ ingress:
 EOF
       ok "config.yml geschrieben: $CF_DIR/config.yml"
 
-      # Als systemd-Service einrichten
-      # cloudflared service install kopiert die Config nach /etc/cloudflared/
+      # Als systemd-Service einrichten — Config + Credentials nach /etc/cloudflared/
+      # und eigenes Unit-File schreiben (zuverlässiger als 'cloudflared service install',
+      # das sich zwischen cloudflared-Versionen ändert)
       sudo mkdir -p /etc/cloudflared
-      sudo cp "$CF_DIR/config.yml" /etc/cloudflared/config.yml
       sudo cp "$CF_DIR/$TUNNEL_UUID.json" /etc/cloudflared/
-      sudo cloudflared service install >/dev/null 2>&1 || true
+      # Config mit angepassten Pfaden (credentials-file zeigt auf /etc/cloudflared/)
+      sudo tee /etc/cloudflared/config.yml >/dev/null <<EOF
+tunnel: $TUNNEL_NAME
+credentials-file: /etc/cloudflared/$TUNNEL_UUID.json
+
+ingress:
+  - hostname: $DOMAIN
+    service: http://localhost:3000
+  - service: http_status:404
+EOF
+
+      sudo tee /etc/systemd/system/cloudflared.service >/dev/null <<'EOF'
+[Unit]
+Description=cloudflared
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+Restart=on-failure
+RestartSec=5s
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+      sudo systemctl daemon-reload
       sudo systemctl enable --now cloudflared
       ok "cloudflared läuft als systemd-Service"
 
