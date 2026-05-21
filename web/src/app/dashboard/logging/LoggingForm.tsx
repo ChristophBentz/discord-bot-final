@@ -16,6 +16,7 @@ interface Initial {
   logMemberNickname: boolean;
   logMemberRoles: boolean;
   logVoice: boolean;
+  logModeration: boolean;
 }
 
 const CATEGORIES: Array<{ key: keyof Initial; label: string; description: string }> = [
@@ -28,6 +29,7 @@ const CATEGORIES: Array<{ key: keyof Initial; label: string; description: string
   { key: "logMemberNickname", label: "Nickname geändert", description: "Vorher- und Nachher-Name." },
   { key: "logMemberRoles", label: "Rollen geändert", description: "Welche Rollen hinzukommen oder weggehen." },
   { key: "logVoice", label: "Voice-Channel", description: "Beitreten, Verlassen und Wechseln zwischen Voice-Channeln." },
+  { key: "logModeration", label: "Moderation (Kick, Timeout, Warn)", description: "Wenn ein Mod einen User kickt, timeoutet oder verwarnt. Mit Moderator + Grund." },
 ];
 
 export function LoggingForm({

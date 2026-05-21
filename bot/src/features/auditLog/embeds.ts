@@ -243,3 +243,88 @@ export function rolesChangeEmbed(args: {
   }
   return embed;
 }
+
+export function memberKickEmbed(args: {
+  user: User;
+  executor: { id: string } | null;
+  reason: string | null;
+}): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setColor(0xfaa61a)
+    .setAuthor({ name: args.user.username, iconURL: args.user.displayAvatarURL({ size: 64 }) })
+    .setTitle("👢 Mitglied gekickt")
+    .setDescription(`<@${args.user.id}>`)
+    .setTimestamp(new Date())
+    .setFooter({ text: `User-ID: ${args.user.id}` });
+  if (args.executor) embed.addFields({ name: "Von", value: `<@${args.executor.id}>`, inline: true });
+  if (args.reason) embed.addFields({ name: "Grund", value: args.reason, inline: false });
+  return embed;
+}
+
+export function memberTimeoutEmbed(args: {
+  user: User;
+  executor: { id: string } | null;
+  reason: string | null;
+  until: Date;
+}): EmbedBuilder {
+  const seconds = Math.max(0, Math.floor((args.until.getTime() - Date.now()) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const duration =
+    hours > 0
+      ? `${hours}h ${minutes % 60}m`
+      : minutes > 0
+        ? `${minutes}m`
+        : `${seconds}s`;
+  const embed = new EmbedBuilder()
+    .setColor(0xed4245)
+    .setAuthor({ name: args.user.username, iconURL: args.user.displayAvatarURL({ size: 64 }) })
+    .setTitle("🔇 Timeout vergeben")
+    .setDescription(`<@${args.user.id}>`)
+    .addFields({ name: "Dauer", value: duration, inline: true })
+    .addFields({
+      name: "Bis",
+      value: `<t:${Math.floor(args.until.getTime() / 1000)}:f>`,
+      inline: true,
+    })
+    .setTimestamp(new Date())
+    .setFooter({ text: `User-ID: ${args.user.id}` });
+  if (args.executor) embed.addFields({ name: "Von", value: `<@${args.executor.id}>`, inline: false });
+  if (args.reason) embed.addFields({ name: "Grund", value: args.reason, inline: false });
+  return embed;
+}
+
+export function memberTimeoutRemoveEmbed(args: {
+  user: User;
+  executor: { id: string } | null;
+}): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setColor(0x2ecc71)
+    .setAuthor({ name: args.user.username, iconURL: args.user.displayAvatarURL({ size: 64 }) })
+    .setTitle("🔊 Timeout aufgehoben")
+    .setDescription(`<@${args.user.id}>`)
+    .setTimestamp(new Date())
+    .setFooter({ text: `User-ID: ${args.user.id}` });
+  if (args.executor) embed.addFields({ name: "Von", value: `<@${args.executor.id}>`, inline: true });
+  return embed;
+}
+
+export function memberWarnEmbed(args: {
+  user: User;
+  executor: { id: string };
+  reason: string;
+  warningCount: number;
+}): EmbedBuilder {
+  return new EmbedBuilder()
+    .setColor(0xfee75c)
+    .setAuthor({ name: args.user.username, iconURL: args.user.displayAvatarURL({ size: 64 }) })
+    .setTitle("⚠️ Verwarnung")
+    .setDescription(`<@${args.user.id}>`)
+    .addFields(
+      { name: "Von", value: `<@${args.executor.id}>`, inline: true },
+      { name: "Verwarnungen gesamt", value: String(args.warningCount), inline: true },
+      { name: "Grund", value: args.reason, inline: false },
+    )
+    .setTimestamp(new Date())
+    .setFooter({ text: `User-ID: ${args.user.id}` });
+}

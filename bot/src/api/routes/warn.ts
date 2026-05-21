@@ -1,7 +1,8 @@
-import { EmbedBuilder, type Client, type TextChannel } from "discord.js";
+import { EmbedBuilder, type Client } from "discord.js";
 import { prisma } from "@repo/db";
-import { env } from "../../lib/env.js";
 import { logger } from "../../lib/logger.js";
+import { sendLog } from "../../features/auditLog/service.js";
+import { memberWarnEmbed } from "../../features/auditLog/embeds.js";
 
 export interface WarnBody {
   reason?: string;
@@ -64,40 +65,23 @@ export async function handleWarn(
     logger.warn({ err, userId }, "Warn-DM fehlgeschlagen");
   }
 
-  // 3. Log-Channel-Embed
+  // 3. Audit-Log (respektiert logModeration-Toggle)
   try {
-    if (config?.logChannelId) {
-      const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
-      const member = guild ? await guild.members.fetch(userId).catch(() => null) : null;
-      const channel = await client.channels.fetch(config.logChannelId).catch(() => null);
-
-      if (channel?.isTextBased() && "send" in channel) {
-        const embed = new EmbedBuilder()
-          .setColor(0xfaa61a)
-          .setAuthor(
-            member
-              ? {
-                  name: member.user.username,
-                  iconURL: member.user.displayAvatarURL({ size: 64 }),
-                }
-              : { name: "Unbekannter User" },
-          )
-          .setTitle("Verwarnung")
-          .setDescription(`<@${userId}>`)
-          .addFields(
-            { name: "Grund", value: reason },
-            { name: "Moderator", value: `${moderatorName} (\`${moderatorId}\`)`, inline: true },
-            { name: "Verwarnungen gesamt", value: String(totalWarnings), inline: true },
-            { name: "DM-Status", value: dmSent ? "✅ Zugestellt" : `❌ ${dmError ?? "Fehlgeschlagen"}`, inline: true },
-          )
-          .setTimestamp(new Date())
-          .setFooter({ text: `Warn-ID: ${warning.id} · User-ID: ${userId}` });
-
-        await (channel as TextChannel).send({ embeds: [embed] });
-      }
+    const user = await client.users.fetch(userId).catch(() => null);
+    if (user) {
+      await sendLog(
+        client,
+        "moderation",
+        memberWarnEmbed({
+          user,
+          executor: { id: moderatorId },
+          reason,
+          warningCount: totalWarnings,
+        }),
+      );
     }
   } catch (err) {
-    logger.warn({ err }, "Warn-Log-Embed konnte nicht gesendet werden");
+    logger.warn({ err }, "Warn-Audit-Log fehlgeschlagen");
   }
 
   logger.info(

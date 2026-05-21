@@ -1,11 +1,47 @@
 import { AuditLogEvent, Events } from "discord.js";
 import type { BotEvent } from "../../../lib/types.js";
 import { fetchAuditExecutor, sendLog } from "../service.js";
-import { nicknameChangeEmbed, rolesChangeEmbed } from "../embeds.js";
+import {
+  memberTimeoutEmbed,
+  memberTimeoutRemoveEmbed,
+  nicknameChangeEmbed,
+  rolesChangeEmbed,
+} from "../embeds.js";
 
 const event: BotEvent<Events.GuildMemberUpdate> = {
   name: Events.GuildMemberUpdate,
   async execute(oldMember, newMember) {
+    // Timeout vergeben oder aufgehoben
+    const oldUntil = oldMember.communicationDisabledUntilTimestamp ?? 0;
+    const newUntil = newMember.communicationDisabledUntilTimestamp ?? 0;
+    if (oldUntil !== newUntil) {
+      const { executor, reason } = await fetchAuditExecutor(
+        newMember.guild,
+        AuditLogEvent.MemberUpdate,
+        newMember.id,
+      );
+      // Timeout neu gesetzt oder verlängert
+      if (newUntil > Date.now()) {
+        await sendLog(
+          newMember.client,
+          "moderation",
+          memberTimeoutEmbed({
+            user: newMember.user,
+            executor,
+            reason,
+            until: new Date(newUntil),
+          }),
+        );
+      } else if (oldUntil > 0) {
+        // Timeout aufgehoben (oder abgelaufen)
+        await sendLog(
+          newMember.client,
+          "moderation",
+          memberTimeoutRemoveEmbed({ user: newMember.user, executor }),
+        );
+      }
+    }
+
     // Nickname-Änderung
     if (oldMember.nickname !== newMember.nickname) {
       const { executor, reason } = await fetchAuditExecutor(

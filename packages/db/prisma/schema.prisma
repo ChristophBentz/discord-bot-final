@@ -33,6 +33,7 @@ model Config {
   logMemberNickname Boolean @default(false)
   logMemberRoles    Boolean @default(false)
   logVoice          Boolean @default(false)
+  logModeration     Boolean @default(false) // Kick, Timeout, Warn (Ban/Unban läuft über logMemberBan/Unban)
 
   // Welcome / Leave
   welcomeEnabled   Boolean @default(false)

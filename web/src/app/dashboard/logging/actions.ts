@@ -30,6 +30,7 @@ export async function saveLoggingSettings(formData: FormData): Promise<SaveLoggi
       logMemberNickname: toggle("logMemberNickname"),
       logMemberRoles: toggle("logMemberRoles"),
       logVoice: toggle("logVoice"),
+      logModeration: toggle("logModeration"),
     },
     create: {
       id: 1,
@@ -43,6 +44,7 @@ export async function saveLoggingSettings(formData: FormData): Promise<SaveLoggi
       logMemberNickname: toggle("logMemberNickname"),
       logMemberRoles: toggle("logMemberRoles"),
       logVoice: toggle("logVoice"),
+      logModeration: toggle("logModeration"),
     },
   });
 
