@@ -300,11 +300,18 @@ export function ComposeForm({
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={6}
-            maxLength={2000}
+            maxLength={5000}
             placeholder="Discord-Markdown wird unterstützt — **fett**, *kursiv*, ```code```, etc."
             className="input min-h-[120px] resize-y w-full"
           />
-          <p className="mt-1 text-xs text-ink-subtle">{text.length} / 2000</p>
+          <p className="mt-1 text-xs text-ink-subtle">
+            {text.length} / 5000
+            {text.length > 2000 && (
+              <span className="ml-2 text-amber-400">
+                · wird in {Math.ceil(text.length / 2000)} Discord-Nachrichten gesplittet
+              </span>
+            )}
+          </p>
         </div>
       )}
 

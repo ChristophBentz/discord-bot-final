@@ -83,21 +83,30 @@ export async function handleSendMessage(
     if (type === "text") {
       const content = (body.content ?? "").trim();
       if (!content) return { ok: false, error: "Text ist leer." };
-      if (content.length > 2000) return { ok: false, error: "Text > 2000 Zeichen." };
-      const msg = await channel.send({
-        content,
-        allowedMentions: { parse: ["users", "roles"] },
-      });
-      await prisma.botMessage.create({
-        data: {
-          channelId,
-          messageId: msg.id,
-          type,
-          content,
-          sentBy: body.sentBy ?? null,
-        },
-      });
-      return { ok: true, messageId: msg.id, channelId };
+      if (content.length > 5000) return { ok: false, error: "Text > 5000 Zeichen." };
+
+      // Discord-Limit ist 2000 Zeichen pro Nachricht → automatisch chunken.
+      const chunks = chunkMessage(content, 2000);
+      let firstMessageId = "";
+      for (let i = 0; i < chunks.length; i += 1) {
+        const isFirst = i === 0;
+        const msg = await channel.send({
+          content: chunks[i],
+          // Nur in der ersten Chunk gepingt — sonst spamen wir den Rollen-Ping mehrfach.
+          allowedMentions: isFirst ? { parse: ["users", "roles"] } : { parse: [] },
+        });
+        if (isFirst) firstMessageId = msg.id;
+        await prisma.botMessage.create({
+          data: {
+            channelId,
+            messageId: msg.id,
+            type,
+            content: chunks[i] ?? null,
+            sentBy: body.sentBy ?? null,
+          },
+        });
+      }
+      return { ok: true, messageId: firstMessageId, channelId };
     }
 
     if (type === "embed") {
@@ -269,4 +278,23 @@ export async function handleDeleteMessage(
 
   await prisma.botMessage.delete({ where: { id } }).catch(() => null);
   return { ok: true };
+}
+
+// Splittet Content in Stücke max. {maxChars} Zeichen, möglichst an Absatz-,
+// Zeilen- oder Wort-Grenzen statt mitten im Wort.
+function chunkMessage(content: string, maxChars: number): string[] {
+  if (content.length <= maxChars) return [content];
+  const chunks: string[] = [];
+  let remaining = content;
+  while (remaining.length > maxChars) {
+    // Try paragraph break first, then line, then word, then hard cut
+    let cut = remaining.lastIndexOf("\n\n", maxChars);
+    if (cut < maxChars / 2) cut = remaining.lastIndexOf("\n", maxChars);
+    if (cut < maxChars / 2) cut = remaining.lastIndexOf(" ", maxChars);
+    if (cut < maxChars / 2) cut = maxChars;
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining) chunks.push(remaining);
+  return chunks;
 }
