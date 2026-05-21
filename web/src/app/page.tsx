@@ -24,7 +24,7 @@ export default function HomePage() {
         <div className="flex flex-col items-center gap-3">
           <LoginButton />
           <p className="text-xs text-ink-subtle">
-            Anmeldung nur für den Server-Owner möglich.
+            Anmeldung nur mit Admin- oder Mod-Rolle auf dem Server möglich.
           </p>
         </div>
       </div>
