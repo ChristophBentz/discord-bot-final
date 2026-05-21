@@ -1,13 +1,25 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getConfig } from "@repo/db";
+import { getConfig, prisma } from "@repo/db";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");
+
+  // Per-Request-Re-Check: wenn die Mod-Rolle entzogen wird, sperrt das beim nächsten
+  // Pageload aus (ohne erst auf JWT-Expiry zu warten).
+  const discordId = (session.user as { discordId?: string } | undefined)?.discordId;
+  const ownerId = process.env.OWNER_DISCORD_ID;
+  if (discordId && discordId !== ownerId) {
+    const member = await prisma.member.findUnique({
+      where: { userId: discordId },
+      select: { isProtected: true, inServer: true },
+    });
+    if (!member?.inServer || !member.isProtected) redirect("/?denied=1");
+  }
 
   const config = await getConfig();
   const serverName = config.guildName ?? "Mein Server";

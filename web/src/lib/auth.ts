@@ -1,12 +1,8 @@
 import type { AuthOptions } from "next-auth";
 import DiscordProvider, { type DiscordProfile } from "next-auth/providers/discord";
+import { prisma } from "@repo/db";
 
 const ownerId = process.env.OWNER_DISCORD_ID;
-if (!ownerId) {
-  console.warn(
-    "[auth] OWNER_DISCORD_ID ist nicht gesetzt — niemand wird sich einloggen können.",
-  );
-}
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -18,9 +14,18 @@ export const authOptions: AuthOptions = {
   ],
   callbacks: {
     async signIn({ profile }) {
-      // Single-Guild-Setup: nur der konfigurierte Owner darf rein.
-      if (!ownerId) return false;
-      return (profile as DiscordProfile | undefined)?.id === ownerId;
+      const discordId = (profile as DiscordProfile | undefined)?.id;
+      if (!discordId) return false;
+      // Owner darf immer rein (Notfall-Zugang, falls Member-Sync nicht aktuell ist).
+      if (ownerId && discordId === ownerId) return true;
+      // Sonst: aktives Mitglied auf dem Server mit Admin/Mod-Rolle.
+      // isProtected wird vom Bot gesetzt für: Owner, Administrator, KickMembers,
+      // BanMembers oder ModerateMembers Permission.
+      const member = await prisma.member.findUnique({
+        where: { userId: discordId },
+        select: { isProtected: true, inServer: true },
+      });
+      return Boolean(member?.inServer && member?.isProtected);
     },
     async jwt({ token, profile }) {
       const discordProfile = profile as DiscordProfile | undefined;
