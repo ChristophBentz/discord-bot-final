@@ -270,6 +270,29 @@ ok "DB-Schema synchronisiert"
 (cd packages/db && npx prisma generate >/dev/null 2>&1)
 ok "Prisma-Client generiert"
 
+# ─── Plattform-spezifisches mediaplex-Binary nachinstallieren ────────────────
+# npm ci pickt manchmal das falsche (Mac-generierte) Lockfile-Binary,
+# wenn der Lockfile auf einer anderen Plattform erstellt wurde.
+step "Prüfe mediaplex-Opus-Binary für deine Plattform"
+OS=$(uname -s)
+ARCH=$(uname -m)
+case "$OS-$ARCH" in
+  Linux-x86_64)    MEDIAPLEX_PKG="mediaplex-linux-x64-gnu" ;;
+  Linux-aarch64)   MEDIAPLEX_PKG="mediaplex-linux-arm64-gnu" ;;
+  Darwin-arm64)    MEDIAPLEX_PKG="mediaplex-darwin-arm64" ;;
+  Darwin-x86_64)   MEDIAPLEX_PKG="mediaplex-darwin-x64" ;;
+  *)               MEDIAPLEX_PKG="" ;;
+esac
+if [[ -z "$MEDIAPLEX_PKG" ]]; then
+  warn "Unbekannte Plattform $OS-$ARCH — Musik kann auf Performance-Probleme stoßen"
+elif [[ -d "node_modules/$MEDIAPLEX_PKG" ]]; then
+  ok "$MEDIAPLEX_PKG vorhanden"
+else
+  echo "  Installiere $MEDIAPLEX_PKG (Lockfile fehlt es)…"
+  npm install --workspace bot "$MEDIAPLEX_PKG" --no-save --silent
+  ok "$MEDIAPLEX_PKG installiert (--no-save, package.json unverändert)"
+fi
+
 # ─── @repo/db kompilieren ────────────────────────────────────────────────────
 # Muss vor dem Slash-Command-Register laufen, weil das register-Script über die
 # Command-Files transitiv @repo/db importiert und sonst dist/index.js fehlt.
