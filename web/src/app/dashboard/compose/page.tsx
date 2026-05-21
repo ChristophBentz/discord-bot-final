@@ -3,8 +3,9 @@ import { ComposeForm } from "./ComposeForm";
 import { MessageHistory, type MessageRow } from "./MessageHistory";
 
 export default async function ComposePage() {
-  const [channels, history] = await Promise.all([
+  const [channels, roles, history] = await Promise.all([
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
+    prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
     prisma.botMessage.findMany({ orderBy: { sentAt: "desc" }, take: 20 }),
   ]);
 
@@ -46,6 +47,11 @@ export default async function ComposePage() {
             type: c.type,
             parentId: c.parentId,
             position: c.position,
+          }))}
+          roles={roles.map((r) => ({
+            roleId: r.roleId,
+            name: r.name,
+            color: r.color,
           }))}
         />
       </section>

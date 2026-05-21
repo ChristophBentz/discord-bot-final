@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
 import {
   sendEmbed,
@@ -12,6 +12,96 @@ import {
 } from "./actions";
 
 type Tab = "text" | "embed" | "poll" | "file";
+
+export interface RoleOption {
+  roleId: string;
+  name: string;
+  color: number;
+}
+
+function intToHex(color: number, fallback = "#a1a1aa"): string {
+  if (!color) return fallback;
+  return "#" + color.toString(16).padStart(6, "0");
+}
+
+// Kleine Inline-Komponente: Dropdown zum Einfügen eines Rollen-Mention.
+function MentionPicker({
+  roles,
+  onPick,
+}: {
+  roles: RoleOption[];
+  onPick: (roleId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const filtered = roles.filter((r) =>
+    search ? r.name.toLowerCase().includes(search.toLowerCase()) : true,
+  );
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-bg-elevated/60 px-2.5 py-1 text-xs font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-ink"
+      >
+        @ Rolle erwähnen
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-2 w-64 rounded-xl border border-line bg-bg-elevated shadow-card-lg">
+          <div className="border-b border-line p-2">
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rolle suchen…"
+              className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm outline-none placeholder:text-ink-subtle focus:ring-2 focus:ring-brand/30"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-6 text-center text-xs text-ink-muted">
+                Keine Rolle gefunden.
+              </div>
+            ) : (
+              filtered.map((r) => {
+                const c = intToHex(r.color);
+                return (
+                  <button
+                    key={r.roleId}
+                    type="button"
+                    onClick={() => {
+                      onPick(r.roleId);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-bg-hover"
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c }} />
+                    <span className="truncate" style={{ color: c }}>
+                      @{r.name}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TabButton({
   active,
@@ -37,7 +127,13 @@ function TabButton({
   );
 }
 
-export function ComposeForm({ channels }: { channels: ChannelOption[] }) {
+export function ComposeForm({
+  channels,
+  roles,
+}: {
+  channels: ChannelOption[];
+  roles: RoleOption[];
+}) {
   const [tab, setTab] = useState<Tab>("text");
   const [channelId, setChannelId] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
@@ -191,7 +287,15 @@ export function ComposeForm({ channels }: { channels: ChannelOption[] }) {
 
       {tab === "text" && (
         <div>
-          <span className="mb-1.5 block text-sm font-medium text-ink">Nachricht</span>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-sm font-medium text-ink">Nachricht</span>
+            <MentionPicker
+              roles={roles}
+              onPick={(id) =>
+                setText((v) => (v ? `${v} <@&${id}> ` : `<@&${id}> `))
+              }
+            />
+          </div>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -207,14 +311,24 @@ export function ComposeForm({ channels }: { channels: ChannelOption[] }) {
       {tab === "embed" && (
         <div className="space-y-4">
           <div>
-            <span className="mb-1.5 block text-sm font-medium text-ink">
-              Optionale Nachricht vor dem Embed
-            </span>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-sm font-medium text-ink">
+                Optionale Nachricht vor dem Embed
+              </span>
+              <MentionPicker
+                roles={roles}
+                onPick={(id) =>
+                  setEmbedExtraContent((v) =>
+                    v ? `${v} <@&${id}> ` : `<@&${id}> `,
+                  )
+                }
+              />
+            </div>
             <input
               value={embedExtraContent}
               onChange={(e) => setEmbedExtraContent(e.target.value)}
               maxLength={2000}
-              placeholder="z. B. @rolle ping, leer = nur das Embed"
+              placeholder="leer = nur das Embed wird gepostet"
               className="input w-full"
             />
           </div>
@@ -385,9 +499,15 @@ export function ComposeForm({ channels }: { channels: ChannelOption[] }) {
             )}
           </div>
           <div>
-            <span className="mb-1.5 block text-sm font-medium text-ink">
-              Optionaler Begleittext
-            </span>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-sm font-medium text-ink">Optionaler Begleittext</span>
+              <MentionPicker
+                roles={roles}
+                onPick={(id) =>
+                  setFileContent((v) => (v ? `${v} <@&${id}> ` : `<@&${id}> `))
+                }
+              />
+            </div>
             <textarea
               value={fileContent}
               onChange={(e) => setFileContent(e.target.value)}
