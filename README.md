@@ -178,8 +178,11 @@ cd packages/db && npx prisma db push && cd ../..   # bei Schema-Änderungen
 npm --workspace bot run build
 npm --workspace web run build
 npm --workspace bot run register                    # bei neuen Commands
-pm2 restart discord-bot discord-web
+pm2 restart all                                     # Bot + Web auf einmal
 ```
+
+pm2-Services sind in `ecosystem.config.cjs` definiert — `pm2 start ecosystem.config.cjs`
+startet Bot und Web zusammen.
 
 ## Berechtigungen
 

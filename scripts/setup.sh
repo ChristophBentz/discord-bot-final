@@ -338,9 +338,9 @@ if [[ "$PRODUCTION" == "true" ]]; then
     fi
   fi
 
-  # 3) pm2
+  # 3) pm2 — Bot + Web in einem Rutsch via ecosystem.config.cjs
   if [[ "$SKIP_PRIV" != "true" ]]; then
-    read -r -p "  Mit pm2 starten + Auto-Start beim Boot? [Y/n] " ans
+    read -r -p "  Bot + Web mit pm2 starten (beide auf einmal)? [Y/n] " ans
     if [[ -z "$ans" || "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
       if ! command -v pm2 >/dev/null 2>&1; then
         echo "  Installiere pm2…"
@@ -348,19 +348,25 @@ if [[ "$PRODUCTION" == "true" ]]; then
       fi
       ok "pm2 installiert ($(pm2 -v))"
 
-      # Alte Prozesse stoppen (falls vorhanden)
-      pm2 delete discord-bot 2>/dev/null || true
-      pm2 delete discord-web 2>/dev/null || true
+      # Alte Prozesse stoppen (falls vorhanden), damit ein frischer Start klappt
+      pm2 delete discord-bot discord-web 2>/dev/null || true
 
-      pm2 start "npm --workspace bot run start" --name discord-bot
-      pm2 start "npm --workspace web run start" --name discord-web --cwd web
+      pm2 start ecosystem.config.cjs
       pm2 save
+      ok "Bot + Web laufen als pm2-Services"
 
-      # Auto-Start beim Boot
-      PM2_USER=$(whoami)
-      PM2_HOME_PATH="$HOME"
-      sudo env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$PM2_USER" --hp "$PM2_HOME_PATH" || true
-      ok "pm2 läuft — discord-bot + discord-web aktiv"
+      # Auto-Start beim Boot — separater Prompt
+      echo
+      read -r -p "  Beim Server-Boot automatisch starten? [Y/n] " ans2
+      if [[ -z "$ans2" || "${ans2,,}" == "y" || "${ans2,,}" == "yes" ]]; then
+        PM2_USER=$(whoami)
+        PM2_HOME_PATH="$HOME"
+        sudo env PATH="$PATH:/usr/bin" pm2 startup systemd -u "$PM2_USER" --hp "$PM2_HOME_PATH" >/dev/null 2>&1 || true
+        pm2 save >/dev/null
+        ok "Auto-Start beim Boot aktiviert"
+      else
+        warn "Kein Auto-Start — Bot ist nach Server-Reboot aus, bis du 'pm2 resurrect' ausführst"
+      fi
     fi
   fi
 fi
@@ -381,8 +387,7 @@ Bot + Web laufen via pm2 — nützliche Commands:
   pm2 status                       # Übersicht
   pm2 logs                         # alle Logs live
   pm2 logs discord-bot             # nur Bot
-  pm2 restart discord-bot          # nach Code-Update
-  pm2 restart discord-bot discord-web
+  pm2 restart all                  # beide neu starten
 
 ${C_DIM}Updates pushen:
   git pull
@@ -390,8 +395,8 @@ ${C_DIM}Updates pushen:
   cd packages/db && npx prisma db push && cd ../..
   npm --workspace bot run build
   npm --workspace web run build
-  npm --workspace bot run register     # bei neuen Slash-Commands
-  pm2 restart discord-bot discord-web${C_RESET}
+  npm --workspace bot run register     # nur bei neuen Slash-Commands
+  pm2 restart all${C_RESET}
 
 EOF
 else
