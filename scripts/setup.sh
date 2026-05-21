@@ -306,10 +306,86 @@ if [[ "$PRODUCTION" == "true" ]]; then
     ok "Alle Packages kompiliert"
   fi
 
-  # 2) Caddy — Reverse Proxy + Auto-HTTPS
+  # 2) Reverse-Proxy für HTTPS — Cloudflare Tunnel ODER Caddy
   if [[ "$SKIP_PRIV" != "true" ]]; then
-    read -r -p "  Caddy als Reverse-Proxy für $DOMAIN einrichten? [Y/n] " ans
-    if [[ -z "$ans" || "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
+    echo
+    echo "  Wie soll HTTPS bereitgestellt werden?"
+    echo "    [1] ${C_BLUE}Cloudflare Tunnel${C_RESET}  (Recommended — keine Ports nötig, automatisches HTTPS)"
+    echo "    [2] ${C_BLUE}Caddy${C_RESET}              (Reverse-Proxy + Let's Encrypt, braucht freie Ports 80+443)"
+    echo "    [3] ${C_BLUE}Überspringen${C_RESET}      (machst du selbst)"
+    echo
+    read -r -p "  Auswahl [1/2/3, Default 1]: " PROXY_CHOICE
+    PROXY_CHOICE="${PROXY_CHOICE:-1}"
+
+    # ─── Cloudflare Tunnel ───────────────────────────────────────────────────
+    if [[ "$PROXY_CHOICE" == "1" ]]; then
+      # cloudflared installieren
+      if ! command -v cloudflared >/dev/null 2>&1; then
+        echo "  Installiere cloudflared…"
+        curl -fsSL -o /tmp/cloudflared.deb \
+          https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i /tmp/cloudflared.deb >/dev/null
+        rm -f /tmp/cloudflared.deb
+      fi
+      ok "cloudflared installiert ($(cloudflared --version 2>/dev/null | head -1))"
+
+      # Auth-Check
+      CF_DIR="${HOME}/.cloudflared"
+      if [[ ! -f "$CF_DIR/cert.pem" ]]; then
+        echo
+        echo "  ${C_YELLOW}Cloudflare-Login nötig.${C_RESET} Führ in einem ZWEITEN Terminal aus:"
+        echo
+        echo "    ${C_GREEN}cloudflared tunnel login${C_RESET}"
+        echo
+        echo "  Folge der Browser-URL, login bei Cloudflare → wähle 'jumpy.gg' aus."
+        echo
+        read -r -p "  Bestätige mit Enter, wenn die Auth durch ist…"
+        if [[ ! -f "$CF_DIR/cert.pem" ]]; then
+          err "cert.pem fehlt unter $CF_DIR — Login nicht abgeschlossen."
+          exit 1
+        fi
+      fi
+      ok "Cloudflare-Auth vorhanden"
+
+      # Tunnel-Name aus Domain ableiten
+      TUNNEL_NAME=$(echo "$DOMAIN" | tr '.' '-')
+
+      # Tunnel anlegen falls noch nicht da
+      if ! cloudflared tunnel list 2>/dev/null | awk '{print $2}' | grep -qx "$TUNNEL_NAME"; then
+        cloudflared tunnel create "$TUNNEL_NAME" >/dev/null
+      fi
+      TUNNEL_UUID=$(cloudflared tunnel list 2>/dev/null | awk -v n="$TUNNEL_NAME" '$2==n {print $1}' | head -1)
+      ok "Tunnel: $TUNNEL_NAME ($TUNNEL_UUID)"
+
+      # DNS-Route → CNAME auf <UUID>.cfargotunnel.com
+      cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" >/dev/null 2>&1 || true
+      ok "DNS-CNAME $DOMAIN → ${TUNNEL_UUID}.cfargotunnel.com (Cloudflare-Proxy 🟠)"
+
+      # config.yml schreiben
+      cat > "$CF_DIR/config.yml" <<EOF
+tunnel: $TUNNEL_NAME
+credentials-file: $CF_DIR/$TUNNEL_UUID.json
+
+ingress:
+  - hostname: $DOMAIN
+    service: http://localhost:3000
+  - service: http_status:404
+EOF
+      ok "config.yml geschrieben: $CF_DIR/config.yml"
+
+      # Als systemd-Service einrichten
+      # cloudflared service install kopiert die Config nach /etc/cloudflared/
+      sudo mkdir -p /etc/cloudflared
+      sudo cp "$CF_DIR/config.yml" /etc/cloudflared/config.yml
+      sudo cp "$CF_DIR/$TUNNEL_UUID.json" /etc/cloudflared/
+      sudo cloudflared service install >/dev/null 2>&1 || true
+      sudo systemctl enable --now cloudflared
+      ok "cloudflared läuft als systemd-Service"
+
+      echo "  ${C_DIM}Vorteile: keine Ports auf dem Server offen, HTTPS automatisch via Cloudflare.${C_RESET}"
+
+    # ─── Caddy (klassisch) ───────────────────────────────────────────────────
+    elif [[ "$PROXY_CHOICE" == "2" ]]; then
       if ! command -v caddy >/dev/null 2>&1; then
         echo "  Installiere Caddy…"
         sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl >/dev/null 2>&1 || true
@@ -320,7 +396,6 @@ if [[ "$PRODUCTION" == "true" ]]; then
       fi
       ok "Caddy installiert ($(caddy version 2>/dev/null | head -1))"
 
-      # Caddyfile schreiben
       CADDYFILE="/etc/caddy/Caddyfile"
       BLOCK="$DOMAIN {
     reverse_proxy localhost:3000
@@ -332,19 +407,20 @@ if [[ "$PRODUCTION" == "true" ]]; then
         ok "Caddyfile aktualisiert: $CADDYFILE"
       fi
 
-      # enable+start (frisch installiert oder gestoppt), dann reload für Config-Pickup
       sudo systemctl enable --now caddy >/dev/null 2>&1
       if sudo systemctl reload-or-restart caddy; then
         ok "Caddy läuft — HTTPS-Zertifikat wird automatisch geholt"
       else
         warn "Caddy reload fehlgeschlagen — check 'sudo journalctl -u caddy -n 30'"
+        warn "Häufige Ursache: Port 80/443 schon belegt (z.B. Docker)."
       fi
 
-      # Firewall (falls ufw aktiv)
       if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "Status: active"; then
         sudo ufw allow 80 >/dev/null && sudo ufw allow 443 >/dev/null
         ok "Firewall: Port 80 + 443 freigegeben"
       fi
+    else
+      warn "Reverse-Proxy übersprungen — du musst HTTPS selbst einrichten"
     fi
   fi
 
