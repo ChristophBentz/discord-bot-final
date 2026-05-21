@@ -270,6 +270,13 @@ ok "DB-Schema synchronisiert"
 (cd packages/db && npx prisma generate >/dev/null 2>&1)
 ok "Prisma-Client generiert"
 
+# ─── @repo/db kompilieren ────────────────────────────────────────────────────
+# Muss vor dem Slash-Command-Register laufen, weil das register-Script über die
+# Command-Files transitiv @repo/db importiert und sonst dist/index.js fehlt.
+step "Baue @repo/db (TypeScript)"
+npm run build:db >/dev/null
+ok "@repo/db kompiliert"
+
 # ─── Slash-Commands registrieren ─────────────────────────────────────────────
 step "Registriere Slash-Commands bei Discord"
 if npm --workspace bot run register 2>&1 | tail -5; then
