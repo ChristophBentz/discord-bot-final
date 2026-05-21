@@ -58,7 +58,21 @@ Discord-Bot mit Web-Dashboard zum Konfigurieren — gebaut für einen einzelnen 
 | Free Games | Auto-Posts via GamerPower (Epic, Steam, GOG, Konsolen) mit Ping-Rolle + Footer |
 | Nachrichten | Text / Embed / Umfrage / Datei senden mit Bearbeiten + Löschen |
 
-## Setup (lokal)
+## Schnell-Setup (automatisch)
+
+Nach `git clone` ein einziges Kommando:
+
+```bash
+bash scripts/setup.sh
+```
+
+Das Skript fragt dich nach den Discord-Credentials (Token, IDs, Secret), generiert
+alle restlichen Secrets, schreibt die 3 Env-Files, installiert Dependencies,
+initialisiert die DB und registriert die Slash-Commands. Danach nur noch starten.
+
+Voraussetzungen: Node.js v20+, npm, openssl (auf Linux meist vorinstalliert).
+
+## Setup (manuell, Schritt für Schritt)
 
 ### 1. Discord-Application anlegen
 
@@ -142,15 +156,8 @@ Dashboard: http://localhost:3000
 git clone https://github.com/ChristophBentz/discord-bot-final.git
 cd discord-bot-final
 
-# Env-Files anlegen (siehe Setup Schritt 3)
-cp .env.example .env && nano .env
-cp packages/db/.env.example packages/db/.env
-nano web/.env.local
-
-# Install + DB
-npm ci
-cd packages/db && npx prisma db push && cd ../..
-npm --workspace bot run register
+# Setup (interaktiv, fragt nach Credentials)
+bash scripts/setup.sh
 
 # Build
 npm --workspace bot run build
