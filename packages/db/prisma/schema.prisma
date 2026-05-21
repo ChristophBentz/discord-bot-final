@@ -1,0 +1,382 @@
+// Prisma-Schema für den Discord-Bot.
+// Single-Guild-Setup: alle Settings leben in einer einzigen Config-Zeile.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Singleton: id = 1, immer genau eine Zeile.
+model Config {
+  id Int @id @default(1)
+
+  // Bot-Presence (was Discord neben dem Bot-Namen anzeigt; leer = kein Status)
+  botStatusText String?
+
+  // Vom Bot synchronisiert — Dashboard zeigt das an.
+  guildName        String?
+  guildIconUrl     String?
+  guildMemberCount Int     @default(0)
+
+  // Logging — ein Channel, zuschaltbar pro Kategorie
+  logChannelId      String?
+  logMessageDelete  Boolean @default(true)
+  logMessageEdit    Boolean @default(true)
+  logMemberJoin     Boolean @default(true)
+  logMemberLeave    Boolean @default(true)
+  logMemberBan      Boolean @default(true)
+  logMemberUnban    Boolean @default(true)
+  logMemberNickname Boolean @default(true)
+  logMemberRoles    Boolean @default(true)
+  logVoice          Boolean @default(true)
+
+  // Welcome / Leave
+  welcomeEnabled   Boolean @default(false)
+  welcomeChannelId String?
+  welcomeMessage   String?
+  leaveEnabled     Boolean @default(false)
+  leaveChannelId   String?
+  leaveMessage     String?
+  autoRolesEnabled Boolean @default(false)
+
+  // Moderation
+  muteRoleId String?
+
+  // AutoMod
+  autoModEnabled            Boolean @default(true)
+  autoModDM                 Boolean @default(true)
+  autoModBypassMods         Boolean @default(true)
+  autoModBlockInvites       Boolean @default(false)
+  autoModMassMentionEnabled Boolean @default(false)
+  autoModMassMentionLimit   Int     @default(5)
+  autoModSpamEnabled        Boolean @default(false)
+  autoModSpamMessages       Int     @default(5)
+  autoModSpamSeconds        Int     @default(5)
+  autoModSpamTimeoutMinutes Int     @default(5)
+  autoModExcludedChannelsEnabled Boolean @default(false)
+
+  // Leveling
+  levelingEnabled   Boolean @default(true)
+  levelUpChannelId  String?
+  xpPerMessageMin   Int     @default(15)
+  xpPerMessageMax   Int     @default(25)
+  xpCooldownSeconds Int     @default(60)
+  xpPerMinuteVoice  Int     @default(5)
+
+  // Achievements
+  achievementNotifyDM      Boolean @default(true)
+  achievementNotifyChannel Boolean @default(false)
+  achievementChannelId     String?
+
+  // Tickets
+  ticketsEnabled       Boolean @default(false)
+  ticketChannelId      String?
+  ticketPanelMessageId String?
+  ticketCategoryId     String?
+  ticketStaffRoleId    String?
+
+  // Temp-Voice-Channels (Join-to-Create) — Trigger leben in TempChannelTrigger
+  tempChannelEnabled      Boolean @default(false)
+  tempChannelCategoryId   String?
+  tempChannelNameTemplate String  @default("🎙️ {nick}'s Channel")
+
+  // Music — DJ-Rollen in MusicRole
+  musicEnabled Boolean @default(false)
+
+  // Free Games — postet aktuelle Gratis-Aktionen via GamerPower
+  freeGamesEnabled      Boolean @default(false)
+  freeGamesChannelId    String?
+  freeGamesEpic         Boolean @default(true)
+  freeGamesSteam        Boolean @default(true)
+  freeGamesGog          Boolean @default(true)
+  freeGamesConsole      Boolean @default(false)
+  freeGamesIncludeGames Boolean @default(true)
+  freeGamesIncludeDlc   Boolean @default(false)
+  freeGamesIncludeLoot  Boolean @default(false)
+  freeGamesMessage      String?
+  freeGamesPingRoleId   String?
+  freeGamesFooterText   String?
+  freeGamesLastCheck    DateTime?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Über das Dashboard verschickte Bot-Nachrichten — History + Bearbeiten/Löschen.
+model BotMessage {
+  id        Int      @id @default(autoincrement())
+  channelId String
+  messageId String   @unique
+  type      String // "text" | "embed" | "poll" | "file"
+  content   String?
+  embedJson String? // serialized EmbedSpec
+  pollJson  String? // nur zur Anzeige — Polls können nicht editiert werden
+  fileName  String?
+  sentBy    String?
+  sentAt    DateTime  @default(now())
+  editedAt  DateTime?
+}
+
+// Dedup-Speicher — verhindert dass dasselbe Giveaway zweimal gepostet wird.
+model FreeGamePost {
+  giveawayId Int      @id
+  title      String
+  platform   String
+  postedAt   DateTime @default(now())
+  messageId  String?
+}
+
+// Rollen, die Musik abspielen + steuern dürfen.
+model MusicRole {
+  roleId  String   @id
+  addedBy String?
+  addedAt DateTime @default(now())
+}
+
+// Trigger-Channels für „Join-to-Create" — jeder mit eigenem User-Limit.
+model TempChannelTrigger {
+  channelId    String   @id
+  userLimit    Int      @default(0)
+  nameTemplate String? // Override für globales Template
+  createdAt    DateTime @default(now())
+}
+
+// Aktive Temp-Voice-Channels.
+model TempChannel {
+  channelId      String   @id
+  ownerId        String
+  panelMessageId String?
+  createdAt      DateTime @default(now())
+
+  @@index([ownerId])
+}
+
+// Rollen, die jeder neue Member automatisch bekommt.
+model AutoRole {
+  id      Int      @id @default(autoincrement())
+  roleId  String   @unique
+  addedAt DateTime @default(now())
+}
+
+// AutoMod ausgenommene Channels — keine Regel greift in diesen Channels.
+model AutoModExcludedChannel {
+  channelId String   @id
+  addedAt   DateTime @default(now())
+  addedBy   String?
+}
+
+// Rollen, die vom AutoMod-Filter ausgenommen sind (wenn autoModBypassMods aktiv ist).
+model AutoModBypassRole {
+  roleId  String   @id
+  addedBy String?
+  addedAt DateTime @default(now())
+}
+
+// Erlaubte Discord-Server — Invites werden via Guild-ID matched, damit beliebige Codes vom gleichen Server durchgehen.
+model WhitelistedInvite {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique
+  guildName String?
+  note      String?
+  addedBy   String?
+  createdAt DateTime @default(now())
+}
+
+// AutoMod-Wortliste.
+model BlacklistedWord {
+  id        Int      @id @default(autoincrement())
+  word      String   @unique // case-insensitive verglichen, hier lowercase gespeichert
+  addedBy   String?
+  createdAt DateTime @default(now())
+
+  @@index([word])
+}
+
+// Mod-Warnungen.
+model Warning {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  moderatorId String
+  reason      String
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Aktive Mutes (für Timeout-Wiederherstellung nach Bot-Restart).
+model Mute {
+  id        Int      @id @default(autoincrement())
+  userId    String   @unique
+  reason    String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// Leveling pro User.
+model LevelUser {
+  userId       String   @id
+  displayName  String?
+  xp           Int      @default(0)
+  level        Int      @default(0)
+  messageCount Int      @default(0)
+  voiceSeconds Int      @default(0)
+  lastMessage  DateTime @default(now())
+}
+
+// Rollen, die bei einem bestimmten Level vergeben werden.
+model LevelReward {
+  level  Int    @id
+  roleId String
+}
+
+// Tickets.
+model Ticket {
+  id        Int       @id @default(autoincrement())
+  channelId String    @unique // Discord-Thread-ID
+  userId    String
+  username  String?
+  topic     String?
+  status    String    @default("open") // "open" | "closed"
+  createdAt DateTime  @default(now())
+  closedAt  DateTime?
+  closedBy  String?
+
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Einzelne Nachrichten im Ticket-Thread.
+model TicketMessage {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int
+  authorId   String
+  authorName String
+  fromMod    Boolean  @default(false)
+  content    String
+  createdAt  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+// Vom User im Dashboard definierte Text-Commands.
+model CustomCommand {
+  name      String   @id
+  response  String
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Synchronisiert vom Bot — alle bekannten Server-Mitglieder.
+model Member {
+  userId        String    @id
+  username      String
+  displayName   String
+  discriminator String?
+  avatarUrl     String?
+  joinedAt      DateTime?
+  roleIds       String    @default("")
+  isBot         Boolean   @default(false)
+  inServer      Boolean   @default(true)
+  isProtected   Boolean   @default(false) // Owner / Admin / Mod — vor Kick/Ban/Timeout geschützt
+  lastSyncAt    DateTime  @default(now())
+
+  @@index([displayName])
+  @@index([inServer])
+}
+
+// Synchronisierte Server-Rollen.
+model GuildRole {
+  roleId   String @id
+  name     String
+  color    Int    @default(0)
+  position Int    @default(0)
+
+  @@index([position])
+}
+
+// Vom Bot synchronisiert — alle Text-fähigen Server-Channels.
+model GuildChannel {
+  channelId String  @id
+  name      String
+  type      Int     @default(0)
+  parentId  String?
+  position  Int     @default(0)
+
+  @@index([position])
+}
+
+// Nachrichten-Aktivität pro User & Channel & Tag.
+model ChannelActivity {
+  userId    String
+  channelId String
+  date      String
+  messages  Int    @default(0)
+
+  @@id([userId, channelId, date])
+  @@index([userId, date])
+  @@index([channelId])
+}
+
+// Pro-Stunde-Aktivität pro User (für Heat-Map mit Tageszeit-Buckets).
+model HourlyActivity {
+  userId       String
+  date         String
+  hour         Int
+  messages     Int    @default(0)
+  voiceSeconds Int    @default(0)
+
+  @@id([userId, date, hour])
+  @@index([userId])
+  @@index([date])
+}
+
+// Definition eines Achievements.
+model Achievement {
+  id           Int      @id @default(autoincrement())
+  name         String
+  description  String
+  imageUrl     String?  // /uploads/achievements/<id>.<ext>
+  // "manual" | "level" | "messages" | "voice" | "xp"
+  triggerType  String   @default("manual")
+  triggerValue Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  awards UserAchievement[]
+
+  @@index([triggerType, triggerValue])
+}
+
+// User hat ein Achievement freigeschaltet.
+model UserAchievement {
+  id            Int      @id @default(autoincrement())
+  userId        String
+  achievementId Int
+  awardedAt     DateTime @default(now())
+  awardedBy     String?  // null = automatisch, sonst Moderator-ID
+
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+// Staff-Notizen zu einem Member.
+model MemberNote {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  authorId   String
+  authorName String
+  content    String
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}

@@ -1,0 +1,20 @@
+{
+  "name": "discord-bot-final",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "bot",
+    "web",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:generate": "npm --workspace @repo/db run generate",
+    "db:migrate": "npm --workspace @repo/db run migrate",
+    "db:studio": "npm --workspace @repo/db run studio",
+    "bot:dev": "npm --workspace bot run dev",
+    "web:dev": "npm --workspace web run dev"
+  },
+  "overrides": {
+    "youtubei.js": "^17.0.0"
+  }
+}

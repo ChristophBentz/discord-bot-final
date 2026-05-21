@@ -1,0 +1,18 @@
+node_modules/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Build-Output
+dist/
+.next/
+
+# Datenbank
+*.db
+*.db-journal
+packages/db/prisma/migrations/dev.db*
+
+# IDE
+.vscode/
+.idea/
