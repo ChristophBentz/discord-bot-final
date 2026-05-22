@@ -8,6 +8,7 @@ import {
   type GuildMember,
   type TextChannel,
   ThreadAutoArchiveDuration,
+  type Webhook,
 } from "discord.js";
 import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
@@ -259,6 +260,51 @@ async function postCloseSideEffects(client: Client, ticketId: number): Promise<v
 }
 
 // Mod schreibt aus dem Dashboard zurück.
+// Cache pro Parent-Channel-ID, damit wir nicht jedes Mal fetchWebhooks() pingen.
+const webhookCache = new Map<string, Webhook>();
+
+// Holt oder erstellt einen Webhook im Parent-Channel des Ticket-Threads.
+// Webhooks können den Username + Avatar pro Nachricht überschreiben.
+async function getOrCreateTicketWebhook(parent: TextChannel): Promise<Webhook | null> {
+  const cached = webhookCache.get(parent.id);
+  if (cached) return cached;
+
+  try {
+    const existing = await parent.fetchWebhooks();
+    // Nur Webhooks die der Bot selbst angelegt hat haben einen Token
+    const ours = existing.find(
+      (w) => w.name === "Ticket-Bot" && w.owner?.id === parent.client.user?.id && w.token,
+    );
+    if (ours) {
+      webhookCache.set(parent.id, ours);
+      return ours;
+    }
+    const created = await parent.createWebhook({
+      name: "Ticket-Bot",
+      reason: "Wird verwendet um Mod-Antworten in Ticket-Threads mit dem Mod-Namen zu posten",
+    });
+    webhookCache.set(parent.id, created);
+    return created;
+  } catch (err) {
+    logger.warn(
+      { err, channelId: parent.id },
+      "Konnte Webhook nicht anlegen — Bot hat keine Manage-Webhooks-Permission?",
+    );
+    return null;
+  }
+}
+
+// Sanitisiert den Display-Namen für den Webhook (Discord blockt 'discord' u.ä.)
+function safeWebhookUsername(name: string): string {
+  let cleaned = name
+    .replace(/(discord|clyde)/gi, "$1.")
+    .replace(/[^\w\s.\-]/g, "")
+    .trim()
+    .slice(0, 32);
+  if (cleaned.length < 2) cleaned = "Mod";
+  return cleaned;
+}
+
 export async function sendModReply(
   client: Client,
   ticketId: number,
@@ -271,14 +317,44 @@ export async function sendModReply(
   const thread = await client.channels.fetch(ticket.channelId).catch(() => null);
   if (!thread?.isThread()) return { ok: false, error: "Thread nicht gefunden." };
 
+  // Mod-Avatar aus Member-Tabelle holen (vom Bot synced)
+  const modMember = await prisma.member.findUnique({
+    where: { userId: args.authorId },
+    select: { avatarUrl: true, displayName: true },
+  });
+  const displayName = modMember?.displayName ?? args.authorName;
+  const avatarURL = modMember?.avatarUrl ?? undefined;
+
   try {
     if (thread.archived) await thread.setArchived(false);
-    const embed = new EmbedBuilder()
-      .setColor(0xa855f7)
-      .setAuthor({ name: `${args.authorName} (Mod)` })
-      .setDescription(args.content)
-      .setTimestamp(new Date());
-    await thread.send({ embeds: [embed] });
+
+    const parent = thread.parent;
+    let posted = false;
+
+    // Variante A: via Webhook → erscheint mit Mod-Name + Avatar (wie normaler User)
+    if (parent && parent.isTextBased() && "fetchWebhooks" in parent) {
+      const webhook = await getOrCreateTicketWebhook(parent as TextChannel);
+      if (webhook) {
+        await webhook.send({
+          content: args.content,
+          username: safeWebhookUsername(displayName),
+          avatarURL,
+          threadId: thread.id,
+          allowedMentions: { parse: ["users", "roles"] },
+        });
+        posted = true;
+      }
+    }
+
+    // Variante B: Fallback als Embed (falls Webhook nicht ging, z.B. fehlende Permission)
+    if (!posted) {
+      const embed = new EmbedBuilder()
+        .setColor(0xa855f7)
+        .setAuthor({ name: `${displayName} (Mod)`, iconURL: avatarURL })
+        .setDescription(args.content)
+        .setTimestamp(new Date());
+      await thread.send({ embeds: [embed] });
+    }
   } catch (err) {
     logger.warn({ err, threadId: thread.id }, "Mod-Reply-Posten fehlgeschlagen");
     return { ok: false, error: "Konnte Nachricht nicht posten." };
@@ -288,7 +364,7 @@ export async function sendModReply(
     data: {
       ticketId,
       authorId: args.authorId,
-      authorName: args.authorName,
+      authorName: displayName,
       fromMod: true,
       content: args.content,
     },
