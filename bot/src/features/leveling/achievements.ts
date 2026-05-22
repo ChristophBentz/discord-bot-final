@@ -65,7 +65,7 @@ function buildEmbed(args: {
     .setDescription(
       args.isDM
         ? `Auf dem Server **${args.guildName}** hast du eine neue Auszeichnung erhalten:`
-        : `<@${args.userId}> hat eine neue Auszeichnung erhalten:`,
+        : `Eine neue Auszeichnung wurde freigeschaltet:`,
     )
     .addFields({ name: args.achievement.name, value: args.achievement.description })
     .setTimestamp(new Date());
@@ -147,8 +147,12 @@ async function awardAndNotify(
             attachmentName: attachment?.name ?? null,
           });
           await (channel as TextChannel).send({
+            // Mention im Content damit's als klickbare Erwähnung gerendert wird
+            // (in Embed-Descriptions zeigt Discord nur Roh-Text <@ID>)
+            content: `<@${userId}>`,
             embeds: [channelEmbed],
             files: attachment ? [attachment] : [],
+            allowedMentions: { parse: [] },
           });
           channelSent = true;
         }

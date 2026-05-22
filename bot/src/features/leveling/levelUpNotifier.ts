@@ -1,4 +1,4 @@
-import { type Client, type TextChannel, EmbedBuilder } from "discord.js";
+import { type Client, type TextChannel } from "discord.js";
 import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 
@@ -17,11 +17,11 @@ export async function announceLevelUp(args: {
     const channel = await args.client.channels.fetch(channelId).catch(() => null);
     if (!channel?.isTextBased() || !("send" in channel)) return;
 
-    const embed = new EmbedBuilder()
-      .setColor(0xfaa61a)
-      .setDescription(`<@${args.userId}> ist auf **Level ${args.newLevel}** aufgestiegen.`);
-
-    await (channel as TextChannel).send({ embeds: [embed] });
+    await (channel as TextChannel).send({
+      content: `🎉 <@${args.userId}> ist auf **Level ${args.newLevel}** aufgestiegen!`,
+      // parse: [] = Mention wird klickbar gerendert, aber niemand wird gepingt
+      allowedMentions: { parse: [] },
+    });
   } catch (err) {
     logger.error({ err }, "Level-Up-Ankündigung fehlgeschlagen");
   }
