@@ -243,7 +243,7 @@ export function PlayerPanel({ enabled }: { enabled: boolean }) {
             type="range"
             min={0}
             max={200}
-            value={volumeLocal ?? state?.volume ?? 80}
+            value={volumeLocal ?? state?.volume ?? 20}
             disabled={!current}
             onPointerDown={() => (userDraggingVolume.current = true)}
             onPointerUp={() => {
@@ -262,7 +262,7 @@ export function PlayerPanel({ enabled }: { enabled: boolean }) {
             className="flex-1 accent-brand disabled:opacity-40"
           />
           <span className="w-12 text-right text-xs tabular-nums text-ink-muted">
-            {volumeLocal ?? state?.volume ?? 80}%
+            {volumeLocal ?? state?.volume ?? 20}%
           </span>
         </div>
 

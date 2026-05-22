@@ -34,7 +34,7 @@ const command: SlashCommand = {
           leaveOnEnd: true,
           leaveOnEndCooldown: 5 * 60_000,
           selfDeaf: false,
-          volume: 80,
+          volume: 20,
         },
         requestedBy: interaction.user as never,
       });

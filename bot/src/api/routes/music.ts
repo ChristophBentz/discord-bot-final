@@ -40,7 +40,7 @@ export async function getMusicState(client: Client): Promise<MusicState> {
       current: null,
       paused: false,
       repeatMode: "off",
-      volume: 80,
+      volume: 20,
       upcoming: [],
       totalQueueSize: 0,
     };
@@ -124,7 +124,7 @@ export async function handlePlay(
         leaveOnEnd: true,
         leaveOnEndCooldown: 5 * 60_000,
         selfDeaf: false,
-        volume: 80,
+        volume: 20,
       },
       requestedBy: member.user as never,
     });
