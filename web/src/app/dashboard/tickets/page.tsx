@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getConfig, prisma } from "@repo/db";
 import { SettingsForm } from "./SettingsForm";
+import { SettingsCollapsible } from "./SettingsCollapsible";
 import { LiveRefresh } from "@/components/LiveRefresh";
 
 function timeAgo(date: Date): string {
@@ -86,11 +87,10 @@ export default async function TicketsPage() {
         </p>
       </header>
 
-      <section className="card p-6">
-        <h2 className="mb-1 text-lg font-semibold">Einstellungen</h2>
-        <p className="mb-5 text-sm text-ink-muted">
-          Welcher Channel zeigt das „Ticket öffnen"-Panel?
-        </p>
+      <SettingsCollapsible
+        summary="Einstellungen"
+        hint="Channel-Konfiguration, Transkript- und Bewertungs-Optionen"
+      >
         <SettingsForm
           initial={{
             ticketsEnabled: config.ticketsEnabled,
@@ -108,7 +108,7 @@ export default async function TicketsPage() {
             position: c.position,
           }))}
         />
-      </section>
+      </SettingsCollapsible>
 
       <section className="card p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
@@ -166,20 +166,21 @@ export default async function TicketsPage() {
         )}
       </section>
 
+      {(modStats.length > 0 || recentRatings.length > 0) && (
+      <div className="grid gap-8 lg:grid-cols-2">
       {modStats.length > 0 && (
         <section className="card p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Mod-Statistik</h2>
             <span className="badge">{modStats.length} Mods</span>
           </div>
-          <div className="overflow-x-auto">
+          <div className="max-h-[400px] overflow-auto">
             <table className="min-w-full text-sm">
               <thead className="border-y border-line bg-bg-elevated/50 text-xs uppercase tracking-wide text-ink-subtle">
                 <tr>
                   <th className="px-4 py-2.5 text-left font-medium">Mod</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Tickets geschlossen</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Bewertet</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Ø Bewertung</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Tickets</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Ø</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -207,17 +208,17 @@ export default async function TicketsPage() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-right tabular-nums">{m.totalClosed}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-ink-muted">
-                        {m.ratedCount}
-                      </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {m.avgRating ? (
-                          <span className="font-medium">
+                          <div className="font-medium">
                             <span className="text-amber-400">
                               {"⭐".repeat(Math.round(m.avgRating))}
                             </span>{" "}
                             {avg}
-                          </span>
+                            <div className="text-[10px] font-normal text-ink-subtle">
+                              {m.ratedCount} Bew.
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-ink-subtle">—</span>
                         )}
@@ -237,7 +238,7 @@ export default async function TicketsPage() {
             <h2 className="text-lg font-semibold">Letzte Bewertungen</h2>
             <span className="badge">{recentRatings.length}</span>
           </div>
-          <ul className="space-y-2">
+          <ul className="max-h-[400px] space-y-2 overflow-auto">
             {recentRatings.map((r) => {
               const user = memberById.get(r.userId);
               const mod = r.closedBy ? memberById.get(r.closedBy) : null;
@@ -277,6 +278,8 @@ export default async function TicketsPage() {
             })}
           </ul>
         </section>
+      )}
+      </div>
       )}
 
       {closedTickets.length > 0 && (
