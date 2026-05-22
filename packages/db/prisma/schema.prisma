@@ -74,11 +74,15 @@ model Config {
   achievementChannelId     String?
 
   // Tickets
-  ticketsEnabled       Boolean @default(false)
-  ticketChannelId      String?
-  ticketPanelMessageId String?
-  ticketCategoryId     String?
-  ticketStaffRoleId    String?
+  ticketsEnabled            Boolean @default(false)
+  ticketChannelId           String?
+  ticketPanelMessageId      String?
+  ticketCategoryId          String?
+  ticketStaffRoleId         String?
+  ticketTranscriptEnabled   Boolean @default(false)
+  ticketTranscriptChannelId String?
+  ticketRatingEnabled       Boolean @default(false)
+  ticketRatingChannelId     String?
 
   // Temp-Voice-Channels (Join-to-Create) — Trigger leben in TempChannelTrigger
   tempChannelEnabled      Boolean @default(false)
@@ -245,10 +249,16 @@ model Ticket {
   closedAt  DateTime?
   closedBy  String?
 
+  // Bewertung nach Schließen (User wird via DM gefragt)
+  rating        Int?
+  ratingComment String?
+  ratingAt      DateTime?
+
   messages TicketMessage[]
 
   @@index([userId])
   @@index([status])
+  @@index([closedBy])
 }
 
 // Einzelne Nachrichten im Ticket-Thread.

@@ -15,7 +15,7 @@ function timeAgo(date: Date): string {
 }
 
 export default async function TicketsPage() {
-  const [config, openTickets, closedTickets, channels] = await Promise.all([
+  const [config, openTickets, closedTickets, channels, modStatsRaw, recentRatings] = await Promise.all([
     getConfig(),
     prisma.ticket.findMany({
       where: { status: "open" },
@@ -29,15 +29,51 @@ export default async function TicketsPage() {
       include: { _count: { select: { messages: true } } },
     }),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
+    prisma.ticket.groupBy({
+      by: ["closedBy"],
+      where: { closedBy: { not: null }, status: "closed" },
+      _count: { _all: true },
+      _avg: { rating: true },
+    }),
+    prisma.ticket.findMany({
+      where: { rating: { not: null } },
+      orderBy: { ratingAt: "desc" },
+      take: 10,
+    }),
   ]);
 
   // Avatare aus Member-Tabelle joinen
-  const userIds = [...openTickets, ...closedTickets].map((t) => t.userId);
+  const userIds = [
+    ...openTickets,
+    ...closedTickets,
+    ...recentRatings,
+  ].map((t) => t.userId);
+  const closerIds = modStatsRaw
+    .map((s) => s.closedBy)
+    .filter((id): id is string => Boolean(id))
+    .concat(recentRatings.map((r) => r.closedBy).filter((id): id is string => Boolean(id)));
   const members = await prisma.member.findMany({
-    where: { userId: { in: userIds } },
+    where: { userId: { in: [...userIds, ...closerIds] } },
     select: { userId: true, avatarUrl: true, displayName: true },
   });
   const memberById = new Map(members.map((m) => [m.userId, m]));
+
+  // Mod-Stats mit Rating-Counts ergänzen (groupBy zählt _all, wir brauchen auch wie viele rated wurden)
+  const ratedCounts = await prisma.ticket.groupBy({
+    by: ["closedBy"],
+    where: { closedBy: { not: null }, status: "closed", rating: { not: null } },
+    _count: { _all: true },
+  });
+  const ratedCountByMod = new Map(ratedCounts.map((r) => [r.closedBy, r._count._all]));
+  const modStats = modStatsRaw
+    .filter((s) => s.closedBy)
+    .map((s) => ({
+      modId: s.closedBy!,
+      totalClosed: s._count._all,
+      ratedCount: ratedCountByMod.get(s.closedBy) ?? 0,
+      avgRating: s._avg.rating,
+    }))
+    .sort((a, b) => b.totalClosed - a.totalClosed);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -59,6 +95,10 @@ export default async function TicketsPage() {
           initial={{
             ticketsEnabled: config.ticketsEnabled,
             ticketChannelId: config.ticketChannelId,
+            ticketTranscriptEnabled: config.ticketTranscriptEnabled,
+            ticketTranscriptChannelId: config.ticketTranscriptChannelId,
+            ticketRatingEnabled: config.ticketRatingEnabled,
+            ticketRatingChannelId: config.ticketRatingChannelId,
           }}
           channels={channels.map((c) => ({
             channelId: c.channelId,
@@ -125,6 +165,119 @@ export default async function TicketsPage() {
           </ul>
         )}
       </section>
+
+      {modStats.length > 0 && (
+        <section className="card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Mod-Statistik</h2>
+            <span className="badge">{modStats.length} Mods</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="border-y border-line bg-bg-elevated/50 text-xs uppercase tracking-wide text-ink-subtle">
+                <tr>
+                  <th className="px-4 py-2.5 text-left font-medium">Mod</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Tickets geschlossen</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Bewertet</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Ø Bewertung</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {modStats.map((m) => {
+                  const member = memberById.get(m.modId);
+                  const name = member?.displayName ?? `User ${m.modId.slice(-4)}`;
+                  const avg = m.avgRating ? m.avgRating.toFixed(1) : "—";
+                  return (
+                    <tr key={m.modId} className="hover:bg-bg-hover/50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {member?.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={member.avatarUrl}
+                              alt=""
+                              className="h-7 w-7 rounded-full ring-1 ring-line"
+                            />
+                          ) : (
+                            <span className="grid h-7 w-7 place-items-center rounded-full bg-bg-elevated text-xs">
+                              {name[0]?.toUpperCase() ?? "?"}
+                            </span>
+                          )}
+                          <span className="font-medium">{name}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums">{m.totalClosed}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-ink-muted">
+                        {m.ratedCount}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {m.avgRating ? (
+                          <span className="font-medium">
+                            <span className="text-amber-400">
+                              {"⭐".repeat(Math.round(m.avgRating))}
+                            </span>{" "}
+                            {avg}
+                          </span>
+                        ) : (
+                          <span className="text-ink-subtle">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {recentRatings.length > 0 && (
+        <section className="card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Letzte Bewertungen</h2>
+            <span className="badge">{recentRatings.length}</span>
+          </div>
+          <ul className="space-y-2">
+            {recentRatings.map((r) => {
+              const user = memberById.get(r.userId);
+              const mod = r.closedBy ? memberById.get(r.closedBy) : null;
+              const userName = user?.displayName ?? r.username ?? `User ${r.userId.slice(-4)}`;
+              const modName = mod?.displayName ?? (r.closedBy ? `User ${r.closedBy.slice(-4)}` : "?");
+              const stars = r.rating ?? 0;
+              return (
+                <li
+                  key={r.id}
+                  className="rounded-xl border border-line bg-bg-elevated/40 p-3"
+                >
+                  <div className="mb-1 flex items-center gap-2 text-xs text-ink-subtle">
+                    <span className="text-amber-400 text-sm">
+                      {"⭐".repeat(stars)}
+                      {"☆".repeat(5 - stars)}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      Ticket <Link href={`/dashboard/tickets/${r.id}`} className="text-brand hover:underline">#{r.id}</Link>
+                    </span>
+                    <span>·</span>
+                    <span>{userName}</span>
+                    <span>·</span>
+                    <span>Beraten von <span className="text-ink">{modName}</span></span>
+                    {r.ratingAt && (
+                      <>
+                        <span>·</span>
+                        <span>{timeAgo(r.ratingAt)}</span>
+                      </>
+                    )}
+                  </div>
+                  {r.ratingComment && (
+                    <p className="text-sm text-ink-muted">„{r.ratingComment}"</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {closedTickets.length > 0 && (
         <section className="card p-6">

@@ -25,8 +25,19 @@ export async function saveTicketSettings(formData: FormData): Promise<Result> {
 
   const enabled = formData.get("ticketsEnabled") === "on";
   const channelId = String(formData.get("ticketChannelId") ?? "").trim();
-  if (channelId && !SNOWFLAKE.test(channelId)) {
-    return { ok: false, error: "Channel-ID muss eine Snowflake sein." };
+  const transcriptEnabled = formData.get("ticketTranscriptEnabled") === "on";
+  const transcriptChannelId = String(formData.get("ticketTranscriptChannelId") ?? "").trim();
+  const ratingEnabled = formData.get("ticketRatingEnabled") === "on";
+  const ratingChannelId = String(formData.get("ticketRatingChannelId") ?? "").trim();
+
+  for (const [name, id] of [
+    ["Ticket", channelId],
+    ["Transkript", transcriptChannelId],
+    ["Bewertungen", ratingChannelId],
+  ] as const) {
+    if (id && !SNOWFLAKE.test(id)) {
+      return { ok: false, error: `${name}-Channel-ID muss eine Snowflake sein.` };
+    }
   }
 
   // Wenn Channel-Wechsel: bestehende Panel-ID resetten, Bot postet neu.
@@ -38,12 +49,20 @@ export async function saveTicketSettings(formData: FormData): Promise<Result> {
     update: {
       ticketsEnabled: enabled,
       ticketChannelId: channelId === "" ? null : channelId,
+      ticketTranscriptEnabled: transcriptEnabled,
+      ticketTranscriptChannelId: transcriptChannelId === "" ? null : transcriptChannelId,
+      ticketRatingEnabled: ratingEnabled,
+      ticketRatingChannelId: ratingChannelId === "" ? null : ratingChannelId,
       ...(channelChanged ? { ticketPanelMessageId: null } : {}),
     },
     create: {
       id: 1,
       ticketsEnabled: enabled,
       ticketChannelId: channelId === "" ? null : channelId,
+      ticketTranscriptEnabled: transcriptEnabled,
+      ticketTranscriptChannelId: transcriptChannelId === "" ? null : transcriptChannelId,
+      ticketRatingEnabled: ratingEnabled,
+      ticketRatingChannelId: ratingChannelId === "" ? null : ratingChannelId,
     },
   });
 

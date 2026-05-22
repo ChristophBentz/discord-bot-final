@@ -12,6 +12,7 @@ import {
 import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { env } from "../../lib/env.js";
+import { buildTranscript } from "./transcript.js";
 
 export function buildPanel() {
   const embed = new EmbedBuilder()
@@ -181,8 +182,69 @@ export async function closeTicket(
     },
   });
 
+  // Transkript + Rating-DM async — Schließen blockiert nicht.
+  void postCloseSideEffects(client, ticketId).catch((err) =>
+    logger.error({ err, ticketId }, "Ticket post-close side effects fehlgeschlagen"),
+  );
+
   logger.info({ ticketId, closedBy }, "Ticket geschlossen");
   return { ok: true };
+}
+
+// Nach dem Schließen: Transkript in Channel + Rating-DM an User.
+async function postCloseSideEffects(client: Client, ticketId: number): Promise<void> {
+  const config = await prisma.config.findUnique({ where: { id: 1 } });
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket || !config) return;
+
+  // 1. Transkript-Post
+  if (config.ticketTranscriptEnabled && config.ticketTranscriptChannelId) {
+    try {
+      const transcript = await buildTranscript(ticketId);
+      const channel = await client.channels
+        .fetch(config.ticketTranscriptChannelId)
+        .catch(() => null);
+      if (transcript && channel?.isTextBased() && "send" in channel) {
+        const embed = new EmbedBuilder()
+          .setColor(0x5865f2)
+          .setTitle(`📜 Ticket-Transkript #${ticket.id}`)
+          .setDescription(`User: <@${ticket.userId}> · Topic: ${ticket.topic ?? "—"}`)
+          .setTimestamp(ticket.closedAt ?? new Date())
+          .setFooter({ text: `Geschlossen von ${ticket.closedBy ?? "?"}` });
+        await (channel as TextChannel).send({
+          embeds: [embed],
+          files: [transcript.attachment],
+        });
+      }
+    } catch (err) {
+      logger.warn({ err, ticketId }, "Transkript-Post fehlgeschlagen");
+    }
+  }
+
+  // 2. Rating-DM an den User (nur wenn jemand anderes geschlossen hat)
+  if (config.ticketRatingEnabled && ticket.closedBy && ticket.closedBy !== ticket.userId) {
+    try {
+      const user = await client.users.fetch(ticket.userId).catch(() => null);
+      if (user) {
+        const embed = new EmbedBuilder()
+          .setColor(0xfaa61a)
+          .setTitle("⭐ Wie zufrieden warst du mit dem Support?")
+          .setDescription(
+            `Dein Ticket **#${ticket.id}** wurde geschlossen. Bitte gib uns eine kurze Bewertung — das hilft uns, besser zu werden.`,
+          );
+        const buttons = [1, 2, 3, 4, 5].map((stars) =>
+          new ButtonBuilder()
+            .setCustomId(`ticket:rate:${ticket.id}:${stars}`)
+            .setLabel("⭐".repeat(stars))
+            .setStyle(ButtonStyle.Secondary),
+        );
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
+        await user.send({ embeds: [embed], components: [row] });
+      }
+    } catch (err) {
+      logger.warn({ err, ticketId }, "Rating-DM fehlgeschlagen (User hat DMs aus?)");
+    }
+  }
 }
 
 // Mod schreibt aus dem Dashboard zurück.
@@ -273,3 +335,66 @@ export function startTicketCleanup(client: Client): void {
 }
 
 void env;
+
+// Validiert ob der User wirklich der Ticket-Owner ist (vor Modal-Anzeige).
+export async function handleRatingButton(
+  ticketId: number,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) return { ok: false, error: "Ticket nicht gefunden." };
+  if (ticket.userId !== userId) return { ok: false, error: "Nur der Ticket-Owner kann bewerten." };
+  if (ticket.rating !== null) return { ok: false, error: "Du hast bereits bewertet." };
+  return { ok: true };
+}
+
+// Speichert die Bewertung + postet sie (falls Channel konfiguriert).
+export async function handleRatingModal(
+  client: Client,
+  ticketId: number,
+  userId: string,
+  stars: number,
+  comment: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) return { ok: false, error: "Ticket nicht gefunden." };
+  if (ticket.userId !== userId) return { ok: false, error: "Nur der Ticket-Owner kann bewerten." };
+  if (ticket.rating !== null) return { ok: false, error: "Du hast bereits bewertet." };
+
+  await prisma.ticket.update({
+    where: { id: ticketId },
+    data: { rating: stars, ratingComment: comment, ratingAt: new Date() },
+  });
+
+  // In Rating-Channel posten falls konfiguriert
+  const config = await prisma.config.findUnique({ where: { id: 1 } });
+  if (config?.ticketRatingEnabled && config.ticketRatingChannelId) {
+    try {
+      const channel = await client.channels
+        .fetch(config.ticketRatingChannelId)
+        .catch(() => null);
+      if (channel?.isTextBased() && "send" in channel) {
+        const color = stars >= 4 ? 0x2ecc71 : stars === 3 ? 0xfaa61a : 0xed4245;
+        const embed = new EmbedBuilder()
+          .setColor(color)
+          .setTitle(`${"⭐".repeat(stars)}${"☆".repeat(5 - stars)} — Ticket #${ticket.id}`)
+          .setDescription(
+            `User: <@${ticket.userId}>` +
+              (ticket.closedBy ? ` · Beraten von: <@${ticket.closedBy}>` : "") +
+              (ticket.topic ? `\nTopic: ${ticket.topic}` : ""),
+          )
+          .setTimestamp(new Date());
+        if (comment) embed.addFields({ name: "Kommentar", value: comment });
+        await (channel as TextChannel).send({
+          embeds: [embed],
+          allowedMentions: { parse: [] },
+        });
+      }
+    } catch (err) {
+      logger.warn({ err, ticketId }, "Rating-Channel-Post fehlgeschlagen");
+    }
+  }
+
+  logger.info({ ticketId, stars }, "Ticket-Bewertung abgegeben");
+  return { ok: true };
+}
