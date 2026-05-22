@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { callBot } from "@/lib/botApi";
+import { prisma } from "@repo/db";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -38,5 +39,16 @@ export async function removeTimeout(userId: string, reason: string): Promise<Res
   if (!res.ok) return res;
   revalidatePath("/dashboard/moderation");
   revalidatePath(`/dashboard/members/${userId}`);
+  return { ok: true };
+}
+
+export async function deleteWarning(id: number): Promise<Result> {
+  const mod = await getMod();
+  if (!mod) return { ok: false, error: "Nicht eingeloggt." };
+  const warning = await prisma.warning.findUnique({ where: { id } });
+  if (!warning) return { ok: false, error: "Verwarnung nicht gefunden." };
+  await prisma.warning.delete({ where: { id } });
+  revalidatePath("/dashboard/moderation");
+  revalidatePath(`/dashboard/members/${warning.userId}`);
   return { ok: true };
 }

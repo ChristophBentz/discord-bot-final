@@ -1,3 +1,4 @@
+import { prisma } from "@repo/db";
 import { callBot } from "@/lib/botApi";
 import {
   BanList,
@@ -5,6 +6,7 @@ import {
   type BanEntry,
   type TimeoutEntry,
 } from "./ModerationLists";
+import { WarningsList, type WarningEntry } from "./WarningsList";
 
 interface BotState {
   timeouts: TimeoutEntry[];
@@ -12,11 +14,39 @@ interface BotState {
 }
 
 export default async function ModerationPage() {
-  const res = await callBot<BotState>("/api/moderation/state", { method: "GET" });
+  const [botRes, warnings] = await Promise.all([
+    callBot<BotState>("/api/moderation/state", { method: "GET" }),
+    prisma.warning.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+  ]);
 
-  const timeouts = res.ok ? res.data.timeouts : [];
-  const bans = res.ok ? res.data.bans : [];
-  const error = res.ok ? null : res.error;
+  const timeouts = botRes.ok ? botRes.data.timeouts : [];
+  const bans = botRes.ok ? botRes.data.bans : [];
+  const error = botRes.ok ? null : botRes.error;
+
+  // Member-Infos für Warnings (User + Moderator)
+  const memberIds = Array.from(
+    new Set(warnings.flatMap((w) => [w.userId, w.moderatorId])),
+  );
+  const members = await prisma.member.findMany({
+    where: { userId: { in: memberIds } },
+    select: { userId: true, displayName: true, avatarUrl: true },
+  });
+  const memberById = new Map(members.map((m) => [m.userId, m]));
+
+  const warningEntries: WarningEntry[] = warnings.map((w) => {
+    const user = memberById.get(w.userId);
+    const mod = memberById.get(w.moderatorId);
+    return {
+      id: w.id,
+      userId: w.userId,
+      userName: user?.displayName ?? `User ${w.userId.slice(-4)}`,
+      userAvatarUrl: user?.avatarUrl ?? null,
+      moderatorId: w.moderatorId,
+      moderatorName: mod?.displayName ?? `Mod ${w.moderatorId.slice(-4)}`,
+      reason: w.reason,
+      createdAt: w.createdAt.toISOString(),
+    };
+  });
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -24,7 +54,7 @@ export default async function ModerationPage() {
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">Server</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Moderation</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Aktive Timeouts und Bans. Aufheben mit einem Klick — wird automatisch im Log-Channel gepostet.
+          Aktive Timeouts, Bans und Verwarnungen. Aufheben/Löschen mit einem Klick — wird im Log-Channel gepostet.
         </p>
       </header>
 
@@ -48,6 +78,19 @@ export default async function ModerationPage() {
           <span className="badge">{bans.length}</span>
         </div>
         <BanList items={bans} />
+      </section>
+
+      <section className="card p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Verwarnungen</h2>
+            <p className="text-xs text-ink-subtle">
+              Letzte 50. Klick auf User für Profil und vollständige Historie.
+            </p>
+          </div>
+          <span className="badge">{warningEntries.length}</span>
+        </div>
+        <WarningsList items={warningEntries} />
       </section>
     </div>
   );
