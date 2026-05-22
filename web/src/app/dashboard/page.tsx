@@ -2,6 +2,7 @@ import { getConfig, prisma } from "@repo/db";
 import { StatCard } from "@/components/StatCard";
 import { ModuleCard, type IconColor } from "@/components/ModuleCard";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { OpenTicketsCard, type OpenTicketItem } from "@/components/OpenTicketsCard";
 
 // SVG-Icons als kleine Helper.
 const stroke = {
@@ -81,7 +82,7 @@ function formatVoiceTime(seconds: number): string {
 
 export default async function DashboardOverview() {
   const config = await getConfig();
-  const [stats, recentUsers] = await Promise.all([
+  const [stats, recentUsers, openTickets] = await Promise.all([
     prisma.levelUser.aggregate({
       _sum: { messageCount: true, voiceSeconds: true, xp: true },
       _count: true,
@@ -90,14 +91,45 @@ export default async function DashboardOverview() {
       orderBy: { lastMessage: "desc" },
       take: 8,
     }),
+    prisma.ticket.findMany({
+      where: { status: "open" },
+      orderBy: { createdAt: "desc" },
+      take: 15,
+      include: {
+        _count: { select: { messages: true } },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
+    }),
   ]);
 
-  // Avatare aus der Member-Tabelle dazujoinen
+  // Avatare aus der Member-Tabelle dazujoinen (für Activity + offene Tickets)
+  const allUserIds = [
+    ...recentUsers.map((u) => u.userId),
+    ...openTickets.map((t) => t.userId),
+  ];
   const members = await prisma.member.findMany({
-    where: { userId: { in: recentUsers.map((u) => u.userId) } },
+    where: { userId: { in: allUserIds } },
     select: { userId: true, avatarUrl: true, displayName: true },
   });
   const memberById = new Map(members.map((m) => [m.userId, m]));
+
+  const openTicketItems: OpenTicketItem[] = openTickets.map((t) => {
+    const m = memberById.get(t.userId);
+    return {
+      id: t.id,
+      userId: t.userId,
+      userName: m?.displayName ?? t.username ?? `User ${t.userId.slice(-4)}`,
+      userAvatarUrl: m?.avatarUrl ?? null,
+      topic: t.topic,
+      messageCount: t._count.messages,
+      createdAt: t.createdAt,
+      lastActivity: t.messages[0]?.createdAt ?? t.createdAt,
+    };
+  });
 
   const totalMessages = stats._sum.messageCount ?? 0;
   const totalVoice = stats._sum.voiceSeconds ?? 0;
@@ -334,8 +366,11 @@ export default async function DashboardOverview() {
       </div>
 
       {/* Right rail */}
-      <aside className="lg:sticky lg:top-24 lg:h-[calc(100vh-7rem)]">
-        <ActivityFeed items={activity} />
+      <aside className="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] flex flex-col gap-4 overflow-hidden">
+        <OpenTicketsCard tickets={openTicketItems} />
+        <div className="min-h-0 flex-1">
+          <ActivityFeed items={activity} />
+        </div>
       </aside>
     </div>
   );
