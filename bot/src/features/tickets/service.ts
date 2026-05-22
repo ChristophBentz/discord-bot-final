@@ -151,23 +151,7 @@ export async function closeTicket(
   if (!ticket) return { ok: false, error: "Ticket nicht gefunden." };
   if (ticket.status === "closed") return { ok: true };
 
-  const thread = await client.channels.fetch(ticket.channelId).catch(() => null);
-  if (thread?.isThread()) {
-    try {
-      await thread.send({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x95a5a6)
-            .setDescription(`🔒 Dieses Ticket wurde geschlossen.`),
-        ],
-      });
-      await thread.setArchived(true).catch(() => {});
-      await thread.setLocked(true).catch(() => {});
-    } catch (err) {
-      logger.warn({ err, threadId: thread.id }, "Thread-Archivieren fehlgeschlagen");
-    }
-  }
-
+  // 1. DB-Status updaten + Close-Line in den Verlauf eintragen (damit's im Transkript steht)
   await prisma.ticket.update({
     where: { id: ticketId },
     data: { status: "closed", closedAt: new Date(), closedBy },
@@ -182,7 +166,34 @@ export async function closeTicket(
     },
   });
 
-  // Transkript + Rating-DM async — Schließen blockiert nicht.
+  // 2. Transkript bauen — wird sowohl im Thread (für den User) als auch im
+  //    Archiv-Channel (für Mods) gepostet, falls jeweils konfiguriert.
+  const transcript = await buildTranscript(ticketId).catch(() => null);
+
+  // 3. Close-Embed + Transkript-Datei im Thread posten, dann Thread archivieren
+  const thread = await client.channels.fetch(ticket.channelId).catch(() => null);
+  if (thread?.isThread()) {
+    try {
+      const closeEmbed = new EmbedBuilder()
+        .setColor(0x95a5a6)
+        .setTitle("🔒 Ticket geschlossen")
+        .setDescription(
+          transcript
+            ? "Hier ist das komplette Transkript zum Nachlesen und Herunterladen."
+            : "Dieses Ticket wurde geschlossen.",
+        );
+      await thread.send({
+        embeds: [closeEmbed],
+        files: transcript ? [transcript.attachment] : [],
+      });
+      await thread.setArchived(true).catch(() => {});
+      await thread.setLocked(true).catch(() => {});
+    } catch (err) {
+      logger.warn({ err, threadId: thread.id }, "Thread-Archivieren fehlgeschlagen");
+    }
+  }
+
+  // 4. Archive-Channel-Post für Mods + Rating-DM async — blockiert nicht.
   void postCloseSideEffects(client, ticketId).catch((err) =>
     logger.error({ err, ticketId }, "Ticket post-close side effects fehlgeschlagen"),
   );

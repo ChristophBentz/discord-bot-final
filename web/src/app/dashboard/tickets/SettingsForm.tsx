@@ -102,18 +102,20 @@ export function SettingsForm({
         </SubMenu>
       </div>
 
-      {/* Transkript */}
+      {/* Transkript — der Thread bekommt das Transkript IMMER beim Schließen mit angehängt
+          (damit der User es selbst herunterladen kann). Dieser Toggle steuert nur das
+          zusätzliche Posten in einen separaten Archiv-Channel für die Mods. */}
       <div className="rounded-2xl border border-line bg-bg-elevated/40 px-5">
         <Toggle
           name="ticketTranscriptEnabled"
-          label="Transkript beim Schließen"
-          description="Bot postet eine Text-Datei mit dem kompletten Verlauf in einen Archiv-Channel."
+          label="Transkript zusätzlich in Archiv-Channel"
+          description="Beim Schließen bekommt der User das Transkript IMMER direkt im Thread (zum Download). Hier optional ein extra Channel wo das Transkript auch für die Mods archiviert wird."
           defaultChecked={initial.ticketTranscriptEnabled}
           onCheckedChange={setTranscriptOn}
         />
         <SubMenu open={transcriptOn} allowOverflow>
           <div className="pb-4">
-            <span className="mb-1.5 block text-sm font-medium text-ink">Transkript-Channel</span>
+            <span className="mb-1.5 block text-sm font-medium text-ink">Archiv-Channel</span>
             <ChannelPicker
               name="ticketTranscriptChannelId"
               defaultValue={initial.ticketTranscriptChannelId}
