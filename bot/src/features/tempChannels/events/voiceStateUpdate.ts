@@ -1,7 +1,12 @@
 import { Events } from "discord.js";
 import { prisma } from "@repo/db";
 import type { BotEvent } from "../../../lib/types.js";
-import { createTempChannel, findTrigger, maybeDeleteTempChannel } from "../service.js";
+import {
+  createTempChannel,
+  findTrigger,
+  maybeDeleteTempChannel,
+  maybeTransferOwnership,
+} from "../service.js";
 
 const event: BotEvent<Events.VoiceStateUpdate> = {
   name: Events.VoiceStateUpdate,
@@ -21,8 +26,11 @@ const event: BotEvent<Events.VoiceStateUpdate> = {
       }
     }
 
-    // 2) Hat User einen Temp-Channel verlassen? → ggf. löschen wenn leer
+    // 2) Hat User einen Temp-Channel verlassen?
     if (oldState.channelId && oldState.channelId !== newState.channelId) {
+      // Erst: falls Owner geht und andere drin sind → Ownership übergeben
+      await maybeTransferOwnership(newState.client, oldState.channelId, oldState.id);
+      // Dann: falls keiner mehr drin → Channel löschen
       await maybeDeleteTempChannel(newState.client, oldState.channelId);
     }
   },

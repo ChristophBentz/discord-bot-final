@@ -136,6 +136,74 @@ function countHumansInVoice(voice: VoiceChannel): { count: number; ids: string[]
   return { count: ids.length, ids };
 }
 
+// Wenn der Owner einen Temp-Channel verlässt und noch jemand drin ist,
+// wird die Ownership automatisch an die längst-anwesende Person übertragen
+// (die mit der frühsten Voice-State-Position im Cache).
+export async function maybeTransferOwnership(
+  client: Client,
+  channelId: string,
+  leaverId: string,
+): Promise<void> {
+  const record = await prisma.tempChannel.findUnique({ where: { channelId } });
+  if (!record) return;
+  if (record.ownerId !== leaverId) return; // Leaver war nicht Owner → nichts tun
+
+  const channel =
+    client.channels.cache.get(channelId) ??
+    (await client.channels.fetch(channelId).catch(() => null));
+  if (!channel || channel.type !== ChannelType.GuildVoice) return;
+  const voice = channel as VoiceChannel;
+
+  // Verbleibende Menschen im Channel suchen
+  const candidates: string[] = [];
+  for (const state of voice.guild.voiceStates.cache.values()) {
+    if (state.channelId !== channelId) continue;
+    if (state.id === leaverId) continue;
+    const member = state.member ?? voice.guild.members.cache.get(state.id);
+    if (!member || member.user?.bot) continue;
+    candidates.push(state.id);
+  }
+  if (candidates.length === 0) return; // Niemand mehr da → maybeDelete kümmert sich
+
+  const newOwnerId = candidates[0]!;
+  try {
+    await prisma.tempChannel.update({
+      where: { channelId },
+      data: { ownerId: newOwnerId },
+    });
+
+    await voice.permissionOverwrites.delete(leaverId).catch(() => {});
+    await voice.permissionOverwrites.edit(newOwnerId, {
+      ManageChannels: true,
+      MuteMembers: true,
+      DeafenMembers: true,
+      MoveMembers: true,
+      Connect: true,
+      Speak: true,
+    });
+
+    // Panel-Embed mit neuem Owner aktualisieren
+    if (record.panelMessageId) {
+      const msg = await voice.messages.fetch(record.panelMessageId).catch(() => null);
+      if (msg) await msg.edit(buildPanel(voice, newOwnerId)).catch(() => {});
+    }
+
+    await voice
+      .send(`👑 Ownership wurde automatisch an <@${newOwnerId}> übertragen.`)
+      .catch(() => {});
+
+    logger.info(
+      { channelId, oldOwner: leaverId, newOwner: newOwnerId },
+      "TempChannel: Ownership automatisch übertragen",
+    );
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    logger.warn(
+      `TempChannel Auto-Ownership-Transfer fehlgeschlagen [${channelId}] code=${e?.code} msg=${e?.message}`,
+    );
+  }
+}
+
 // Löscht einen Temp-Channel, wenn er leer ist und in unserer Tabelle steht.
 export async function maybeDeleteTempChannel(
   client: Client,
