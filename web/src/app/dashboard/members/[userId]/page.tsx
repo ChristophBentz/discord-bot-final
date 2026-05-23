@@ -1,6 +1,7 @@
 import { prisma } from "@repo/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { callBot } from "@/lib/botApi";
 import { NotesPanel, type Note } from "./NotesPanel";
 import { RolesManager, type RoleOption } from "./RolesManager";
 import { ActivityHeatmap, type ActivityCell } from "./ActivityHeatmap";
@@ -125,6 +126,27 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
 
   if (!member) notFound();
 
+  // Banner + Accent-Color lazy refreshen: nur wenn noch nie geholt oder älter als 7 Tage
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const needsBannerRefresh =
+    !member.bannerRefreshedAt || member.bannerRefreshedAt.getTime() < sevenDaysAgo;
+  if (needsBannerRefresh) {
+    const res = await callBot<{ bannerUrl: string | null }>(
+      `/api/members/${userId}/refresh-profile`,
+      { method: "POST" },
+    );
+    if (res.ok) {
+      // frisch aus DB nachladen damit die neuen Werte verfügbar sind
+      const fresh = await prisma.member.findUnique({ where: { userId } });
+      if (fresh) {
+        member.bannerUrl = fresh.bannerUrl;
+        member.accentColor = fresh.accentColor;
+        member.bannerRefreshedAt = fresh.bannerRefreshedAt;
+        member.avatarUrl = fresh.avatarUrl;
+      }
+    }
+  }
+
   let rank = 0;
   let totalRanked = 0;
   if (levelUser) {
@@ -209,17 +231,33 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     <div className="space-y-6">
       {/* Banner + Identity Card */}
       <section className="card overflow-hidden p-0">
-        {/* Banner */}
-        <div
-          className="h-32"
-          style={{
-            background: `
-              radial-gradient(120% 140% at 100% 0%, rgba(236, 72, 153, 0.55), transparent 60%),
-              radial-gradient(120% 140% at 0% 100%, rgba(168, 85, 247, 0.55), transparent 55%),
-              linear-gradient(135deg, #1a0b2e 0%, #2d1845 50%, #4a1d56 100%)
-            `,
-          }}
-        />
+        {/* Banner — User-Banner falls Nitro, sonst Accent-Color-Gradient, sonst Default */}
+        {member.bannerUrl ? (
+          <div
+            className="h-32 bg-cover bg-center"
+            style={{ backgroundImage: `url(${member.bannerUrl})` }}
+          />
+        ) : member.accentColor ? (
+          <div
+            className="h-32"
+            style={{
+              background: `linear-gradient(135deg, #${member.accentColor
+                .toString(16)
+                .padStart(6, "0")} 0%, #1a0b2e 100%)`,
+            }}
+          />
+        ) : (
+          <div
+            className="h-32"
+            style={{
+              background: `
+                radial-gradient(120% 140% at 100% 0%, rgba(236, 72, 153, 0.55), transparent 60%),
+                radial-gradient(120% 140% at 0% 100%, rgba(168, 85, 247, 0.55), transparent 55%),
+                linear-gradient(135deg, #1a0b2e 0%, #2d1845 50%, #4a1d56 100%)
+              `,
+            }}
+          />
+        )}
 
         <div className="px-6 pb-6">
           {/* Top-Reihe: Avatar + Name (unten-bündig) — Buttons rechts */}

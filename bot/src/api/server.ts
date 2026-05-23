@@ -36,6 +36,7 @@ import {
   type VolumeBody as MusicVolumeBody,
 } from "./routes/music.js";
 import { handleFreeGamesCheck } from "./routes/freeGames.js";
+import { handleRefreshProfile } from "./routes/profile.js";
 import {
   handleSendMessage,
   handleEditMessage,
@@ -292,6 +293,16 @@ export function startApiServer(client: Client): void {
       if (req.method === "DELETE" && msgEditMatch) {
         const id = Number(msgEditMatch[1]!);
         const result = await handleDeleteMessage(client, id);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/members/:userId/refresh-profile — Banner + Accent von Discord holen
+      const refreshMatch = url.pathname.match(/^\/api\/members\/(\d{17,20})\/refresh-profile$/);
+      if (req.method === "POST" && refreshMatch) {
+        const userId = refreshMatch[1]!;
+        const result = await handleRefreshProfile(client, userId);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

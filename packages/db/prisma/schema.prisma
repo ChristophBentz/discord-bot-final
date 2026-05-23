@@ -294,17 +294,21 @@ model CustomCommand {
 
 // Synchronisiert vom Bot — alle bekannten Server-Mitglieder.
 model Member {
-  userId        String    @id
-  username      String
-  displayName   String
-  discriminator String?
-  avatarUrl     String?
-  joinedAt      DateTime?
-  roleIds       String    @default("")
-  isBot         Boolean   @default(false)
-  inServer      Boolean   @default(true)
-  isProtected   Boolean   @default(false) // Owner / Admin / Mod — vor Kick/Ban/Timeout geschützt
-  lastSyncAt    DateTime  @default(now())
+  userId             String    @id
+  username           String
+  displayName        String
+  discriminator      String?
+  avatarUrl          String?
+  // User-Banner-Hash (für Profile-Page) — wird per Discord-API on-demand gefetcht
+  bannerUrl          String?
+  accentColor        Int?
+  bannerRefreshedAt  DateTime?
+  joinedAt           DateTime?
+  roleIds            String    @default("")
+  isBot              Boolean   @default(false)
+  inServer           Boolean   @default(true)
+  isProtected        Boolean   @default(false) // Owner / Admin / Mod — vor Kick/Ban/Timeout geschützt
+  lastSyncAt         DateTime  @default(now())
 
   @@index([displayName])
   @@index([inServer])
