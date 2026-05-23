@@ -101,13 +101,25 @@ export async function ensureStatChannels(client: Client): Promise<void> {
       await prisma.serverStat.update({ where: { id: stat.id }, data: { channelId: null } });
     }
 
-    // Neuen Channel anlegen
+    // Neuen Channel anlegen — fall back auf "ohne Kategorie" wenn die nicht existiert
+    let parentId: string | undefined = config.serverStatsCategoryId ?? undefined;
+    if (parentId) {
+      const cat = await guild.channels.fetch(parentId).catch(() => null);
+      if (!cat || cat.type !== ChannelType.GuildCategory) {
+        logger.warn(
+          { configuredCategory: parentId },
+          "ServerStats: konfigurierte Kategorie nicht gefunden — Channel ohne Kategorie",
+        );
+        parentId = undefined;
+      }
+    }
+
     try {
       const value = computeValue(guild, stat.type);
       const channel = (await guild.channels.create({
         name: renderName(stat.nameTemplate, value),
         type: ChannelType.GuildVoice,
-        parent: config.serverStatsCategoryId ?? undefined,
+        parent: parentId,
         position: stat.position,
         permissionOverwrites: [
           {
@@ -128,9 +140,15 @@ export async function ensureStatChannels(client: Client): Promise<void> {
           lastUpdate: new Date(),
         },
       });
-      logger.info({ statId: stat.id, channelId: channel.id, value }, "ServerStats: Channel erstellt");
+      logger.info(
+        { statId: stat.id, channelId: channel.id, value, parentId },
+        "ServerStats: Channel erstellt",
+      );
     } catch (err) {
-      logger.error({ err, statId: stat.id }, "ServerStats: Channel-Erstellung fehlgeschlagen");
+      logger.error(
+        { err, statId: stat.id, type: stat.type, parentId },
+        "ServerStats: Channel-Erstellung fehlgeschlagen — Bot-Permissions checken (Manage Channels)",
+      );
     }
   }
 }
@@ -229,6 +247,7 @@ export interface DiagnoseRow {
   actualName: string | null;
   matches: boolean | null;
   channelExists: boolean;
+  status: "ok" | "no_channel_id" | "channel_missing" | "wrong_type";
 }
 
 export interface Diagnose {
@@ -237,6 +256,9 @@ export interface Diagnose {
   membersCached: number;
   presencesCached: number;
   presencesNonOffline: number;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryExists: boolean;
   rows: DiagnoseRow[];
   lastTickAt: string | null;
 }
@@ -245,6 +267,7 @@ let lastTickAt: Date | null = null;
 
 export async function diagnose(client: Client): Promise<Diagnose> {
   const guild = await getGuild(client);
+  const config = await getConfig();
   if (!guild) {
     return {
       guildId: null,
@@ -252,6 +275,9 @@ export async function diagnose(client: Client): Promise<Diagnose> {
       membersCached: 0,
       presencesCached: 0,
       presencesNonOffline: 0,
+      categoryId: config.serverStatsCategoryId,
+      categoryName: null,
+      categoryExists: false,
       rows: [],
       lastTickAt: lastTickAt?.toISOString() ?? null,
     };
@@ -261,6 +287,17 @@ export async function diagnose(client: Client): Promise<Diagnose> {
   const stats = await prisma.serverStat.findMany({ orderBy: { position: "asc" } });
   const rows: DiagnoseRow[] = [];
 
+  // Kategorie-Status
+  let categoryName: string | null = null;
+  let categoryExists = false;
+  if (config.serverStatsCategoryId) {
+    const cat = await guild.channels.fetch(config.serverStatsCategoryId).catch(() => null);
+    if (cat && cat.type === ChannelType.GuildCategory) {
+      categoryExists = true;
+      categoryName = cat.name;
+    }
+  }
+
   for (const stat of stats) {
     if (!isStatType(stat.type)) continue;
     const computedValue = computeValue(guild, stat.type);
@@ -268,9 +305,20 @@ export async function diagnose(client: Client): Promise<Diagnose> {
 
     let actualName: string | null = null;
     let channelExists = false;
-    if (stat.channelId) {
-      const ch = await guild.channels.fetch(stat.channelId, { force: true }).catch(() => null);
-      if (ch && ch.type === ChannelType.GuildVoice) {
+    let status: DiagnoseRow["status"] = "ok";
+
+    if (!stat.channelId) {
+      status = "no_channel_id";
+    } else {
+      // Erst Cache, dann REST (Cache wird via gateway events aktualisiert)
+      const ch =
+        guild.channels.cache.get(stat.channelId) ??
+        (await guild.channels.fetch(stat.channelId).catch(() => null));
+      if (!ch) {
+        status = "channel_missing";
+      } else if (ch.type !== ChannelType.GuildVoice) {
+        status = "wrong_type";
+      } else {
         channelExists = true;
         actualName = (ch as VoiceChannel).name;
       }
@@ -286,6 +334,7 @@ export async function diagnose(client: Client): Promise<Diagnose> {
       actualName,
       matches: actualName !== null ? actualName === expectedName : null,
       channelExists,
+      status,
     });
   }
 
@@ -295,9 +344,27 @@ export async function diagnose(client: Client): Promise<Diagnose> {
     membersCached: guild.members.cache.size,
     presencesCached: guild.presences.cache.size,
     presencesNonOffline,
+    categoryId: config.serverStatsCategoryId,
+    categoryName,
+    categoryExists,
     rows,
     lastTickAt: lastTickAt?.toISOString() ?? null,
   };
+}
+
+// Setzt alle channelId-Referenzen auf null → ensureStatChannels legt sie
+// beim nächsten Tick neu an. Nutzt der User wenn Channels manuell gelöscht
+// wurden oder die DB-Referenzen verwaist sind.
+export async function resetChannelReferences(client: Client): Promise<{ recreated: number }> {
+  await prisma.serverStat.updateMany({
+    where: { enabled: true },
+    data: { channelId: null },
+  });
+  await ensureStatChannels(client);
+  const updated = await prisma.serverStat.count({
+    where: { enabled: true, channelId: { not: null } },
+  });
+  return { recreated: updated };
 }
 
 // ─── Scheduler ──────────────────────────────────────────────────────────────

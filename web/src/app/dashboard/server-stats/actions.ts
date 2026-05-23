@@ -122,6 +122,9 @@ export interface DiagnoseData {
   membersCached: number;
   presencesCached: number;
   presencesNonOffline: number;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryExists: boolean;
   lastTickAt: string | null;
   rows: {
     id: number;
@@ -133,7 +136,19 @@ export interface DiagnoseData {
     actualName: string | null;
     matches: boolean | null;
     channelExists: boolean;
+    status: "ok" | "no_channel_id" | "channel_missing" | "wrong_type";
   }[];
+}
+
+export async function resetAndRecreate(): Promise<
+  { ok: true; recreated: number } | { ok: false; error: string }
+> {
+  const auth = await requireAuth();
+  if (auth) return auth;
+  const r = await callBot<{ recreated: number }>("/api/serverstats/reset", { method: "POST" });
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/dashboard/server-stats");
+  return { ok: true, recreated: r.data.recreated };
 }
 
 export async function runDiagnose(): Promise<

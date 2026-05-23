@@ -39,6 +39,7 @@ import { handleFreeGamesCheck } from "./routes/freeGames.js";
 import {
   handleServerStatsDiagnose,
   handleServerStatsEnsure,
+  handleServerStatsReset,
   handleServerStatsUpdate,
 } from "./routes/serverStats.js";
 import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
@@ -305,6 +306,14 @@ export function startApiServer(client: Client): void {
       // GET /api/serverstats/diagnose — Live-Diagnose der aktuellen Zustände
       if (req.method === "GET" && url.pathname === "/api/serverstats/diagnose") {
         const result = await handleServerStatsDiagnose(client);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/serverstats/reset — alle Channel-Referenzen nullen und neu anlegen
+      if (req.method === "POST" && url.pathname === "/api/serverstats/reset") {
+        const result = await handleServerStatsReset(client);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;
