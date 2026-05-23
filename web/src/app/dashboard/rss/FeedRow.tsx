@@ -10,6 +10,7 @@ interface Props {
   feed: FeedDTO;
   channels: ChannelOption[];
   roles: RoleOpt[];
+  bot: { name: string; avatarUrl: string | null };
 }
 
 function timeAgo(iso: string | null): string {
@@ -33,7 +34,7 @@ function hostnameOf(url: string): string {
   }
 }
 
-export function FeedRow({ feed, channels, roles }: Props) {
+export function FeedRow({ feed, channels, roles, bot }: Props) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [checkMsg, setCheckMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -89,6 +90,7 @@ export function FeedRow({ feed, channels, roles }: Props) {
         <FeedForm
           channels={channels}
           roles={roles}
+          bot={bot}
           initial={feed}
           onDone={() => setEditing(false)}
         />

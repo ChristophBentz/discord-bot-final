@@ -29,12 +29,14 @@ export async function handleRssTest(
       ok: true;
       title: string | null;
       link: string | null;
+      feedImageUrl: string | null;
       itemCount: number;
       sample: {
         title: string;
         link: string | null;
         description: string | null;
         imageUrl: string | null;
+        author: string | null;
         pubDate: string | null;
       } | null;
     }
@@ -54,13 +56,15 @@ export async function handleRssTest(
       ok: true,
       title: parsed.title,
       link: parsed.link,
+      feedImageUrl: parsed.imageUrl,
       itemCount: parsed.items.length,
       sample: first
         ? {
             title: first.title,
             link: first.link,
             description: first.description,
-            imageUrl: first.imageUrl,
+            imageUrl: first.imageUrl ?? parsed.imageUrl,
+            author: first.author,
             pubDate: first.pubDate ? first.pubDate.toISOString() : null,
           }
         : null,

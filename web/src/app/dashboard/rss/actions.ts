@@ -126,12 +126,14 @@ export async function checkFeedNow(
 export interface TestPreview {
   title: string | null;
   link: string | null;
+  feedImageUrl: string | null;
   itemCount: number;
   sample: {
     title: string;
     link: string | null;
     description: string | null;
     imageUrl: string | null;
+    author: string | null;
     pubDate: string | null;
   } | null;
 }

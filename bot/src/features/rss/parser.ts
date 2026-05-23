@@ -92,21 +92,46 @@ function atomLink(xml: string): string | null {
 }
 
 function findImage(xml: string): string | null {
-  // 1) media:content url=""
-  const media = xml.match(/<media:content\s[^>]*\burl\s*=\s*"([^"]*)"/i);
-  if (media) return media[1]!;
-  // 2) media:thumbnail
+  // 1) media:thumbnail (auch innerhalb <media:group>, z.B. YouTube)
   const thumb = xml.match(/<media:thumbnail\s[^>]*\burl\s*=\s*"([^"]*)"/i);
   if (thumb) return thumb[1]!;
-  // 3) enclosure (RSS)
-  const encl = xml.match(/<enclosure\s[^>]*\bturl?\s*=\s*"([^"]*)"[^>]*\btype\s*=\s*"image\/[^"]*"/i);
+  // 2) media:content (Bild bevorzugt)
+  const mediaImage = xml.match(
+    /<media:content\s[^>]*\bmedium\s*=\s*"image"[^>]*\burl\s*=\s*"([^"]*)"/i,
+  );
+  if (mediaImage) return mediaImage[1]!;
+  const mediaImage2 = xml.match(
+    /<media:content\s[^>]*\burl\s*=\s*"([^"]*)"[^>]*\bmedium\s*=\s*"image"/i,
+  );
+  if (mediaImage2) return mediaImage2[1]!;
+  const media = xml.match(/<media:content\s[^>]*\burl\s*=\s*"([^"]*\.(?:jpe?g|png|gif|webp))"/i);
+  if (media) return media[1]!;
+  // 3) enclosure (RSS) — type="image/..." mit url in beliebiger Reihenfolge
+  const encl = xml.match(/<enclosure\s[^>]*\burl\s*=\s*"([^"]*)"[^>]*\btype\s*=\s*"image\/[^"]*"/i);
   if (encl) return encl[1]!;
   const encl2 = xml.match(/<enclosure\s[^>]*\btype\s*=\s*"image\/[^"]*"[^>]*\burl\s*=\s*"([^"]*)"/i);
   if (encl2) return encl2[1]!;
-  // 4) erstes <img src=""> im Description/Content
-  const description = tag(xml, "content:encoded") ?? tag(xml, "description") ?? tag(xml, "summary") ?? tag(xml, "content") ?? "";
+  // 4) image-Tag mit url-Sub-Tag (manche RSS-Feeds nutzen das auf Item-Ebene)
+  const imageBlock = tag(xml, "image");
+  if (imageBlock) {
+    const imageUrl = tag(imageBlock, "url");
+    if (imageUrl) return clean(imageUrl);
+  }
+  // 5) itunes:image href="" (Podcast-Feeds)
+  const itunes = xml.match(/<itunes:image\s[^>]*\bhref\s*=\s*"([^"]*)"/i);
+  if (itunes) return itunes[1]!;
+  // 6) erstes <img src=""> im Description/Content
+  const description =
+    tag(xml, "content:encoded") ??
+    tag(xml, "description") ??
+    tag(xml, "summary") ??
+    tag(xml, "content") ??
+    "";
   const img = description.match(/<img[^>]+src\s*=\s*"([^"]+)"/i);
   if (img) return img[1]!;
+  // 7) og:image im Description-Markup (selten, aber kommt vor)
+  const og = description.match(/property\s*=\s*"og:image"[^>]*content\s*=\s*"([^"]+)"/i);
+  if (og) return og[1]!;
   return null;
 }
 

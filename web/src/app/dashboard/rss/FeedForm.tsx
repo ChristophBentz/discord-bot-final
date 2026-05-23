@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
+import { MessagePreview } from "@/components/MessagePreview";
 import type { RoleOpt } from "./FeedManager";
 import { createFeed, updateFeed, testUrl, type TestPreview } from "./actions";
+import { RssEmbedBody } from "./RssEmbedBody";
 
 interface Props {
   channels: ChannelOption[];
   roles: RoleOpt[];
+  bot: { name: string; avatarUrl: string | null };
   initial?: {
     id: number;
     name: string;
@@ -27,7 +30,7 @@ function intToHex(color: number, fallback = "#a1a1aa"): string {
 
 const INTERVAL_OPTIONS = [5, 10, 15, 30, 60, 120, 240];
 
-export function FeedForm({ channels, roles, initial, onDone }: Props) {
+export function FeedForm({ channels, roles, bot, initial, onDone }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
   const [channelId, setChannelId] = useState(initial?.channelId ?? "");
@@ -40,8 +43,52 @@ export function FeedForm({ channels, roles, initial, onDone }: Props) {
   const [testError, setTestError] = useState<string | null>(null);
   const [isSaving, startSave] = useTransition();
   const [isTesting, startTest] = useTransition();
+  const lastTestedUrl = useRef<string>("");
+
+  // Initiale URL beim Edit direkt prüfen, damit Vorschau sofort da ist.
+  useEffect(() => {
+    if (!initial?.url) return;
+    startTest(async () => {
+      const res = await testUrl(initial.url);
+      if (res.ok) {
+        setPreview(res.preview);
+        lastTestedUrl.current = initial.url;
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectedRole = roles.find((r) => r.roleId === pingRoleId);
+
+  // Auto-Test: 800ms nach letzter URL-Änderung den Feed prüfen.
+  useEffect(() => {
+    const trimmed = url.trim();
+    if (!trimmed || trimmed === lastTestedUrl.current) return;
+    try {
+      new URL(trimmed);
+    } catch {
+      return;
+    }
+    const handle = setTimeout(() => {
+      lastTestedUrl.current = trimmed;
+      setTestError(null);
+      startTest(async () => {
+        const res = await testUrl(trimmed);
+        if (res.ok) {
+          setPreview(res.preview);
+          if (!name.trim() && res.preview.title) {
+            setName(res.preview.title.slice(0, 80));
+          }
+        } else {
+          setPreview(null);
+          setTestError(res.error);
+        }
+      });
+    }, 800);
+    return () => clearTimeout(handle);
+    // name & startTest absichtlich nicht in deps — sonst flackert es.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,76 +104,32 @@ export function FeedForm({ channels, roles, initial, onDone }: Props) {
     });
   };
 
-  const onTest = () => {
-    setTestError(null);
-    setPreview(null);
-    if (!url.trim()) {
-      setTestError("Erst URL eingeben.");
-      return;
-    }
-    startTest(async () => {
-      const res = await testUrl(url.trim());
-      if (res.ok) {
-        setPreview(res.preview);
-        // Auto-fill Name aus Feed-Titel, falls noch leer
-        if (!name.trim() && res.preview.title) {
-          setName(res.preview.title.slice(0, 80));
-        }
-      } else {
-        setTestError(res.error);
-      }
-    });
-  };
-
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
         <span className="mb-1.5 block text-sm font-medium text-ink">Feed-URL</span>
-        <div className="flex gap-2">
+        <div className="relative">
           <input
             name="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             type="url"
             placeholder="https://example.com/rss.xml"
-            className="input flex-1"
+            className="input w-full pr-24"
             required
           />
-          <button
-            type="button"
-            onClick={onTest}
-            disabled={isTesting || !url.trim()}
-            className="btn btn-ghost shrink-0 text-sm"
-          >
-            {isTesting ? "Prüfe…" : "Testen"}
-          </button>
+          {isTesting && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-subtle">
+              Prüfe…
+            </span>
+          )}
+          {!isTesting && preview && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-emerald-400">
+              ✓ {preview.itemCount} Einträge
+            </span>
+          )}
         </div>
-        {testError && (
-          <p className="mt-1.5 text-xs text-rose-400">⚠ {testError}</p>
-        )}
-        {preview && (
-          <div className="mt-2 rounded-xl border border-line bg-bg-elevated/40 p-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-ink">{preview.title ?? "(ohne Titel)"}</span>
-              <span className="text-ink-subtle">· {preview.itemCount} Einträge</span>
-            </div>
-            {preview.sample && (
-              <div className="mt-2 border-l-2 border-brand/40 pl-3">
-                <div className="font-medium text-ink">{preview.sample.title}</div>
-                {preview.sample.description && (
-                  <div className="mt-1 text-ink-muted line-clamp-2">
-                    {preview.sample.description}
-                  </div>
-                )}
-                {preview.sample.pubDate && (
-                  <div className="mt-1 text-ink-subtle">
-                    {new Date(preview.sample.pubDate).toLocaleString("de-DE")}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {testError && <p className="mt-1.5 text-xs text-rose-400">⚠ {testError}</p>}
       </div>
 
       <div>
@@ -254,6 +257,45 @@ export function FeedForm({ channels, roles, initial, onDone }: Props) {
             })}
           </div>
         )}
+      </div>
+
+      <div className="pt-2">
+        <MessagePreview
+          text={pingRoleId ? "<@&123>" : ""}
+          botName={bot.name}
+          botAvatarUrl={bot.avatarUrl}
+          label="So sieht ein Post im Discord aus"
+          emptyText={null}
+          embed={
+            preview?.sample ? (
+              <RssEmbedBody
+                data={{
+                  feedName: name.trim() || preview.title || "RSS-Feed",
+                  feedLink: preview.link,
+                  itemTitle: preview.sample.title,
+                  itemLink: preview.sample.link,
+                  itemDescription: preview.sample.description,
+                  itemImageUrl: preview.sample.imageUrl,
+                  itemAuthor: preview.sample.author,
+                  itemPubDate: preview.sample.pubDate,
+                }}
+              />
+            ) : (
+              <div className="rounded border border-dashed border-line bg-bg-elevated/30 px-3 py-4 text-xs italic text-ink-subtle">
+                {isTesting
+                  ? "Feed wird geladen…"
+                  : url.trim()
+                    ? "Konnte keinen Beispiel-Artikel laden — bitte URL prüfen."
+                    : "URL eingeben — die Vorschau erscheint automatisch."}
+              </div>
+            )
+          }
+          hint={
+            preview?.sample
+              ? "Echte Daten aus dem neuesten Artikel deines Feeds."
+              : undefined
+          }
+        />
       </div>
 
       {error && (

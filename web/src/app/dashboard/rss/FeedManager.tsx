@@ -27,9 +27,10 @@ interface Props {
   feeds: FeedDTO[];
   channels: ChannelOption[];
   roles: RoleOpt[];
+  bot: { name: string; avatarUrl: string | null };
 }
 
-export function FeedManager({ feeds, channels, roles }: Props) {
+export function FeedManager({ feeds, channels, roles, bot }: Props) {
   const [adding, setAdding] = useState(false);
 
   return (
@@ -70,6 +71,7 @@ export function FeedManager({ feeds, channels, roles }: Props) {
             <FeedForm
               channels={channels}
               roles={roles}
+              bot={bot}
               onDone={() => setAdding(false)}
             />
           </div>
@@ -84,7 +86,7 @@ export function FeedManager({ feeds, channels, roles }: Props) {
         ) : (
           <div className="space-y-3">
             {feeds.map((f) => (
-              <FeedRow key={f.id} feed={f} channels={channels} roles={roles} />
+              <FeedRow key={f.id} feed={f} channels={channels} roles={roles} bot={bot} />
             ))}
           </div>
         )}

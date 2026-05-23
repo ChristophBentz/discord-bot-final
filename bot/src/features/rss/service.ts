@@ -40,7 +40,8 @@ function buildEmbed(item: FeedItem, feed: ParsedFeed, feedName: string): EmbedBu
   if (item.description) {
     embed.setDescription(truncate(item.description, 500));
   }
-  if (item.imageUrl) embed.setImage(item.imageUrl);
+  const image = item.imageUrl ?? feed.imageUrl;
+  if (image) embed.setImage(image);
   if (item.author) {
     embed.addFields({ name: "Autor", value: truncate(item.author, 100), inline: true });
   }
