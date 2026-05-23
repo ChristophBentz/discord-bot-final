@@ -22,16 +22,34 @@ function isStatType(s: string): s is StatType {
   return s === "totalMembers" || s === "humanMembers" || s === "onlineMembers";
 }
 
+// Lädt die Member-Cache mit Presences nach, falls noch nicht da. Wichtig
+// für humanMembers (Cache muss voll sein) und onlineMembers (braucht Presences).
+async function ensureMemberCache(guild: Guild): Promise<void> {
+  // Wenn der Cache deutlich kleiner als memberCount ist → fetchen
+  if (guild.members.cache.size < guild.memberCount * 0.9) {
+    try {
+      await guild.members.fetch({ withPresences: true });
+      logger.info(
+        { cached: guild.members.cache.size, total: guild.memberCount },
+        "ServerStats: Member-Cache geladen",
+      );
+    } catch (err) {
+      logger.warn({ err }, "ServerStats: Member-Cache laden fehlgeschlagen");
+    }
+  }
+}
+
 export async function computeStatValue(guild: Guild, type: StatType): Promise<number> {
   switch (type) {
     case "totalMembers":
       return guild.memberCount;
     case "humanMembers": {
-      // Members cache wird von bulkSync auf Ready befüllt
+      await ensureMemberCache(guild);
       return guild.members.cache.filter((m) => !m.user.bot).size;
     }
     case "onlineMembers": {
       // Braucht GuildPresences-Intent — sonst sind presence-Daten leer
+      await ensureMemberCache(guild);
       return guild.members.cache.filter(
         (m) => !m.user.bot && m.presence && m.presence.status !== "offline",
       ).size;
@@ -77,10 +95,27 @@ export async function ensureStatChannels(client: Client): Promise<void> {
       continue;
     }
 
-    // Hat schon einen Channel — checken, ob er noch existiert
+    // Hat schon einen Channel — checken, ob er noch existiert + Name aktuell halten
     if (stat.channelId) {
       const existing = await guild.channels.fetch(stat.channelId).catch(() => null);
-      if (existing && existing.type === ChannelType.GuildVoice) continue;
+      if (existing && existing.type === ChannelType.GuildVoice) {
+        // Wenn der aktuelle Name nicht zum Template+Wert passt → korrigieren
+        const value = await computeStatValue(guild, stat.type);
+        const expected = renderName(stat.nameTemplate, value);
+        if ((existing as VoiceChannel).name !== expected) {
+          try {
+            await (existing as VoiceChannel).setName(expected, "ServerStats: Name-Sync");
+            await prisma.serverStat.update({
+              where: { id: stat.id },
+              data: { lastValue: value, lastUpdate: new Date() },
+            });
+            logger.info({ statId: stat.id, newName: expected }, "ServerStats: Name korrigiert");
+          } catch (err) {
+            logger.warn({ err, statId: stat.id }, "ServerStats: Name-Sync fehlgeschlagen");
+          }
+        }
+        continue;
+      }
       // Existiert nicht mehr — Eintrag bereinigen, dann neu erstellen
       await prisma.serverStat.update({ where: { id: stat.id }, data: { channelId: null } });
     }
@@ -118,14 +153,18 @@ export async function ensureStatChannels(client: Client): Promise<void> {
   }
 }
 
-// Aktualisiert die Channel-Namen aller aktiven Stats — nur, wenn sich der
-// Wert seit dem letzten Lauf geändert hat (spart Rate-Limit-Budget).
-export async function updateAllStats(client: Client): Promise<{ updated: number; skipped: number }> {
+// Aktualisiert die Channel-Namen aller aktiven Stats. Bei `force=true` wird
+// der Channel auch dann umbenannt, wenn der Name bereits stimmt (z.B. für
+// manuelles Trigger via Dashboard).
+export async function updateAllStats(
+  client: Client,
+  force = false,
+): Promise<{ updated: number; skipped: number; alreadyCurrent: number }> {
   const config = await getConfig();
-  if (!config.serverStatsEnabled) return { updated: 0, skipped: 0 };
+  if (!config.serverStatsEnabled) return { updated: 0, skipped: 0, alreadyCurrent: 0 };
 
   const guild = await getGuild(client);
-  if (!guild) return { updated: 0, skipped: 0 };
+  if (!guild) return { updated: 0, skipped: 0, alreadyCurrent: 0 };
 
   const stats = await prisma.serverStat.findMany({
     where: { enabled: true, channelId: { not: null } },
@@ -133,18 +172,13 @@ export async function updateAllStats(client: Client): Promise<{ updated: number;
 
   let updated = 0;
   let skipped = 0;
+  let alreadyCurrent = 0;
 
   for (const stat of stats) {
     if (!isStatType(stat.type)) continue;
     if (!stat.channelId) continue;
 
     const value = await computeStatValue(guild, stat.type);
-
-    // Wert unverändert? Nichts tun (Rate-Limit-Schonung)
-    if (stat.lastValue === value) {
-      skipped += 1;
-      continue;
-    }
 
     const channel = await guild.channels.fetch(stat.channelId).catch(() => null);
     if (!channel || channel.type !== ChannelType.GuildVoice) {
@@ -154,12 +188,34 @@ export async function updateAllStats(client: Client): Promise<{ updated: number;
     }
 
     const newName = renderName(stat.nameTemplate, value);
+    const currentName = (channel as VoiceChannel).name;
+
+    // Im normalen Lauf: skippen wenn Wert unverändert (Rate-Limit-Schonung).
+    // Bei force=true (Manual-Trigger): nur skippen wenn Name bereits stimmt.
+    if (!force && stat.lastValue === value && currentName === newName) {
+      skipped += 1;
+      continue;
+    }
+    if (currentName === newName) {
+      // Name passt schon — DB nur aktualisieren, kein Discord-Call
+      await prisma.serverStat.update({
+        where: { id: stat.id },
+        data: { lastValue: value, lastUpdate: new Date() },
+      });
+      alreadyCurrent += 1;
+      continue;
+    }
+
     try {
       await channel.setName(newName, "Server-Stats-Update");
       await prisma.serverStat.update({
         where: { id: stat.id },
         data: { lastValue: value, lastUpdate: new Date() },
       });
+      logger.info(
+        { statId: stat.id, oldName: currentName, newName, value },
+        "ServerStats: Channel umbenannt",
+      );
       updated += 1;
     } catch (err) {
       // Discord rate-limited Channel-Edits stark (~2 pro 10 min) — bei Fehler
@@ -171,7 +227,7 @@ export async function updateAllStats(client: Client): Promise<{ updated: number;
     }
   }
 
-  return { updated, skipped };
+  return { updated, skipped, alreadyCurrent };
 }
 
 let schedulerRunning = false;

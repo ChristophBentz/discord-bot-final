@@ -31,9 +31,10 @@ const event: BotEvent<Events.ClientReady> = {
     await initMusicPlayer(client);
     startFreeGamesScheduler(client);
     startRssScheduler(client);
-    startServerStatsScheduler(client);
     startApiServer(client);
     await syncMembers(client);
+    // Stats-Scheduler braucht den Members-Cache (humanMembers/online), deshalb erst hier.
+    startServerStatsScheduler(client);
     await bulkSyncChannels(client);
     await cleanupOrphanedTempChannels(client);
     startTempChannelSweeper(client);

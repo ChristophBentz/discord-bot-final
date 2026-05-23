@@ -61,14 +61,18 @@ export function ServerStatsManager({ initial, stats, channels }: Props) {
     setUpdateFeedback(null);
     startUpdate(async () => {
       const r = await updateNow();
-      setUpdateFeedback(
-        r.ok
-          ? {
-              kind: "ok",
-              msg: `${r.updated} aktualisiert, ${r.skipped} unverändert.`,
-            }
-          : { kind: "error", msg: r.error },
-      );
+      if (!r.ok) {
+        setUpdateFeedback({ kind: "error", msg: r.error });
+        return;
+      }
+      const parts: string[] = [];
+      if (r.updated > 0) parts.push(`${r.updated} umbenannt`);
+      if (r.alreadyCurrent > 0) parts.push(`${r.alreadyCurrent} bereits aktuell`);
+      if (r.skipped > 0) parts.push(`${r.skipped} übersprungen`);
+      setUpdateFeedback({
+        kind: "ok",
+        msg: parts.length > 0 ? parts.join(", ") + "." : "Keine Stats vorhanden.",
+      });
     });
   };
 
