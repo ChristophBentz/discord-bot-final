@@ -48,11 +48,6 @@ export async function createTempChannel(
 
   const template = trigger.nameTemplate ?? config.tempChannelNameTemplate;
 
-  // Bot-Overwrite: damit der Bot den Channel IMMER managen/löschen kann,
-  // unabhängig von Category-Permissions (häufige Ursache für 50001 Missing
-  // Access). Wir setzen ViewChannel + ManageChannels + ManageRoles explizit.
-  const botMember = guild.members.me;
-
   try {
     const channel = (await guild.channels.create({
       name: renderName(template, state),
@@ -71,23 +66,31 @@ export async function createTempChannel(
             PermissionFlagsBits.Speak,
           ],
         },
-        ...(botMember
-          ? [
-              {
-                id: botMember.id,
-                allow: [
-                  PermissionFlagsBits.ViewChannel,
-                  PermissionFlagsBits.ManageChannels,
-                  PermissionFlagsBits.ManageRoles,
-                  PermissionFlagsBits.Connect,
-                  PermissionFlagsBits.MoveMembers,
-                ],
-              },
-            ]
-          : []),
       ],
       reason: `Temp-Channel für ${state.member.user.username}`,
     })) as VoiceChannel;
+
+    // Bot-eigene Permissions NACH dem Create setzen — als getrennter Call,
+    // damit ein Permission-Konflikt das Create nicht killt. Fail-safe:
+    // wenn's nicht klappt, läuft alles andere trotzdem (Self-Heal greift
+    // beim Sweep). ManageRoles weggelassen, weil das eine privilegierte
+    // Permission ist die Discord beim Granten manchmal blockiert.
+    const botMember = guild.members.me;
+    if (botMember) {
+      await channel.permissionOverwrites
+        .edit(botMember.id, {
+          ViewChannel: true,
+          ManageChannels: true,
+          Connect: true,
+          MoveMembers: true,
+        })
+        .catch((err: unknown) => {
+          const e = err as { code?: number; message?: string };
+          logger.warn(
+            `TempChannel Bot-Permission setzen fehlgeschlagen [${channel.id}] code=${e?.code} msg=${e?.message}`,
+          );
+        });
+    }
 
     await state.member.voice.setChannel(channel).catch((err) => {
       logger.warn({ err, userId: state.member?.id }, "Konnte User nicht in Temp-Channel moven");
@@ -110,8 +113,11 @@ export async function createTempChannel(
       { channelId: channel.id, ownerId: state.member.id, name: channel.name, limit: trigger.userLimit },
       "Temp-Channel erstellt",
     );
-  } catch (err) {
-    logger.error({ err, userId: state.member.id }, "Temp-Channel-Erstellung fehlgeschlagen");
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string; status?: number };
+    logger.error(
+      `TempChannel Create fehlgeschlagen userId=${state.member.id} code=${e?.code} status=${e?.status} msg=${e?.message}`,
+    );
   }
 }
 
