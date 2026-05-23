@@ -1,5 +1,5 @@
 import type { Client, Guild, VoiceChannel } from "discord.js";
-import { ChannelType, PermissionFlagsBits } from "discord.js";
+import { ChannelType, Events, PermissionFlagsBits } from "discord.js";
 import { getConfig, prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { env } from "../../lib/env.js";
@@ -24,6 +24,12 @@ function isStatType(s: string): s is StatType {
 
 let lastPresenceFetch = 0;
 const PRESENCE_REFETCH_INTERVAL_MS = 30 * 60_000;
+
+// Zählt eingehende PRESENCE_UPDATE-Events seit Bot-Start. Wenn 0 nach ein
+// paar Minuten → Presence-Intent ist im Dev-Portal nicht aktiviert.
+let presenceEventCount = 0;
+let lastOnlineRecheck = 0;
+const ONLINE_RECHECK_MIN_MS = 6 * 60_000; // Discord rate-limit: ~2 renames/10min
 
 // Lädt Members in den Cache (falls leer) und versucht periodisch Presences
 // nachzuziehen. Discord schickt Presences zuverlässig nur initial via
@@ -294,6 +300,26 @@ async function tickAndReschedule(client: Client): Promise<void> {
 export function startServerStatsScheduler(client: Client): void {
   if (schedulerRunning) return;
   schedulerRunning = true;
+
+  // Live-Listener: jede Status-Änderung triggert (rate-limited) ein Update,
+  // damit „Gerade online" deutlich responsiver wird als nur über den Tick.
+  client.on(Events.PresenceUpdate, () => {
+    presenceEventCount += 1;
+    const now = Date.now();
+    if (now - lastOnlineRecheck < ONLINE_RECHECK_MIN_MS) return;
+    lastOnlineRecheck = now;
+    void updateAllStats(client).catch((err) =>
+      logger.warn({ err }, "ServerStats: Presence-getriggertes Update fehlgeschlagen"),
+    );
+  });
+
+  // Diagnose: alle 5 min loggen wie viele Presence-Events angekommen sind.
+  setInterval(() => {
+    logger.info(
+      { presenceEventsSinceStart: presenceEventCount },
+      "ServerStats: Presence-Diagnose",
+    );
+  }, 5 * 60_000);
 
   // Initial: Channels anlegen + erstes Update nach 15s
   setTimeout(() => {
