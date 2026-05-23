@@ -167,7 +167,13 @@ export async function maybeDeleteTempChannel(
     logger.info({ channelId }, "TempChannel: leer+locked → Auto-Unlock");
     await voice.permissionOverwrites
       .edit(voice.guild.roles.everyone, { Connect: null })
-      .catch((err) => logger.warn({ err, channelId }, "TempChannel: Auto-Unlock fehlgeschlagen"));
+      .catch((err: unknown) => {
+        const e = err as { code?: number; message?: string; status?: number };
+        logger.warn(
+          { channelId, code: e?.code, status: e?.status, message: e?.message },
+          "TempChannel: Auto-Unlock fehlgeschlagen",
+        );
+      });
     // Nach Permission-Change kurz reprüfen — falls jemand inzwischen joinen konnte
     const recheck = countHumansInVoice(voice);
     if (recheck.count > 0) {
@@ -184,10 +190,18 @@ export async function maybeDeleteTempChannel(
     await prisma.tempChannel.delete({ where: { channelId } });
     logger.info({ channelId, name: voice.name }, "TempChannel: GELÖSCHT ✓");
   } catch (err: unknown) {
-    const code = (err as { code?: number })?.code;
+    const e = err as { code?: number; message?: string; status?: number };
+    const hint =
+      e?.code === 50013
+        ? "Missing Permissions — Bot-Rolle braucht 'Channels verwalten' für diese Kategorie"
+        : e?.code === 50001
+          ? "Missing Access — Bot sieht den Channel nicht (View-Permission fehlt)"
+          : e?.code === 10003
+            ? "Unknown Channel (schon gelöscht)"
+            : "unbekannter Discord-Fehler";
     logger.error(
-      { err, channelId, code },
-      "TempChannel: Löschung fehlgeschlagen — Bot-Permission (Manage Channels) checken?",
+      { channelId, code: e?.code, status: e?.status, message: e?.message, hint },
+      "TempChannel: Löschung fehlgeschlagen",
     );
   }
 }
