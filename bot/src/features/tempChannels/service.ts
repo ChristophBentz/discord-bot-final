@@ -10,7 +10,7 @@ import {
 import { prisma, type Config, type TempChannelTrigger } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { env } from "../../lib/env.js";
-import { buildPanel } from "./panel.js";
+import { buildPanel, isChannelLocked } from "./panel.js";
 
 function renderName(template: string, state: VoiceState): string {
   const username = state.member?.user.username ?? "user";
@@ -96,13 +96,19 @@ export async function createTempChannel(
   }
 }
 
-// Zählt nur menschliche User im Voice-Channel (Bots zählen nicht für „leer").
-function humanMemberCount(channel: VoiceChannel): number {
-  let count = 0;
-  for (const m of channel.members.values()) {
-    if (!m.user.bot) count += 1;
+// Zählt menschliche User im Voice-Channel anhand der voiceStates direkt
+// (statt channel.members getter, der auf member-cache angewiesen ist).
+function countHumansInVoice(voice: VoiceChannel): { count: number; ids: string[] } {
+  const ids: string[] = [];
+  for (const state of voice.guild.voiceStates.cache.values()) {
+    if (state.channelId !== voice.id) continue;
+    const member = state.member ?? voice.guild.members.cache.get(state.id);
+    // Wenn wir den Member nicht haben, sicherheitshalber als human zählen
+    // (lieber NICHT löschen als versehentlich besetzten Channel killen)
+    if (member?.user?.bot === true) continue;
+    ids.push(state.id);
   }
-  return count;
+  return { count: ids.length, ids };
 }
 
 // Löscht einen Temp-Channel, wenn er leer ist und in unserer Tabelle steht.
@@ -113,22 +119,54 @@ export async function maybeDeleteTempChannel(
   const record = await prisma.tempChannel.findUnique({ where: { channelId } });
   if (!record) return;
 
-  const channel = await client.channels.fetch(channelId).catch(() => null);
+  // Force-fetch: cache könnte nach Permission-Updates (Lock!) divergieren
+  const channel = await client.channels.fetch(channelId, { force: true }).catch(() => null);
   if (!channel) {
+    logger.info({ channelId }, "TempChannel: existiert nicht mehr auf Discord, DB-Eintrag gelöscht");
     await prisma.tempChannel.delete({ where: { channelId } }).catch(() => {});
     return;
   }
 
-  if (channel.type !== ChannelType.GuildVoice) return;
+  if (channel.type !== ChannelType.GuildVoice) {
+    logger.warn({ channelId, type: channel.type }, "TempChannel: nicht Voice, DB-Eintrag gelöscht");
+    await prisma.tempChannel.delete({ where: { channelId } }).catch(() => {});
+    return;
+  }
+
   const voice = channel as VoiceChannel;
-  if (humanMemberCount(voice) > 0) return;
+  const { count, ids } = countHumansInVoice(voice);
+
+  if (count > 0) {
+    logger.debug(
+      { channelId, occupants: ids },
+      "TempChannel: noch belegt, kein Löschen",
+    );
+    return;
+  }
+
+  // Defensiv: leeren + gesperrten Channel vor dem Löschen entsperren,
+  // damit er nie als „stuck-locked" hängen bleibt, falls Löschen scheitert.
+  if (isChannelLocked(voice)) {
+    await voice.permissionOverwrites
+      .edit(voice.guild.roles.everyone, { Connect: null })
+      .catch((err) => logger.warn({ err, channelId }, "TempChannel: Auto-Unlock fehlgeschlagen"));
+    // Nach Permission-Change kurz reprüfen — falls jemand inzwischen joinen konnte
+    const recheck = countHumansInVoice(voice);
+    if (recheck.count > 0) {
+      logger.info(
+        { channelId, occupants: recheck.ids },
+        "TempChannel: nach Auto-Unlock besetzt, kein Löschen",
+      );
+      return;
+    }
+  }
 
   try {
     await voice.delete("Temp-Channel ist leer");
     await prisma.tempChannel.delete({ where: { channelId } });
-    logger.info({ channelId }, "Temp-Channel gelöscht");
+    logger.info({ channelId }, "TempChannel: gelöscht (leer)");
   } catch (err) {
-    logger.warn({ err, channelId }, "Temp-Channel-Löschung fehlgeschlagen");
+    logger.warn({ err, channelId }, "TempChannel: Löschung fehlgeschlagen");
   }
 }
 
@@ -136,7 +174,7 @@ export async function maybeDeleteTempChannel(
 // irgendwelchen Gründen verschluckt wurde (z.B. Race nach Permission-
 // Update durch Lock-Aktion).
 export function startTempChannelSweeper(client: Client): void {
-  const INTERVAL_MS = 60_000;
+  const INTERVAL_MS = 30_000;
   setInterval(async () => {
     try {
       const records = await prisma.tempChannel.findMany();
