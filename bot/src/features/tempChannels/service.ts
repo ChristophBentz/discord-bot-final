@@ -119,34 +119,52 @@ export async function maybeDeleteTempChannel(
   const record = await prisma.tempChannel.findUnique({ where: { channelId } });
   if (!record) return;
 
-  // Force-fetch: cache könnte nach Permission-Updates (Lock!) divergieren
-  const channel = await client.channels.fetch(channelId, { force: true }).catch(() => null);
+  // Cache-first; bei Cache-Miss REST-Fetch. Bei REST-Fehler unterscheiden
+  // zwischen „Channel wirklich gelöscht" (10003) und „Fetch-Fehler" — beim
+  // Fehler retry später (sonst löschen wir DB-Eintrag und Discord-Channel
+  // bleibt orphan-stehen).
+  let channel = client.channels.cache.get(channelId) ?? null;
   if (!channel) {
-    logger.info({ channelId }, "TempChannel: existiert nicht mehr auf Discord, DB-Eintrag gelöscht");
-    await prisma.tempChannel.delete({ where: { channelId } }).catch(() => {});
-    return;
+    try {
+      channel = await client.channels.fetch(channelId);
+    } catch (err: unknown) {
+      const code = (err as { code?: number })?.code;
+      if (code === 10003) {
+        // "Unknown Channel" — wirklich gelöscht
+        await prisma.tempChannel.delete({ where: { channelId } }).catch(() => {});
+        logger.info({ channelId }, "TempChannel: auf Discord nicht mehr da, DB bereinigt");
+      } else {
+        logger.warn({ err, channelId }, "TempChannel: Fetch fehlgeschlagen, retry später");
+      }
+      return;
+    }
+    if (!channel) {
+      logger.warn({ channelId }, "TempChannel: Fetch lieferte null, retry später");
+      return;
+    }
   }
 
   if (channel.type !== ChannelType.GuildVoice) {
-    logger.warn({ channelId, type: channel.type }, "TempChannel: nicht Voice, DB-Eintrag gelöscht");
+    logger.warn({ channelId, type: channel.type }, "TempChannel: nicht Voice, DB bereinigt");
     await prisma.tempChannel.delete({ where: { channelId } }).catch(() => {});
     return;
   }
 
   const voice = channel as VoiceChannel;
   const { count, ids } = countHumansInVoice(voice);
+  const locked = isChannelLocked(voice);
 
-  if (count > 0) {
-    logger.debug(
-      { channelId, occupants: ids },
-      "TempChannel: noch belegt, kein Löschen",
-    );
-    return;
-  }
+  logger.info(
+    { channelId, name: voice.name, count, occupants: ids, locked },
+    "TempChannel: Status-Check",
+  );
+
+  if (count > 0) return;
 
   // Defensiv: leeren + gesperrten Channel vor dem Löschen entsperren,
   // damit er nie als „stuck-locked" hängen bleibt, falls Löschen scheitert.
-  if (isChannelLocked(voice)) {
+  if (locked) {
+    logger.info({ channelId }, "TempChannel: leer+locked → Auto-Unlock");
     await voice.permissionOverwrites
       .edit(voice.guild.roles.everyone, { Connect: null })
       .catch((err) => logger.warn({ err, channelId }, "TempChannel: Auto-Unlock fehlgeschlagen"));
@@ -164,9 +182,13 @@ export async function maybeDeleteTempChannel(
   try {
     await voice.delete("Temp-Channel ist leer");
     await prisma.tempChannel.delete({ where: { channelId } });
-    logger.info({ channelId }, "TempChannel: gelöscht (leer)");
-  } catch (err) {
-    logger.warn({ err, channelId }, "TempChannel: Löschung fehlgeschlagen");
+    logger.info({ channelId, name: voice.name }, "TempChannel: GELÖSCHT ✓");
+  } catch (err: unknown) {
+    const code = (err as { code?: number })?.code;
+    logger.error(
+      { err, channelId, code },
+      "TempChannel: Löschung fehlgeschlagen — Bot-Permission (Manage Channels) checken?",
+    );
   }
 }
 
