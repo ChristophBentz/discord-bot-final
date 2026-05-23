@@ -36,6 +36,10 @@ import {
   type VolumeBody as MusicVolumeBody,
 } from "./routes/music.js";
 import { handleFreeGamesCheck } from "./routes/freeGames.js";
+import {
+  handleServerStatsEnsure,
+  handleServerStatsUpdate,
+} from "./routes/serverStats.js";
 import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
 import { handleRefreshProfile } from "./routes/profile.js";
 import {
@@ -276,6 +280,22 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && rssCheckMatch) {
         const feedId = Number(rssCheckMatch[1]!);
         const result = await handleRssCheck(client, feedId);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/serverstats/ensure — Channels nachziehen nach Config-Änderung
+      if (req.method === "POST" && url.pathname === "/api/serverstats/ensure") {
+        const result = await handleServerStatsEnsure(client);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/serverstats/update — sofortiges Update aller Stat-Channels
+      if (req.method === "POST" && url.pathname === "/api/serverstats/update") {
+        const result = await handleServerStatsUpdate(client);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

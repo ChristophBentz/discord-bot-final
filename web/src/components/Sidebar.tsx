@@ -24,6 +24,7 @@ type IconName =
   | "gift"
   | "send"
   | "rss"
+  | "stats"
   | "plus";
 
 interface NavItem {
@@ -75,6 +76,7 @@ const SECTIONS: NavSection[] = [
       { href: "/dashboard/music", label: "Musik", icon: "music" },
       { href: "/dashboard/free-games", label: "Free Games", icon: "gift" },
       { href: "/dashboard/rss", label: "RSS-Feeds", icon: "rss" },
+      { href: "/dashboard/server-stats", label: "Server-Stats", icon: "stats" },
       { href: "/dashboard/compose", label: "Nachrichten", icon: "send" },
     ],
   },
@@ -169,6 +171,10 @@ function Icon({ name }: { name: IconName }) {
     case "rss":
       return (
         <svg className={cls} viewBox="0 0 24 24" {...stroke}><path d="M4 11a9 9 0 0 1 9 9" /><path d="M4 4a16 16 0 0 1 16 16" /><circle cx="5" cy="19" r="1" /></svg>
+      );
+    case "stats":
+      return (
+        <svg className={cls} viewBox="0 0 24 24" {...stroke}><path d="M3 3v18h18" /><path d="M7 14l4-4 4 4 5-6" /></svg>
       );
   }
 }

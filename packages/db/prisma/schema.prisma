@@ -96,6 +96,11 @@ model Config {
   tempChannelCategoryId   String?
   tempChannelNameTemplate String  @default("🎙️ {nick}'s Channel")
 
+  // Server-Stats — Locked-Voice-Channels mit Live-Zählerständen.
+  // Einzelne Stats in ServerStat.
+  serverStatsEnabled    Boolean @default(false)
+  serverStatsCategoryId String?
+
   // Music — DJ-Rollen in MusicRole
   musicEnabled Boolean @default(false)
 
@@ -205,6 +210,21 @@ model RssFeedItem {
 
   @@unique([feedId, guid])
   @@index([feedId, postedAt])
+}
+
+// Server-Stats — pro Eintrag ein automatisch erzeugter Voice-Channel mit
+// Live-Zählerstand im Namen.
+model ServerStat {
+  id           Int       @id @default(autoincrement())
+  type         String // "totalMembers" | "humanMembers" | "onlineMembers"
+  nameTemplate String // z.B. "📊 Mitglieder: {count}"
+  channelId    String? // null bis der Bot den Channel angelegt hat
+  position     Int       @default(0)
+  enabled      Boolean   @default(true)
+  lastValue    Int?
+  lastUpdate   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 // AutoMod ausgenommene Channels — keine Regel greift in diesen Channels.

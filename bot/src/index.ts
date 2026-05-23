@@ -19,6 +19,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildPresences, // für Server-Stats „Online-Zählung" — privileged intent!
     GatewayIntentBits.MessageContent,
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
