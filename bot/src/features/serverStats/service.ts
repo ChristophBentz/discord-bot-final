@@ -163,10 +163,10 @@ export interface UpdateResult {
 }
 
 // Discord limitiert Channel-Renames auf 2 pro 10 Min pro Channel. Wir
-// halten uns selbst an min. 10 Min Abstand zwischen Renames pro Stat —
-// eine ganze Bucket-Periode. So vermeiden wir komplett die Penalty,
-// auch nach Bot-Restarts und in Edge-Cases.
-const MIN_RENAME_INTERVAL_MS = 10 * 60_000;
+// halten uns selbst an min. 5 Min Abstand pro Stat → max. 2 Renames pro
+// 10-Min-Fenster, was exakt Discords Budget entspricht. Vorher hatten
+// wir 10 Min, das verschenkte die Hälfte des Budgets.
+const MIN_RENAME_INTERVAL_MS = 5 * 60_000;
 
 // Jeder aktive Stat: Wert berechnen → mit aktuellem Channel-Namen vergleichen
 // → wenn unterschiedlich, umbenennen. Keine DB-Cache-Tricks — der echte
