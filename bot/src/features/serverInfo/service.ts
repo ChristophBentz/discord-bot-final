@@ -3,21 +3,27 @@ import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { env } from "../../lib/env.js";
 
-async function syncGuild(guild: Guild): Promise<void> {
+async function syncGuild(client: Client, guild: Guild): Promise<void> {
   try {
+    // Bot-Info aus dem Client — für Vorschauen im Dashboard.
+    const me = guild.members.me ?? null;
+    const botName = me?.displayName ?? client.user?.username ?? "Bot";
+    const botAvatarUrl =
+      me?.displayAvatarURL({ size: 128 }) ??
+      client.user?.displayAvatarURL({ size: 128 }) ??
+      null;
+
+    const data = {
+      guildName: guild.name,
+      guildIconUrl: guild.iconURL({ size: 128 }),
+      guildMemberCount: guild.memberCount,
+      botName,
+      botAvatarUrl,
+    };
     await prisma.config.upsert({
       where: { id: 1 },
-      update: {
-        guildName: guild.name,
-        guildIconUrl: guild.iconURL({ size: 128 }),
-        guildMemberCount: guild.memberCount,
-      },
-      create: {
-        id: 1,
-        guildName: guild.name,
-        guildIconUrl: guild.iconURL({ size: 128 }),
-        guildMemberCount: guild.memberCount,
-      },
+      update: data,
+      create: { id: 1, ...data },
     });
   } catch (err) {
     logger.error({ err }, "Server-Info-Sync fehlgeschlagen");
@@ -31,7 +37,7 @@ export async function syncServerInfoOnce(client: Client): Promise<void> {
     logger.warn({ guildId: env.DISCORD_GUILD_ID }, "Guild nicht im Cache");
     return;
   }
-  await syncGuild(guild);
+  await syncGuild(client, guild);
   logger.info({ name: guild.name, members: guild.memberCount }, "Server-Info synchronisiert");
 }
 

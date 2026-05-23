@@ -46,6 +46,7 @@ export default async function WelcomePage() {
           }}
           currentAutoRoles={currentAutoRoles}
           availableRoles={availableRoles}
+          bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
           channels={channels.map((c) => ({
             channelId: c.channelId,
             name: c.name,

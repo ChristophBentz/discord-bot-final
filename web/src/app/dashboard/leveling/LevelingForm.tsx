@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Toggle } from "@/components/Toggle";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
+import { MessagePreview } from "@/components/MessagePreview";
 import { saveLevelingSettings } from "./actions";
 
 interface Initial {
@@ -15,6 +16,11 @@ interface Initial {
   xpLevelBase: number;
   xpLevelMultiplier: number;
   levelUpMessage: string;
+}
+
+interface BotIdentity {
+  name: string;
+  avatarUrl: string | null;
 }
 
 const MESSAGE_PRESETS: { label: string; text: string }[] = [
@@ -37,44 +43,6 @@ function renderPreview(
     .replaceAll("{server}", args.serverName);
 }
 
-// Minimaler Markdown-Renderer für die Vorschau: **fett**, *kursiv*, `code`
-function renderMarkdown(text: string): React.ReactNode {
-  const parts: React.ReactNode[] = [];
-  let remaining = text;
-  let idx = 0;
-  const regex = /\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|@(\w+)/g;
-  let lastIndex = 0;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    if (match[1]) {
-      parts.push(<strong key={idx++}>{match[1]}</strong>);
-    } else if (match[2]) {
-      parts.push(<em key={idx++}>{match[2]}</em>);
-    } else if (match[3]) {
-      parts.push(
-        <code key={idx++} className="rounded bg-bg-elevated px-1 py-0.5 font-mono text-[12px]">
-          {match[3]}
-        </code>,
-      );
-    } else if (match[4]) {
-      parts.push(
-        <span
-          key={idx++}
-          className="rounded bg-brand/20 px-1 text-brand-light font-medium"
-        >
-          @{match[4]}
-        </span>,
-      );
-    }
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
-  void remaining;
-  return parts;
-}
 
 function NumberField({
   name,
@@ -107,9 +75,11 @@ function NumberField({
 export function LevelingForm({
   initial,
   channels,
+  bot,
 }: {
   initial: Initial;
   channels: ChannelOption[];
+  bot: BotIdentity;
 }) {
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -293,33 +263,13 @@ export function LevelingForm({
           = Server-Name. Discord-Markdown wird gerendert (**fett**, *kursiv*, `code`).
         </p>
 
-        {/* Live-Preview */}
-        <div className="mt-3 rounded-2xl border border-line bg-bg-elevated/40 p-4">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            Vorschau (so sieht's im Discord aus)
-          </div>
-          <div className="flex items-start gap-3 rounded-lg bg-bg-card p-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-sm font-semibold text-white">
-              H
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-ink">Harald</span>
-                <span className="rounded bg-brand/20 px-1 py-0.5 text-[9px] font-semibold text-brand-light">
-                  APP
-                </span>
-                <span className="text-[11px] text-ink-subtle">heute · 14:32</span>
-              </div>
-              <div className="mt-0.5 text-sm text-ink whitespace-pre-wrap break-words">
-                {previewText ? renderMarkdown(previewText) : (
-                  <span className="text-ink-subtle italic">leer — keine Nachricht wird gesendet</span>
-                )}
-              </div>
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] text-ink-subtle">
-            Beispieldaten: User „Max", Level 5
-          </p>
+        <div className="mt-3">
+          <MessagePreview
+            text={previewText}
+            botName={bot.name}
+            botAvatarUrl={bot.avatarUrl}
+            hint='Beispieldaten: User „Max", Level 5'
+          />
         </div>
       </div>
 

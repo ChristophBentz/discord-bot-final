@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Toggle } from "@/components/Toggle";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
+import { MessagePreview } from "@/components/MessagePreview";
 import { checkNow, saveFreeGamesSettings } from "./actions";
 
 interface Initial {
@@ -31,6 +32,7 @@ interface Props {
   initial: Initial;
   channels: ChannelOption[];
   roles: RoleOption[];
+  bot: { name: string; avatarUrl: string | null };
 }
 
 const MESSAGE_PRESETS: { label: string; text: string }[] = [
@@ -80,7 +82,7 @@ function SubMenu({
   );
 }
 
-export function FreeGamesForm({ initial, channels, roles }: Props) {
+export function FreeGamesForm({ initial, channels, roles, bot }: Props) {
   const [enabled, setEnabled] = useState(initial.freeGamesEnabled);
   const [message, setMessage] = useState(initial.freeGamesMessage ?? "");
   const [pingRoleId, setPingRoleId] = useState(initial.freeGamesPingRoleId ?? "");
@@ -238,6 +240,18 @@ export function FreeGamesForm({ initial, channels, roles }: Props) {
                 </code>{" "}
                 = Anzahl neuer Spiele
               </p>
+
+              <div className="mt-3">
+                <MessagePreview
+                  text={message
+                    .replaceAll("{role}", "<@&123>")
+                    .replaceAll("{count}", "3")}
+                  botName={bot.name}
+                  botAvatarUrl={bot.avatarUrl}
+                  emptyText="nur Embeds, keine Begleitnachricht"
+                  hint='Beispieldaten: 3 neue Spiele, Rollen-Mention als Platzhalter'
+                />
+              </div>
             </div>
 
             <div>

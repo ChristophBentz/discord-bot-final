@@ -64,6 +64,7 @@ export default async function LevelingPage() {
             xpLevelMultiplier: c.xpLevelMultiplier,
             levelUpMessage: c.levelUpMessage,
           }}
+          bot={{ name: c.botName ?? "Bot", avatarUrl: c.botAvatarUrl }}
           channels={channels.map((ch) => ({
             channelId: ch.channelId,
             name: ch.name,

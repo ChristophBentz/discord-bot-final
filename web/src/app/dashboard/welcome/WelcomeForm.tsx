@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Toggle } from "@/components/Toggle";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
+import { MessagePreview } from "@/components/MessagePreview";
 import { saveWelcomeSettings } from "./actions";
 import { AutoRoleEditor, type AutoRoleOption } from "./AutoRoleEditor";
 
@@ -21,6 +22,19 @@ interface Props {
   currentAutoRoles: AutoRoleOption[];
   availableRoles: AutoRoleOption[];
   channels: ChannelOption[];
+  bot: { name: string; avatarUrl: string | null };
+}
+
+// Lokales Beispiel-Member für die Vorschau — entsprechende Welcome/Leave-Platzhalter werden ersetzt.
+function previewRender(
+  template: string,
+  args: { username: string; memberCount: number; serverName: string },
+): string {
+  return template
+    .replaceAll("{user}", `@${args.username}`)
+    .replaceAll("{username}", args.username)
+    .replaceAll("{memberCount}", String(args.memberCount))
+    .replaceAll("{server}", args.serverName);
 }
 
 function SubMenu({
@@ -149,7 +163,7 @@ function PresetPicker({
   );
 }
 
-export function WelcomeForm({ initial, currentAutoRoles, availableRoles, channels }: Props) {
+export function WelcomeForm({ initial, currentAutoRoles, availableRoles, channels, bot }: Props) {
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -210,6 +224,18 @@ export function WelcomeForm({ initial, currentAutoRoles, availableRoles, channel
                 className="input resize-none"
               />
               {PLACEHOLDER_HINT}
+              <div className="mt-3">
+                <MessagePreview
+                  text={previewRender(welcomeMsg, {
+                    username: "Max",
+                    memberCount: 250,
+                    serverName: "Mein Server",
+                  })}
+                  botName={bot.name}
+                  botAvatarUrl={bot.avatarUrl}
+                  hint='Beispieldaten: User „Max", Member #250'
+                />
+              </div>
             </div>
           </div>
         </SubMenu>
@@ -253,6 +279,18 @@ export function WelcomeForm({ initial, currentAutoRoles, availableRoles, channel
                 className="input resize-none"
               />
               {PLACEHOLDER_HINT}
+              <div className="mt-3">
+                <MessagePreview
+                  text={previewRender(leaveMsg, {
+                    username: "Max",
+                    memberCount: 249,
+                    serverName: "Mein Server",
+                  })}
+                  botName={bot.name}
+                  botAvatarUrl={bot.avatarUrl}
+                  hint='Beispieldaten: User „Max"'
+                />
+              </div>
             </div>
           </div>
         </SubMenu>

@@ -21,6 +21,8 @@ model Config {
   guildName        String?
   guildIconUrl     String?
   guildMemberCount Int     @default(0)
+  botName          String?
+  botAvatarUrl     String?
 
   // Logging — ein Channel, zuschaltbar pro Kategorie
   logChannelId      String?
