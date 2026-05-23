@@ -163,10 +163,10 @@ export interface UpdateResult {
 }
 
 // Discord limitiert Channel-Renames auf 2 pro 10 Min pro Channel. Wir
-// halten uns selbst an min. 5,5 Min Abstand zwischen Renames pro Stat,
-// damit wir nie in die Rate-Limit-Penalty rutschen (die discord.js
-// dann durch Awaiten "auflöst" und das ganze Update-System verzögert).
-const MIN_RENAME_INTERVAL_MS = 5.5 * 60_000;
+// halten uns selbst an min. 10 Min Abstand zwischen Renames pro Stat —
+// eine ganze Bucket-Periode. So vermeiden wir komplett die Penalty,
+// auch nach Bot-Restarts und in Edge-Cases.
+const MIN_RENAME_INTERVAL_MS = 10 * 60_000;
 
 // Jeder aktive Stat: Wert berechnen → mit aktuellem Channel-Namen vergleichen
 // → wenn unterschiedlich, umbenennen. Keine DB-Cache-Tricks — der echte
@@ -254,11 +254,15 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
       );
       renamed += 1;
     } catch (err) {
+      // Auch nach Fehler die Cooldown setzen → wir hämmern nicht weiter
+      // auf Discord ein. Wenn die Discord-Penalty noch tiefer ist als
+      // unser 5,5-Min-Cooldown, scheitert der nächste Versuch zwar
+      // wieder, aber zumindest in kontrollierten Intervallen.
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: { lastCheck: now },
+        data: { lastCheck: now, lastUpdate: now },
       });
-      logger.warn({ err, statId: stat.id }, "ServerStats: setName fehlgeschlagen");
+      logger.warn({ err, statId: stat.id }, "ServerStats: setName fehlgeschlagen — Cooldown gesetzt");
       failed += 1;
     }
   }
