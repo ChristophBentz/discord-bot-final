@@ -26,7 +26,6 @@ const STAT_TYPES: { value: StatType; label: string; defaultTemplate: string; not
     value: "onlineMembers",
     label: "Gerade online",
     defaultTemplate: "🟢 Online: {count}",
-    note: 'Benötigt aktivierte „Presence Intent" im Discord Developer Portal.',
   },
 ];
 
@@ -205,18 +204,6 @@ function StatRow({ stat, disabled }: { stat: StatDTO; disabled: boolean }) {
           </Pill>
         )}
       </div>
-
-      {meta?.note && (
-        <div className="mt-3 px-5">
-          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-3.5 w-3.5 shrink-0">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4M12 8h.01" />
-            </svg>
-            <span>{meta.note}</span>
-          </div>
-        </div>
-      )}
 
       {/* Action-Bar */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line bg-bg-elevated/40 px-3 py-2">

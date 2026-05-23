@@ -83,22 +83,53 @@ export function ServerStatsManager({ initial, stats, channels }: Props) {
           </div>
 
           {enabled && (
-            <div>
-              <span className="mb-1.5 block text-sm font-medium text-ink">Kategorie</span>
-              <ChannelPicker
-                name="serverStatsCategoryId"
-                defaultValue={initial.serverStatsCategoryId}
-                value={categoryId}
-                channels={channels}
-                allowedTypes={[4]}
-                groupByCategory={false}
-                onChange={(v) => setCategoryId(v)}
-              />
-              <p className="mt-1.5 text-xs text-ink-subtle">
-                Tipp: leg eine Kategorie ganz oben in deiner Channel-Liste an, damit die Stats
-                immer sichtbar sind.
-              </p>
-            </div>
+            <>
+              <div>
+                <span className="mb-1.5 block text-sm font-medium text-ink">Kategorie</span>
+                <ChannelPicker
+                  name="serverStatsCategoryId"
+                  defaultValue={initial.serverStatsCategoryId}
+                  value={categoryId}
+                  channels={channels}
+                  allowedTypes={[4]}
+                  groupByCategory={false}
+                  onChange={(v) => setCategoryId(v)}
+                />
+                <p className="mt-1.5 text-xs text-ink-subtle">
+                  Tipp: leg eine Kategorie ganz oben in deiner Channel-Liste an, damit die Stats
+                  immer sichtbar sind.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-200">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4M12 8h.01" />
+                </svg>
+                <div>
+                  <span className="font-semibold">Wichtig für „Gerade online":</span> Im{" "}
+                  <a
+                    href="https://discord.com/developers/applications"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-amber-100"
+                  >
+                    Discord Developer Portal
+                  </a>{" "}
+                  unter <span className="font-mono">Bot → Privileged Gateway Intents</span> die{" "}
+                  <span className="font-semibold">Presence Intent</span> aktivieren — sonst zeigt
+                  die Online-Zählung immer 0.
+                </div>
+              </div>
+            </>
           )}
 
           {!enabled && (
