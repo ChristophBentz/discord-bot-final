@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
 import { MessagePreview } from "@/components/MessagePreview";
+import { Toggle } from "@/components/Toggle";
 import type { RoleOpt } from "./FeedManager";
 import { createFeed, updateFeed, testUrl, type TestPreview } from "./actions";
 import { RssEmbedBody } from "./RssEmbedBody";
@@ -199,16 +200,15 @@ export function FeedForm({ channels, roles, bot, initial, onDone }: Props) {
         </div>
       </div>
 
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
-        <input
-          type="checkbox"
+      <div className="rounded-2xl border border-line bg-bg-elevated/40 px-5">
+        <Toggle
           name="enabled"
-          checked={enabled}
-          onChange={(e) => setEnabled(e.target.checked)}
-          className="h-4 w-4 rounded border-line bg-bg-elevated text-brand focus:ring-brand"
+          label="Feed aktiv"
+          description="Wenn aktiv, prüft der Bot diesen Feed im eingestellten Intervall und postet neue Artikel in den Ziel-Channel. Pausiert: bleibt gespeichert, wird aber nicht mehr abgefragt."
+          defaultChecked={enabled}
+          onCheckedChange={setEnabled}
         />
-        Feed aktiv
-      </label>
+      </div>
 
       <div className="relative">
         <span className="mb-1.5 block text-sm font-medium text-ink">Ping-Rolle (optional)</span>
