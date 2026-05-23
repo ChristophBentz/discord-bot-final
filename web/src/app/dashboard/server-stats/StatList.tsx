@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import {
   createStat,
   deleteStat,
@@ -139,91 +139,206 @@ function StatRow({ stat, disabled }: { stat: StatDTO; disabled: boolean }) {
     );
   }
 
-  return (
-    <div className="rounded-2xl border border-line bg-bg-elevated/40 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                stat.enabled
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-zinc-500/15 text-zinc-400"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  stat.enabled ? "bg-emerald-400" : "bg-zinc-500"
-                }`}
-              />
-              {stat.enabled ? "Aktiv" : "Pausiert"}
-            </span>
-            <h3 className="truncate text-sm font-semibold text-ink">{meta?.label ?? stat.type}</h3>
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-sm">
-            <span className="text-ink-subtle">🔊</span>
-            <code className="rounded bg-bg-elevated px-2 py-0.5 font-mono text-xs text-ink">
-              {stat.nameTemplate.replaceAll(
-                "{count}",
-                stat.lastValue?.toString() ?? "—",
-              )}
-            </code>
-          </div>
-          {meta?.note && (
-            <p className="mt-1.5 text-[11px] text-ink-subtle">ℹ {meta.note}</p>
-          )}
-          {stat.lastUpdate && (
-            <p className="mt-1 text-[11px] text-ink-subtle">
-              Letztes Update: {new Date(stat.lastUpdate).toLocaleString("de-DE")}
-            </p>
-          )}
-        </div>
+  const renderedName = stat.nameTemplate.replaceAll(
+    "{count}",
+    stat.lastValue?.toString() ?? "—",
+  );
+  const lastUpdate = stat.lastUpdate ? new Date(stat.lastUpdate).toLocaleString("de-DE") : null;
 
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
+  return (
+    <div className="overflow-hidden rounded-2xl border border-line bg-bg-elevated/30 transition-colors hover:border-line-strong">
+      {/* Header */}
+      <div className="px-5 pt-4">
+        <div className="flex items-center gap-2">
+          <h3 className="truncate text-base font-semibold text-ink">{meta?.label ?? stat.type}</h3>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+              stat.enabled
+                ? "bg-emerald-500/15 text-emerald-300"
+                : "bg-zinc-500/15 text-zinc-400"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                stat.enabled ? "bg-emerald-400" : "bg-zinc-500"
+              }`}
+            />
+            {stat.enabled ? "Aktiv" : "Pausiert"}
+          </span>
+        </div>
+        <div className="mt-1 inline-flex items-center gap-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5 text-ink-subtle">
+            <path d="M11 5 6 9H2v6h4l5 4V5z" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+          </svg>
+          <code className="truncate rounded bg-bg-elevated px-2 py-0.5 font-mono text-xs text-ink">
+            {renderedName}
+          </code>
+        </div>
+      </div>
+
+      {/* Meta-Pills */}
+      <div className="mt-3 flex flex-wrap gap-2 px-5">
+        <Pill
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+              <path d="M12 20V10" />
+              <path d="M18 20V4" />
+              <path d="M6 20v-6" />
+            </svg>
+          }
+        >
+          <span className="text-ink-subtle">Aktueller Wert</span>
+          <span className="font-medium text-ink">{stat.lastValue ?? "—"}</span>
+        </Pill>
+        {lastUpdate && (
+          <Pill
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+            }
+          >
+            <span className="text-ink-subtle">Letztes Update</span>
+            <span className="font-medium text-ink">{lastUpdate}</span>
+          </Pill>
+        )}
+      </div>
+
+      {meta?.note && (
+        <div className="mt-3 px-5">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-3.5 w-3.5 shrink-0">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            <span>{meta.note}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Action-Bar */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line bg-bg-elevated/40 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-1">
+          <ActionButton
             onClick={() => {
               startToggle(async () => {
                 await toggleStat(stat.id, !stat.enabled);
               });
             }}
             disabled={isToggling || disabled}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-bg-hover hover:text-ink disabled:opacity-50"
+            icon={
+              stat.enabled ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                  <path d="M8 5v14l11-7L8 5z" />
+                </svg>
+              )
+            }
           >
             {stat.enabled ? "Pausieren" : "Aktivieren"}
-          </button>
-          <button
-            type="button"
+          </ActionButton>
+
+          <ActionButton
             onClick={() => setEditing(true)}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-bg-hover hover:text-ink"
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            }
           >
             Bearbeiten
-          </button>
+          </ActionButton>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1">
           {confirmDel ? (
-            <button
-              type="button"
-              onClick={() => {
-                startDelete(async () => {
-                  await deleteStat(stat.id);
-                });
-              }}
-              disabled={isDeleting}
-              className="rounded-md border border-rose-500/50 bg-rose-500/15 px-2.5 py-1.5 text-xs font-medium text-rose-200 hover:bg-rose-500/25"
-            >
-              {isDeleting ? "Lösche…" : "Wirklich?"}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setConfirmDel(false)}
+                className="rounded-md px-2 py-1 text-xs text-ink-muted hover:bg-bg-hover hover:text-ink"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  startDelete(async () => {
+                    await deleteStat(stat.id);
+                  });
+                }}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/50 bg-rose-500/15 px-2.5 py-1 text-xs font-medium text-rose-200 transition-colors hover:bg-rose-500/25"
+              >
+                {isDeleting ? "Lösche…" : "Ja, löschen"}
+              </button>
+            </div>
           ) : (
-            <button
-              type="button"
+            <ActionButton
               onClick={() => setConfirmDel(true)}
-              className="rounded-md px-2.5 py-1.5 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-500/10"
+              tone="rose"
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              }
             >
               Löschen
-            </button>
+            </ActionButton>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function Pill({ children, icon }: { children: ReactNode; icon?: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-bg-elevated px-2.5 py-1 text-xs text-ink-muted">
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+function ActionButton({
+  onClick,
+  disabled,
+  icon,
+  tone = "default",
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  icon: ReactNode;
+  tone?: "default" | "rose";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "rose"
+      ? "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+      : "text-ink-muted hover:bg-bg-hover hover:text-ink";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${toneClass}`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }
 
