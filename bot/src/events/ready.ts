@@ -6,7 +6,10 @@ import { bootstrapSessions } from "../features/leveling/voiceSessions.js";
 import { startServerInfoSync } from "../features/serverInfo/service.js";
 import { bulkSync as syncMembers } from "../features/members/service.js";
 import { bulkSyncChannels } from "../features/channels/service.js";
-import { cleanupOrphanedTempChannels } from "../features/tempChannels/service.js";
+import {
+  cleanupOrphanedTempChannels,
+  startTempChannelSweeper,
+} from "../features/tempChannels/service.js";
 import {
   ensurePanel as ensureTicketPanel,
   startTicketCleanup,
@@ -29,6 +32,7 @@ const event: BotEvent<Events.ClientReady> = {
     await syncMembers(client);
     await bulkSyncChannels(client);
     await cleanupOrphanedTempChannels(client);
+    startTempChannelSweeper(client);
     await ensureTicketPanel(client);
     startTicketCleanup(client);
   },

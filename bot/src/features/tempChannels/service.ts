@@ -96,6 +96,15 @@ export async function createTempChannel(
   }
 }
 
+// Zählt nur menschliche User im Voice-Channel (Bots zählen nicht für „leer").
+function humanMemberCount(channel: VoiceChannel): number {
+  let count = 0;
+  for (const m of channel.members.values()) {
+    if (!m.user.bot) count += 1;
+  }
+  return count;
+}
+
 // Löscht einen Temp-Channel, wenn er leer ist und in unserer Tabelle steht.
 export async function maybeDeleteTempChannel(
   client: Client,
@@ -112,7 +121,7 @@ export async function maybeDeleteTempChannel(
 
   if (channel.type !== ChannelType.GuildVoice) return;
   const voice = channel as VoiceChannel;
-  if (voice.members.size > 0) return;
+  if (humanMemberCount(voice) > 0) return;
 
   try {
     await voice.delete("Temp-Channel ist leer");
@@ -121,6 +130,24 @@ export async function maybeDeleteTempChannel(
   } catch (err) {
     logger.warn({ err, channelId }, "Temp-Channel-Löschung fehlgeschlagen");
   }
+}
+
+// Periodischer Cleanup-Lauf — fängt Fälle ab, wo voiceStateUpdate aus
+// irgendwelchen Gründen verschluckt wurde (z.B. Race nach Permission-
+// Update durch Lock-Aktion).
+export function startTempChannelSweeper(client: Client): void {
+  const INTERVAL_MS = 60_000;
+  setInterval(async () => {
+    try {
+      const records = await prisma.tempChannel.findMany();
+      for (const r of records) {
+        await maybeDeleteTempChannel(client, r.channelId);
+      }
+    } catch (err) {
+      logger.warn({ err }, "Temp-Channel-Sweeper-Lauf fehlgeschlagen");
+    }
+  }, INTERVAL_MS);
+  logger.info({ intervalMs: INTERVAL_MS }, "Temp-Channel-Sweeper gestartet");
 }
 
 // Beim Bot-Start: alle leeren Temp-Channels aufräumen.
