@@ -131,6 +131,25 @@ export async function ensureStatChannels(client: Client): Promise<void> {
         reason: "Server-Stats Channel",
       })) as VoiceChannel;
 
+      // Bot-eigene Permissions explizit auf den Channel setzen, damit der
+      // Bot ihn auch managen kann wenn die Category Permissions für die
+      // Bot-Rolle blockt (häufige Ursache für 50001 Missing Access).
+      const botMember = guild.members.me;
+      if (botMember) {
+        await channel.permissionOverwrites
+          .edit(botMember.id, {
+            ViewChannel: true,
+            ManageChannels: true,
+            Connect: true,
+          })
+          .catch((err: unknown) => {
+            const e = err as { code?: number; message?: string };
+            logger.warn(
+              `ServerStats Bot-Permission setzen fehlgeschlagen [${channel.id}] code=${e?.code} msg=${e?.message}`,
+            );
+          });
+      }
+
       await prisma.serverStat.update({
         where: { id: stat.id },
         data: {
@@ -206,6 +225,28 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
       { statId: stat.id, type: stat.type, value, current, expected },
       "ServerStats: Wert berechnet",
     );
+
+    // Self-Heal: für bestehende Channels die noch keinen Bot-Overwrite haben,
+    // den jetzt setzen. Sonst kann der Bot den Channel nicht umbenennen
+    // wenn die Category Bot-Permissions blockt.
+    const botMember = guild.members.me;
+    if (botMember) {
+      const botOw = (channel as VoiceChannel).permissionOverwrites.cache.get(botMember.id);
+      if (!botOw || !botOw.allow.has(PermissionFlagsBits.ManageChannels)) {
+        await (channel as VoiceChannel).permissionOverwrites
+          .edit(botMember.id, {
+            ViewChannel: true,
+            ManageChannels: true,
+            Connect: true,
+          })
+          .catch((err: unknown) => {
+            const e = err as { code?: number; message?: string };
+            logger.warn(
+              `ServerStats Self-Heal-Permission fehlgeschlagen [${stat.id}] code=${e?.code} msg=${e?.message}`,
+            );
+          });
+      }
+    }
 
     // Name passt schon → nur lastCheck/lastValue updaten
     if (current === expected) {
