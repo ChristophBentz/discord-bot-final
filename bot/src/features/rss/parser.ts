@@ -91,47 +91,76 @@ function atomLink(xml: string): string | null {
   return fallback;
 }
 
-function findImage(xml: string): string | null {
+function resolveUrl(url: string | null | undefined, base: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  try {
+    return new URL(trimmed, base ?? undefined).href;
+  } catch {
+    return trimmed;
+  }
+}
+
+function findImage(xml: string, baseUrl: string | null): string | null {
   // 1) media:thumbnail (auch innerhalb <media:group>, z.B. YouTube)
   const thumb = xml.match(/<media:thumbnail\s[^>]*\burl\s*=\s*"([^"]*)"/i);
-  if (thumb) return thumb[1]!;
+  if (thumb) return resolveUrl(thumb[1], baseUrl);
   // 2) media:content (Bild bevorzugt)
   const mediaImage = xml.match(
     /<media:content\s[^>]*\bmedium\s*=\s*"image"[^>]*\burl\s*=\s*"([^"]*)"/i,
   );
-  if (mediaImage) return mediaImage[1]!;
+  if (mediaImage) return resolveUrl(mediaImage[1], baseUrl);
   const mediaImage2 = xml.match(
     /<media:content\s[^>]*\burl\s*=\s*"([^"]*)"[^>]*\bmedium\s*=\s*"image"/i,
   );
-  if (mediaImage2) return mediaImage2[1]!;
+  if (mediaImage2) return resolveUrl(mediaImage2[1], baseUrl);
   const media = xml.match(/<media:content\s[^>]*\burl\s*=\s*"([^"]*\.(?:jpe?g|png|gif|webp))"/i);
-  if (media) return media[1]!;
+  if (media) return resolveUrl(media[1], baseUrl);
   // 3) enclosure (RSS) — type="image/..." mit url in beliebiger Reihenfolge
   const encl = xml.match(/<enclosure\s[^>]*\burl\s*=\s*"([^"]*)"[^>]*\btype\s*=\s*"image\/[^"]*"/i);
-  if (encl) return encl[1]!;
+  if (encl) return resolveUrl(encl[1], baseUrl);
   const encl2 = xml.match(/<enclosure\s[^>]*\btype\s*=\s*"image\/[^"]*"[^>]*\burl\s*=\s*"([^"]*)"/i);
-  if (encl2) return encl2[1]!;
+  if (encl2) return resolveUrl(encl2[1], baseUrl);
   // 4) image-Tag mit url-Sub-Tag (manche RSS-Feeds nutzen das auf Item-Ebene)
   const imageBlock = tag(xml, "image");
   if (imageBlock) {
     const imageUrl = tag(imageBlock, "url");
-    if (imageUrl) return clean(imageUrl);
+    if (imageUrl) return resolveUrl(clean(imageUrl), baseUrl);
   }
   // 5) itunes:image href="" (Podcast-Feeds)
   const itunes = xml.match(/<itunes:image\s[^>]*\bhref\s*=\s*"([^"]*)"/i);
-  if (itunes) return itunes[1]!;
-  // 6) erstes <img src=""> im Description/Content
+  if (itunes) return resolveUrl(itunes[1], baseUrl);
+  // 6) generische Custom-Namespace-Tags: <prefix:image>URL</prefix:image>
+  //    (z.B. <dotabuff:image>/blog/.../image</dotabuff:image>)
+  const customImg = xml.match(/<(\w+):image(?:\s[^>]*)?>([\s\S]*?)<\/\1:image>/i);
+  if (customImg) {
+    const candidate = stripCdata(customImg[2]!).trim();
+    if (candidate && !candidate.includes("<")) {
+      return resolveUrl(candidate, baseUrl);
+    }
+  }
+  const customThumb = xml.match(/<(\w+):thumbnail(?:\s[^>]*)?>([\s\S]*?)<\/\1:thumbnail>/i);
+  if (customThumb) {
+    const candidate = stripCdata(customThumb[2]!).trim();
+    if (candidate && !candidate.includes("<")) {
+      return resolveUrl(candidate, baseUrl);
+    }
+  }
+  // 7) erstes <img src=""> im Description/Content (auch Single-Quotes)
   const description =
     tag(xml, "content:encoded") ??
     tag(xml, "description") ??
     tag(xml, "summary") ??
     tag(xml, "content") ??
     "";
-  const img = description.match(/<img[^>]+src\s*=\s*"([^"]+)"/i);
-  if (img) return img[1]!;
-  // 7) og:image im Description-Markup (selten, aber kommt vor)
+  const img =
+    description.match(/<img[^>]+src\s*=\s*"([^"]+)"/i) ??
+    description.match(/<img[^>]+src\s*=\s*'([^']+)'/i);
+  if (img) return resolveUrl(decodeEntities(img[1]!), baseUrl);
+  // 8) og:image im Description-Markup (selten, aber kommt vor)
   const og = description.match(/property\s*=\s*"og:image"[^>]*content\s*=\s*"([^"]+)"/i);
-  if (og) return og[1]!;
+  if (og) return resolveUrl(decodeEntities(og[1]!), baseUrl);
   return null;
 }
 
@@ -142,11 +171,10 @@ function parseDate(raw: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function parseItemBlock(block: string, isAtom: boolean): FeedItem {
+function parseItemBlock(block: string, isAtom: boolean, baseUrl: string | null): FeedItem {
   const title = clean(tag(block, "title")) ?? "(Kein Titel)";
-  const link = isAtom
-    ? atomLink(block)
-    : clean(tag(block, "link"));
+  const rawLink = isAtom ? atomLink(block) : clean(tag(block, "link"));
+  const link = resolveUrl(rawLink, baseUrl);
   const descRaw =
     tag(block, "content:encoded") ??
     tag(block, "description") ??
@@ -158,29 +186,33 @@ function parseItemBlock(block: string, isAtom: boolean): FeedItem {
   );
   const guidRaw = tag(block, "guid") ?? tag(block, "id") ?? link ?? title;
   const guid = (guidRaw ? stripCdata(guidRaw).trim() : "") || title;
-  const imageUrl = findImage(block);
+  const imageUrl = findImage(block, baseUrl);
   const author = clean(
     tag(block, "author") ?? tag(block, "dc:creator") ?? tag(block, "name"),
   );
-  return { guid, title, link: link ?? null, description, pubDate, imageUrl, author };
+  return { guid, title, link, description, pubDate, imageUrl, author };
 }
 
-export function parseFeed(xml: string): ParsedFeed {
+export function parseFeed(xml: string, sourceUrl?: string): ParsedFeed {
   // Atom vs RSS erkennen.
   const isAtom = /<feed[\s>]/i.test(xml) && /xmlns="http:\/\/www\.w3\.org\/2005\/Atom"/i.test(xml);
   const channelBlock = tag(xml, "channel") ?? xml;
 
   const title = clean(tag(channelBlock, "title"));
-  const link = isAtom ? atomLink(channelBlock) : clean(tag(channelBlock, "link"));
+  const rawLink = isAtom ? atomLink(channelBlock) : clean(tag(channelBlock, "link"));
+  // Base-URL für relative Links/Bilder: Feed-Link bevorzugt, sonst Origin der Source-URL.
+  const link = resolveUrl(rawLink, sourceUrl ?? null);
+  const baseUrl = link ?? sourceUrl ?? null;
+
   const description = clean(tag(channelBlock, "description") ?? tag(channelBlock, "subtitle"));
   const imageUrl =
-    attr(channelBlock, "image", "href") ??
-    clean(tag(tag(channelBlock, "image") ?? "", "url")) ??
+    resolveUrl(attr(channelBlock, "image", "href"), baseUrl) ??
+    resolveUrl(clean(tag(tag(channelBlock, "image") ?? "", "url")), baseUrl) ??
     null;
 
   const itemTag = isAtom ? "entry" : "item";
   const blocks = allTags(xml, itemTag);
-  const items = blocks.map((b) => parseItemBlock(b, isAtom));
+  const items = blocks.map((b) => parseItemBlock(b, isAtom, baseUrl));
 
   return { title, link, description, imageUrl, items };
 }
@@ -199,5 +231,5 @@ export async function fetchAndParseFeed(url: string): Promise<ParsedFeed> {
   }
   const xml = await res.text();
   if (!xml.trim()) throw new Error("Feed lieferte leere Antwort.");
-  return parseFeed(xml);
+  return parseFeed(xml, url);
 }
