@@ -217,13 +217,15 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
       continue;
     }
 
-    // Rate-Limit-Schutz: nicht öfter als alle 5,5 Min renamen
+    // Rate-Limit-Schutz: nicht öfter als alle 5,5 Min renamen.
+    // WICHTIG: lastValue NICHT updaten — sonst suggeriert das Dashboard
+    // einen Wert der gar nicht auf Discord steht.
     const sinceLast = stat.lastUpdate ? now.getTime() - stat.lastUpdate.getTime() : Infinity;
     if (sinceLast < MIN_RENAME_INTERVAL_MS) {
       const waitSec = Math.ceil((MIN_RENAME_INTERVAL_MS - sinceLast) / 1000);
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: { lastValue: value, lastCheck: now },
+        data: { lastCheck: now },
       });
       logger.info(
         { statId: stat.id, waitSec, current, expected },
