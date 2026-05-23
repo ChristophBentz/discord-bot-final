@@ -149,6 +149,7 @@ export async function checkFeed(client: Client, feedId: number): Promise<FeedChe
   );
 
   let candidates = sorted.filter((i) => !known.has(i.guid));
+  const initialCandidatesCount = candidates.length;
 
   // Beim allerersten Lauf: nur die N neuesten posten, Rest stumm als „gesehen" markieren.
   let silentMark: FeedItem[] = [];
@@ -164,17 +165,21 @@ export async function checkFeed(client: Client, feedId: number): Promise<FeedChe
     candidates = candidates.slice(0, maxPerRun);
   }
 
+  if (initialCandidatesCount > 0) {
+    logger.info(
+      `RSS-Detail [${feed.id}] "${feed.name}": dbBefore=${existingCount} fetched=${sorted.length} newCandidates=${initialCandidatesCount} willPost=${candidates.length} willSilent=${silentMark.length} maxPerRun=${maxPerRun} initial=${isInitial}`,
+    );
+  }
+
   // Reihenfolge zum Posten: chronologisch (alt → neu), damit neueste oben im Channel landen.
   candidates.reverse();
 
   let posted = 0;
+  let postFailed = 0;
   for (const item of candidates) {
     try {
       const rolePing = feed.pingRoleId ? `<@&${feed.pingRoleId}>` : "";
       const imageUrl = item.imageUrl ?? parsed.imageUrl;
-      // 1) Versuche Bild selbst zu laden (umgeht z.B. Hotlink-Blocker).
-      // 2) Wenn das fehlschlägt, setze die URL direkt — Discords Image-
-      //    Proxy ist auf vielen Seiten whitelisted und kann's evtl. laden.
       const attached = imageUrl ? await fetchImageAttachment(imageUrl) : null;
       const imageRef = attached ? `attachment://${attached.filename}` : (imageUrl ?? null);
       const sent = await (channel as TextChannel).send({
@@ -193,21 +198,38 @@ export async function checkFeed(client: Client, feedId: number): Promise<FeedChe
         },
       });
       posted += 1;
-    } catch (err) {
-      logger.warn({ err, feedId: feed.id, title: item.title }, "RSS: Posten fehlgeschlagen");
+    } catch (err: unknown) {
+      const e = err as { code?: number; message?: string };
+      postFailed += 1;
+      logger.warn(
+        `RSS Post fehlgeschlagen [${feed.id}] title="${item.title.slice(0, 50)}" code=${e?.code} msg=${e?.message}`,
+      );
     }
   }
 
   // Stumm markieren (alle restlichen Kandidaten + Initial-Übersprünge).
   if (silentMark.length > 0) {
-    await prisma.rssFeedItem.createMany({
-      data: silentMark.map((i) => ({
-        feedId: feed.id,
-        guid: i.guid,
-        title: i.title,
-        link: i.link,
-      })),
-    });
+    try {
+      await prisma.rssFeedItem.createMany({
+        data: silentMark.map((i) => ({
+          feedId: feed.id,
+          guid: i.guid,
+          title: i.title,
+          link: i.link,
+        })),
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string };
+      logger.warn(
+        `RSS SilentMark fehlgeschlagen [${feed.id}] code=${e?.code} msg=${e?.message}`,
+      );
+    }
+  }
+
+  if (postFailed > 0) {
+    logger.warn(
+      `RSS [${feed.id}] "${feed.name}": ${postFailed} Posts sind fehlgeschlagen — siehe Warnungen oben`,
+    );
   }
 
   await prisma.rssFeed.update({
