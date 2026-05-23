@@ -12,6 +12,7 @@ export interface FeedDTO {
   channelId: string;
   pingRoleId: string | null;
   intervalMin: number;
+  maxPostsPerRun: number;
   enabled: boolean;
   lastCheck: string | null;
   lastError: string | null;

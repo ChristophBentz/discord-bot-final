@@ -18,6 +18,7 @@ interface Props {
     channelId: string;
     pingRoleId: string | null;
     intervalMin: number;
+    maxPostsPerRun: number;
     enabled: boolean;
   };
   onDone: () => void;
@@ -36,6 +37,7 @@ export function FeedForm({ channels, roles, bot, initial, onDone }: Props) {
   const [channelId, setChannelId] = useState(initial?.channelId ?? "");
   const [pingRoleId, setPingRoleId] = useState(initial?.pingRoleId ?? "");
   const [intervalMin, setIntervalMin] = useState(initial?.intervalMin ?? 15);
+  const [maxPosts, setMaxPosts] = useState(initial?.maxPostsPerRun ?? 5);
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   const [roleOpen, setRoleOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,19 +179,36 @@ export function FeedForm({ channels, roles, bot, initial, onDone }: Props) {
           </select>
         </div>
 
-        <div className="flex items-end pb-1">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="enabled"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-              className="h-4 w-4 rounded border-line bg-bg-elevated text-brand focus:ring-brand"
-            />
-            Feed aktiv
-          </label>
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-ink">
+            Max. neue Posts pro Lauf
+          </span>
+          <input
+            type="number"
+            name="maxPostsPerRun"
+            value={maxPosts}
+            onChange={(e) => setMaxPosts(Number(e.target.value))}
+            min={1}
+            max={50}
+            className="input w-full"
+          />
+          <p className="mt-1.5 text-xs text-ink-subtle">
+            Spam-Schutz: bei vielen neuen Artikeln auf einmal werden nur so viele
+            gepostet, der Rest stumm als „gesehen" markiert.
+          </p>
         </div>
       </div>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+        <input
+          type="checkbox"
+          name="enabled"
+          checked={enabled}
+          onChange={(e) => setEnabled(e.target.checked)}
+          className="h-4 w-4 rounded border-line bg-bg-elevated text-brand focus:ring-brand"
+        />
+        Feed aktiv
+      </label>
 
       <div className="relative">
         <span className="mb-1.5 block text-sm font-medium text-ink">Ping-Rolle (optional)</span>

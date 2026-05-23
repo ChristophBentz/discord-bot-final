@@ -29,6 +29,7 @@ export default async function RssPage() {
           channelId: f.channelId,
           pingRoleId: f.pingRoleId,
           intervalMin: f.intervalMin,
+          maxPostsPerRun: f.maxPostsPerRun,
           enabled: f.enabled,
           lastCheck: f.lastCheck ? f.lastCheck.toISOString() : null,
           lastError: f.lastError,

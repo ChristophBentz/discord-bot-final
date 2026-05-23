@@ -175,17 +175,18 @@ model AutoRole {
 
 // RSS-Feeds — pro Feed eigener Channel, Intervall, optional Ping-Rolle.
 model RssFeed {
-  id          Int       @id @default(autoincrement())
-  name        String
-  url         String
-  channelId   String
-  pingRoleId  String?
-  intervalMin Int       @default(15)
-  enabled     Boolean   @default(true)
-  lastCheck   DateTime?
-  lastError   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             Int       @id @default(autoincrement())
+  name           String
+  url            String
+  channelId      String
+  pingRoleId     String?
+  intervalMin    Int       @default(15)
+  maxPostsPerRun Int       @default(5)
+  enabled        Boolean   @default(true)
+  lastCheck      DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   items RssFeedItem[]
 }

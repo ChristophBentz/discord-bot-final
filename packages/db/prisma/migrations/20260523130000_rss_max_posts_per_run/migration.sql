@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "RssFeed" ADD COLUMN "maxPostsPerRun" INTEGER NOT NULL DEFAULT 5;

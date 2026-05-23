@@ -20,6 +20,7 @@ interface FeedInput {
   channelId: string;
   pingRoleId: string | null;
   intervalMin: number;
+  maxPostsPerRun: number;
   enabled: boolean;
 }
 
@@ -29,6 +30,7 @@ function parseInput(formData: FormData): { ok: true; data: FeedInput } | { ok: f
   const channelId = String(formData.get("channelId") ?? "").trim();
   const pingRoleId = String(formData.get("pingRoleId") ?? "").trim() || null;
   const intervalMinRaw = Number(formData.get("intervalMin") ?? 15);
+  const maxPostsRaw = Number(formData.get("maxPostsPerRun") ?? 5);
   const enabled = formData.get("enabled") === "on";
 
   if (!name) return { ok: false, error: "Name ist erforderlich." };
@@ -49,7 +51,11 @@ function parseInput(formData: FormData): { ok: true; data: FeedInput } | { ok: f
     return { ok: false, error: "Ungültige Rollen-ID." };
   }
   const intervalMin = Math.max(5, Math.min(360, Math.round(intervalMinRaw)));
-  return { ok: true, data: { name, url, channelId, pingRoleId, intervalMin, enabled } };
+  const maxPostsPerRun = Math.max(1, Math.min(50, Math.round(maxPostsRaw)));
+  return {
+    ok: true,
+    data: { name, url, channelId, pingRoleId, intervalMin, maxPostsPerRun, enabled },
+  };
 }
 
 export async function createFeed(formData: FormData): Promise<Result> {

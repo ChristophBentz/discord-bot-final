@@ -37,7 +37,6 @@ async function fetchImageAttachment(
 }
 
 const MAX_INITIAL_POST_COUNT = 3; // Bei einem brandneuen Feed nicht die ganze History dumpen.
-const MAX_POST_PER_RUN = 5;
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -158,10 +157,11 @@ export async function checkFeed(client: Client, feedId: number): Promise<FeedChe
     candidates = candidates.slice(0, MAX_INITIAL_POST_COUNT);
   }
 
-  // Pro Lauf maximal MAX_POST_PER_RUN posten (gegen Spam bei sehr aktiven Feeds).
-  if (candidates.length > MAX_POST_PER_RUN) {
-    silentMark = silentMark.concat(candidates.slice(MAX_POST_PER_RUN));
-    candidates = candidates.slice(0, MAX_POST_PER_RUN);
+  // Pro Lauf maximal feed.maxPostsPerRun posten (gegen Spam bei sehr aktiven Feeds).
+  const maxPerRun = Math.max(1, feed.maxPostsPerRun);
+  if (candidates.length > maxPerRun) {
+    silentMark = silentMark.concat(candidates.slice(maxPerRun));
+    candidates = candidates.slice(0, maxPerRun);
   }
 
   // Reihenfolge zum Posten: chronologisch (alt → neu), damit neueste oben im Channel landen.
