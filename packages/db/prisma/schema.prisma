@@ -173,6 +173,39 @@ model AutoRole {
   addedAt DateTime @default(now())
 }
 
+// RSS-Feeds — pro Feed eigener Channel, Intervall, optional Ping-Rolle.
+model RssFeed {
+  id          Int       @id @default(autoincrement())
+  name        String
+  url         String
+  channelId   String
+  pingRoleId  String?
+  intervalMin Int       @default(15)
+  enabled     Boolean   @default(true)
+  lastCheck   DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items RssFeedItem[]
+}
+
+// Dedup-Speicher — verhindert dass derselbe Artikel zweimal gepostet wird.
+model RssFeedItem {
+  id        Int      @id @default(autoincrement())
+  feedId    Int
+  guid      String
+  title     String
+  link      String?
+  postedAt  DateTime @default(now())
+  messageId String?
+
+  feed RssFeed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@unique([feedId, guid])
+  @@index([feedId, postedAt])
+}
+
 // AutoMod ausgenommene Channels — keine Regel greift in diesen Channels.
 model AutoModExcludedChannel {
   channelId String   @id

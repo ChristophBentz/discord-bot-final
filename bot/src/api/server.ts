@@ -36,6 +36,7 @@ import {
   type VolumeBody as MusicVolumeBody,
 } from "./routes/music.js";
 import { handleFreeGamesCheck } from "./routes/freeGames.js";
+import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
 import { handleRefreshProfile } from "./routes/profile.js";
 import {
   handleSendMessage,
@@ -256,6 +257,25 @@ export function startApiServer(client: Client): void {
                 ? handleMusicSkip
                 : handleMusicStop;
         const result = await handler(client, body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/rss/test — Vorschau ohne Speichern
+      if (req.method === "POST" && url.pathname === "/api/rss/test") {
+        const body = (await readJson<RssTestBody>(req)) ?? {};
+        const result = await handleRssTest(body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/rss/feeds/:id/check — sofortiger Check eines Feeds
+      const rssCheckMatch = url.pathname.match(/^\/api\/rss\/feeds\/(\d+)\/check$/);
+      if (req.method === "POST" && rssCheckMatch) {
+        const feedId = Number(rssCheckMatch[1]!);
+        const result = await handleRssCheck(client, feedId);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

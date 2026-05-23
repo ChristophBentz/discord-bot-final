@@ -16,6 +16,7 @@ import {
 } from "../features/tickets/service.js";
 import { initMusicPlayer } from "../features/music/player.js";
 import { startFreeGamesScheduler } from "../features/freeGames/service.js";
+import { startRssScheduler } from "../features/rss/service.js";
 import { startApiServer } from "../api/server.js";
 
 const event: BotEvent<Events.ClientReady> = {
@@ -28,6 +29,7 @@ const event: BotEvent<Events.ClientReady> = {
     startServerInfoSync(client);
     await initMusicPlayer(client);
     startFreeGamesScheduler(client);
+    startRssScheduler(client);
     startApiServer(client);
     await syncMembers(client);
     await bulkSyncChannels(client);
