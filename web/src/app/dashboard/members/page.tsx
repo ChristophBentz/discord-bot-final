@@ -1,5 +1,5 @@
 import { prisma } from "@repo/db";
-import { MembersTable, type MemberRow } from "./MembersTable";
+import { MembersTable, type MemberRow, type RoleOption } from "./MembersTable";
 
 export default async function MembersPage() {
   const [members, roles, levelUsers] = await Promise.all([
@@ -13,6 +13,23 @@ export default async function MembersPage() {
 
   const rolesById = new Map(roles.map((r) => [r.roleId, r]));
   const levelById = new Map(levelUsers.map((l) => [l.userId, l]));
+
+  // Pro Rolle: wie viele Member tragen sie
+  const roleMemberCounts = new Map<string, number>();
+  for (const m of members) {
+    const ids = m.roleIds ? m.roleIds.split(",").filter(Boolean) : [];
+    for (const id of ids) {
+      roleMemberCounts.set(id, (roleMemberCounts.get(id) ?? 0) + 1);
+    }
+  }
+  const allRoles: RoleOption[] = roles
+    .filter((r) => (roleMemberCounts.get(r.roleId) ?? 0) > 0)
+    .map((r) => ({
+      id: r.roleId,
+      name: r.name,
+      color: r.color,
+      memberCount: roleMemberCounts.get(r.roleId) ?? 0,
+    }));
 
   const rows: MemberRow[] = members.map((m) => {
     const memberRoleIds = m.roleIds ? m.roleIds.split(",").filter(Boolean) : [];
@@ -32,6 +49,7 @@ export default async function MembersPage() {
       avatarUrl: m.avatarUrl,
       joinedAt: m.joinedAt?.toISOString() ?? null,
       topRoles,
+      roleIds: memberRoleIds,
       isBot: m.isBot,
       level: level?.level ?? 0,
       xp: level?.xp ?? 0,
@@ -50,7 +68,7 @@ export default async function MembersPage() {
         </p>
       </header>
 
-      <MembersTable rows={rows} />
+      <MembersTable rows={rows} allRoles={allRoles} />
     </div>
   );
 }
