@@ -170,8 +170,7 @@ export async function maybeDeleteTempChannel(
       .catch((err: unknown) => {
         const e = err as { code?: number; message?: string; status?: number };
         logger.warn(
-          { channelId, code: e?.code, status: e?.status, message: e?.message },
-          "TempChannel: Auto-Unlock fehlgeschlagen",
+          `TempChannel Auto-Unlock fehlgeschlagen [${channelId}] code=${e?.code} status=${e?.status} msg=${e?.message}`,
         );
       });
     // Nach Permission-Change kurz reprüfen — falls jemand inzwischen joinen konnte
@@ -193,15 +192,14 @@ export async function maybeDeleteTempChannel(
     const e = err as { code?: number; message?: string; status?: number };
     const hint =
       e?.code === 50013
-        ? "Missing Permissions — Bot-Rolle braucht 'Channels verwalten' für diese Kategorie"
+        ? "Missing Permissions — Bot braucht 'Channels verwalten' für diese Kategorie"
         : e?.code === 50001
-          ? "Missing Access — Bot sieht den Channel nicht (View-Permission fehlt)"
+          ? "Missing Access — Bot sieht Channel nicht"
           : e?.code === 10003
-            ? "Unknown Channel (schon gelöscht)"
+            ? "Unknown Channel (schon weg)"
             : "unbekannter Discord-Fehler";
     logger.error(
-      { channelId, code: e?.code, status: e?.status, message: e?.message, hint },
-      "TempChannel: Löschung fehlgeschlagen",
+      `TempChannel Löschung fehlgeschlagen [${channelId}] code=${e?.code} status=${e?.status} msg="${e?.message}" → ${hint}`,
     );
   }
 }
