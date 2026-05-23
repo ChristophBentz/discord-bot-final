@@ -235,34 +235,32 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
       continue;
     }
 
-    // Umbenennen — mit Timeout damit wir nicht ewig blockieren falls
-    // discord.js trotzdem in die Discord-Rate-Limit-Wartezeit gerät
+    // Umbenennen — 30s-Timeout. Kurze Rate-Limit-Wartezeiten gehen durch,
+    // ewig hängende Calls werden abgebrochen.
+    logger.info(`ServerStats setName-Versuch [${stat.id}] from="${current}" to="${expected}"`);
     try {
       await Promise.race([
         (channel as VoiceChannel).setName(expected, "Server-Stats-Update"),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("setName-Timeout (10s)")), 10_000),
+          setTimeout(() => reject(new Error("setName-Timeout (30s)")), 30_000),
         ),
       ]);
       await prisma.serverStat.update({
         where: { id: stat.id },
         data: { lastValue: value, lastCheck: now, lastUpdate: now },
       });
-      logger.info(
-        { statId: stat.id, oldName: current, newName: expected },
-        "ServerStats: Channel umbenannt",
-      );
+      logger.info(`ServerStats Channel umbenannt ✓ [${stat.id}] "${expected}"`);
       renamed += 1;
-    } catch (err) {
-      // Auch nach Fehler die Cooldown setzen → wir hämmern nicht weiter
-      // auf Discord ein. Wenn die Discord-Penalty noch tiefer ist als
-      // unser 5,5-Min-Cooldown, scheitert der nächste Versuch zwar
-      // wieder, aber zumindest in kontrollierten Intervallen.
+    } catch (err: unknown) {
+      const e = err as { code?: number; message?: string };
+      // Auch nach Fehler die Cooldown setzen — Hammern auf Discord vermeiden
       await prisma.serverStat.update({
         where: { id: stat.id },
         data: { lastCheck: now, lastUpdate: now },
       });
-      logger.warn({ err, statId: stat.id }, "ServerStats: setName fehlgeschlagen — Cooldown gesetzt");
+      logger.warn(
+        `ServerStats setName fehlgeschlagen [${stat.id}] code=${e?.code} msg="${e?.message}" — Cooldown bis nächster Tick`,
+      );
       failed += 1;
     }
   }
