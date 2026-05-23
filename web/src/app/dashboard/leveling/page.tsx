@@ -1,17 +1,22 @@
 import { getConfig, prisma } from "@repo/db";
 import { LevelingForm } from "./LevelingForm";
 
-function xpForNextLevel(level: number): number {
-  return 5 * level * level + 50 * level + 100;
+interface Curve { base: number; mult: number }
+
+function xpForNextLevel(level: number, c: Curve): number {
+  return Math.round(c.base * Math.pow(1 + c.mult / 100, level));
 }
-function progressFromXp(totalXp: number): { level: number; xpInLevel: number; xpToNext: number } {
+function progressFromXp(
+  totalXp: number,
+  c: Curve,
+): { level: number; xpInLevel: number; xpToNext: number } {
   let level = 0;
   let remaining = totalXp;
-  while (remaining >= xpForNextLevel(level)) {
-    remaining -= xpForNextLevel(level);
+  while (remaining >= xpForNextLevel(level, c) && level < 500) {
+    remaining -= xpForNextLevel(level, c);
     level += 1;
   }
-  return { level, xpInLevel: remaining, xpToNext: xpForNextLevel(level) };
+  return { level, xpInLevel: remaining, xpToNext: xpForNextLevel(level, c) };
 }
 
 function formatVoiceTime(seconds: number): string {
@@ -30,6 +35,7 @@ export default async function LevelingPage() {
     prisma.levelUser.findMany({ orderBy: [{ xp: "desc" }], take: 25 }),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
   ]);
+  const curve: Curve = { base: c.xpLevelBase, mult: c.xpLevelMultiplier };
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -54,6 +60,8 @@ export default async function LevelingPage() {
             xpPerMessageMax: c.xpPerMessageMax,
             xpCooldownSeconds: c.xpCooldownSeconds,
             xpPerMinuteVoice: c.xpPerMinuteVoice,
+            xpLevelBase: c.xpLevelBase,
+            xpLevelMultiplier: c.xpLevelMultiplier,
           }}
           channels={channels.map((ch) => ({
             channelId: ch.channelId,
@@ -92,7 +100,7 @@ export default async function LevelingPage() {
               </thead>
               <tbody className="divide-y divide-line">
                 {top.map((u, i) => {
-                  const { level, xpInLevel, xpToNext } = progressFromXp(u.xp);
+                  const { level, xpInLevel, xpToNext } = progressFromXp(u.xp, curve);
                   const ratio = xpToNext > 0 ? Math.min(1, xpInLevel / xpToNext) : 0;
                   const place = i < 3 ? MEDALS[i] : `${i + 1}`;
                   return (

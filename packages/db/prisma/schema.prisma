@@ -61,12 +61,15 @@ model Config {
   autoModExcludedChannelsEnabled Boolean @default(false)
 
   // Leveling
-  levelingEnabled   Boolean @default(false)
-  levelUpChannelId  String?
-  xpPerMessageMin   Int     @default(15)
-  xpPerMessageMax   Int     @default(25)
-  xpCooldownSeconds Int     @default(60)
-  xpPerMinuteVoice  Int     @default(5)
+  levelingEnabled    Boolean @default(false)
+  levelUpChannelId   String?
+  xpPerMessageMin    Int     @default(15)
+  xpPerMessageMax    Int     @default(25)
+  xpCooldownSeconds  Int     @default(60)
+  xpPerMinuteVoice   Int     @default(5)
+  // Level-Kurve: nächstes Level kostet `base * (1 + multiplier/100)^level` XP
+  xpLevelBase        Int     @default(100)
+  xpLevelMultiplier  Int     @default(15) // Prozent — z.B. 15 = 15% mehr XP pro Level
 
   // Achievements
   achievementNotifyDM      Boolean @default(false)
