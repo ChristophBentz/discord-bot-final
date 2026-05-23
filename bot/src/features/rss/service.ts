@@ -61,7 +61,7 @@ function buildEmbed(
   item: FeedItem,
   feed: ParsedFeed,
   feedName: string,
-  attachedFilename: string | null,
+  imageRef: string | null,
 ): EmbedBuilder {
   const sourceHost = hostnameOf(item.link) ?? hostnameOf(feed.link);
   const embed = new EmbedBuilder()
@@ -77,8 +77,8 @@ function buildEmbed(
   if (item.description) {
     embed.setDescription(truncate(item.description, 500));
   }
-  if (attachedFilename) {
-    embed.setImage(`attachment://${attachedFilename}`);
+  if (imageRef) {
+    embed.setImage(imageRef);
   }
   if (item.author) {
     embed.addFields({ name: "Autor", value: truncate(item.author, 100), inline: true });
@@ -172,10 +172,14 @@ export async function checkFeed(client: Client, feedId: number): Promise<FeedChe
     try {
       const rolePing = feed.pingRoleId ? `<@&${feed.pingRoleId}>` : "";
       const imageUrl = item.imageUrl ?? parsed.imageUrl;
+      // 1) Versuche Bild selbst zu laden (umgeht z.B. Hotlink-Blocker).
+      // 2) Wenn das fehlschlägt, setze die URL direkt — Discords Image-
+      //    Proxy ist auf vielen Seiten whitelisted und kann's evtl. laden.
       const attached = imageUrl ? await fetchImageAttachment(imageUrl) : null;
+      const imageRef = attached ? `attachment://${attached.filename}` : (imageUrl ?? null);
       const sent = await (channel as TextChannel).send({
         content: rolePing || undefined,
-        embeds: [buildEmbed(item, parsed, feed.name, attached?.filename ?? null)],
+        embeds: [buildEmbed(item, parsed, feed.name, imageRef)],
         files: attached ? [attached.attachment] : undefined,
         allowedMentions: feed.pingRoleId ? { roles: [feed.pingRoleId] } : { parse: [] },
       });
