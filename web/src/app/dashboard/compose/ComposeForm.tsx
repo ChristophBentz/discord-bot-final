@@ -132,6 +132,46 @@ function FileBody({ file }: { file: File | null }) {
 
 type Tab = "text" | "embed" | "poll" | "file";
 
+// 2D-Line-Icons für die Tabs (passt zum Sidebar-Style)
+function TabIcon({ name }: { name: Tab }) {
+  const props = {
+    viewBox: "0 0 24 24",
+    className: "h-4 w-4",
+    fill: "none" as const,
+    stroke: "currentColor",
+    strokeWidth: 1.75,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  switch (name) {
+    case "text":
+      return (
+        <svg {...props}>
+          <path d="M4 6h16M4 12h16M4 18h10" />
+        </svg>
+      );
+    case "embed":
+      return (
+        <svg {...props}>
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 9h18M7 13h7M7 16h10" />
+        </svg>
+      );
+    case "poll":
+      return (
+        <svg {...props}>
+          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+        </svg>
+      );
+    case "file":
+      return (
+        <svg {...props}>
+          <path d="M21.44 11.05 12.25 20.24a6 6 0 1 1-8.49-8.49l8.57-8.57a4 4 0 0 1 5.66 5.66l-8.58 8.57a2 2 0 0 1-2.83-2.83l7.93-7.93" />
+        </svg>
+      );
+  }
+}
+
 export interface RoleOption {
   roleId: string;
   name: string;
@@ -235,7 +275,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
         active
           ? "bg-brand-gradient text-white"
           : "border border-line bg-bg-elevated/60 text-ink-muted hover:border-brand/40 hover:text-ink"
@@ -382,16 +422,16 @@ export function ComposeForm({
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="flex flex-wrap gap-2">
         <TabButton active={tab === "text"} onClick={() => setTab("text")}>
-          📝 Text
+          <TabIcon name="text" /> Text
         </TabButton>
         <TabButton active={tab === "embed"} onClick={() => setTab("embed")}>
-          📋 Embed
+          <TabIcon name="embed" /> Embed
         </TabButton>
         <TabButton active={tab === "poll"} onClick={() => setTab("poll")}>
-          📊 Umfrage
+          <TabIcon name="poll" /> Umfrage
         </TabButton>
         <TabButton active={tab === "file"} onClick={() => setTab("file")}>
-          📎 Datei
+          <TabIcon name="file" /> Datei
         </TabButton>
       </div>
 
