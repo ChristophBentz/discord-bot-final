@@ -223,41 +223,51 @@ export async function checkFeed(client: Client, feedId: number): Promise<FeedChe
   };
 }
 
-export async function checkAllDueFeeds(client: Client): Promise<{ checked: number; posted: number }> {
+export async function checkAllDueFeeds(client: Client): Promise<{ checked: number; posted: number; total: number; dueCount: number }> {
   const feeds = await prisma.rssFeed.findMany({ where: { enabled: true } });
   const now = Date.now();
   let checked = 0;
   let posted = 0;
+  let dueCount = 0;
   for (const feed of feeds) {
     const intervalMs = Math.max(1, feed.intervalMin) * 60_000;
-    const due = !feed.lastCheck || now - feed.lastCheck.getTime() >= intervalMs;
+    const lastCheckMs = feed.lastCheck?.getTime() ?? 0;
+    const due = !feed.lastCheck || now - lastCheckMs >= intervalMs;
     if (!due) continue;
+    dueCount += 1;
     try {
       const r = await checkFeed(client, feed.id);
       checked += 1;
       posted += r.posted;
-    } catch (err) {
-      logger.warn({ err, feedId: feed.id, url: feed.url }, "RSS-Check fehlgeschlagen");
+      logger.info(
+        `RSS-Check [${feed.id}] "${feed.name}": ${r.posted} gepostet, ${r.skipped} bekannt, ${r.fetched} gefunden${r.initial ? " (initial)" : ""}`,
+      );
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      logger.warn(`RSS-Check fehlgeschlagen [${feed.id}] "${feed.name}" url=${feed.url} msg=${e?.message}`);
     }
   }
-  return { checked, posted };
+  return { checked, posted, total: feeds.length, dueCount };
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 const TICK_MS = 60_000; // Jede Minute prüfen, welche Feeds dran sind.
 
+async function runTick(client: Client, label: string): Promise<void> {
+  try {
+    const r = await checkAllDueFeeds(client);
+    if (r.dueCount > 0) {
+      logger.info(`RSS-Tick (${label}): ${r.checked}/${r.total} geprüft, ${r.posted} gepostet`);
+    }
+  } catch (err) {
+    logger.error({ err }, `RSS-Tick (${label}) fehlgeschlagen`);
+  }
+}
+
 export function startRssScheduler(client: Client): void {
   if (intervalId) return;
   // Erster Lauf nach 20s.
-  setTimeout(() => {
-    void checkAllDueFeeds(client).catch((err) =>
-      logger.error({ err }, "RSS-Scheduler-Lauf fehlgeschlagen"),
-    );
-  }, 20_000);
-  intervalId = setInterval(() => {
-    void checkAllDueFeeds(client).catch((err) =>
-      logger.error({ err }, "RSS-Scheduler-Lauf fehlgeschlagen"),
-    );
-  }, TICK_MS);
-  logger.info({ tickMs: TICK_MS }, "RSS-Scheduler gestartet");
+  setTimeout(() => void runTick(client, "initial"), 20_000);
+  intervalId = setInterval(() => void runTick(client, "interval"), TICK_MS);
+  logger.info(`RSS-Scheduler gestartet (tick alle ${TICK_MS / 1000}s)`);
 }
