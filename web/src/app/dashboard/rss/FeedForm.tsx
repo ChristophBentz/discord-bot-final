@@ -305,18 +305,10 @@ export function FeedForm({ channels, roles, bot, initial, onDone }: Props) {
       )}
 
       <div className="flex items-center justify-end gap-2 pt-2">
-        <button
-          type="button"
-          onClick={onDone}
-          className="btn btn-ghost text-sm"
-        >
+        <button type="button" onClick={onDone} className="btn-secondary">
           Abbrechen
         </button>
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="btn btn-primary text-sm"
-        >
+        <button type="submit" disabled={isSaving} className="btn-primary disabled:opacity-60">
           {isSaving ? "Speichere…" : initial ? "Speichern" : "Feed anlegen"}
         </button>
       </div>

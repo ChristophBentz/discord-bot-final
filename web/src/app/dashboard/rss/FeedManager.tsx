@@ -49,7 +49,7 @@ export function FeedManager({ feeds, channels, roles, bot }: Props) {
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="btn btn-primary text-sm"
+              className="btn-primary"
             >
               + Neuen Feed anlegen
             </button>

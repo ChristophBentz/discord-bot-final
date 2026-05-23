@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import type { ChannelOption } from "@/components/ChannelPicker";
 import { checkFeedNow, deleteFeed, resetFeedHistory, toggleFeed } from "./actions";
 import type { FeedDTO, RoleOpt } from "./FeedManager";
@@ -176,72 +176,135 @@ export function FeedRow({ feed, channels, roles, bot }: Props) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
+        <div className="flex shrink-0 items-center gap-1">
+          <IconButton
             onClick={onCheck}
             disabled={isChecking}
-            className="btn btn-ghost text-xs"
-            title="Jetzt prüfen"
+            label="Jetzt prüfen"
+            loading={isChecking}
           >
-            {isChecking ? "…" : "Jetzt prüfen"}
-          </button>
-          <button
-            type="button"
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <path d="M21 4v5h-5" />
+            </svg>
+          </IconButton>
+
+          <IconButton
             onClick={onToggle}
             disabled={isToggling}
-            className="btn btn-ghost text-xs"
-            title={feed.enabled ? "Pausieren" : "Aktivieren"}
+            label={feed.enabled ? "Pausieren" : "Aktivieren"}
           >
-            {feed.enabled ? "Pause" : "Start"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="btn btn-ghost text-xs"
-          >
-            Bearbeiten
-          </button>
+            {feed.enabled ? (
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                <rect x="6" y="5" width="4" height="14" rx="1" />
+                <rect x="14" y="5" width="4" height="14" rx="1" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            )}
+          </IconButton>
+
+          <IconButton onClick={() => setEditing(true)} label="Bearbeiten">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </IconButton>
+
           {confirmReset ? (
             <button
               type="button"
               onClick={onReset}
               disabled={isResetting}
-              className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-500/20"
-              title="Löscht den Dedup-Verlauf und postet die neuesten 3 Artikel erneut"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/15 px-2.5 text-xs font-medium text-amber-200 transition-colors hover:bg-amber-500/25"
+              title="Löscht den Verlauf und postet die neuesten Artikel erneut"
             >
-              {isResetting ? "…" : "Sicher? Neu posten"}
+              {isResetting ? "…" : "Sicher?"}
             </button>
           ) : (
-            <button
-              type="button"
+            <IconButton
               onClick={() => setConfirmReset(true)}
-              className="btn btn-ghost text-xs"
-              title="Verlauf leeren und neueste Artikel erneut posten"
+              label="Neu posten (Verlauf leeren)"
+              tone="amber"
             >
-              Neu posten
-            </button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+            </IconButton>
           )}
+
           {confirmDelete ? (
             <button
               type="button"
               onClick={onDelete}
               disabled={isDeleting}
-              className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-xs text-rose-300 hover:bg-rose-500/20"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/50 bg-rose-500/15 px-2.5 text-xs font-medium text-rose-200 transition-colors hover:bg-rose-500/25"
             >
-              {isDeleting ? "…" : "Wirklich löschen?"}
+              {isDeleting ? "…" : "Wirklich?"}
             </button>
           ) : (
-            <button
-              type="button"
+            <IconButton
               onClick={() => setConfirmDelete(true)}
-              className="rounded-lg px-2.5 py-1 text-xs text-rose-400 hover:bg-rose-500/10"
+              label="Feed löschen"
+              tone="rose"
             >
-              Löschen
-            </button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+              </svg>
+            </IconButton>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function IconButton({
+  onClick,
+  disabled,
+  loading,
+  label,
+  tone = "default",
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  label: string;
+  tone?: "default" | "amber" | "rose";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 hover:border-amber-500/30"
+      : tone === "rose"
+        ? "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/30"
+        : "text-ink-muted hover:bg-bg-hover hover:text-ink hover:border-line-strong";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border border-transparent transition-colors disabled:opacity-50 ${toneClass}`}
+    >
+      {loading ? (
+        <svg viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 12a9 9 0 1 1-6.2-8.55" strokeLinecap="round" />
+        </svg>
+      ) : (
+        children
+      )}
+    </button>
   );
 }
