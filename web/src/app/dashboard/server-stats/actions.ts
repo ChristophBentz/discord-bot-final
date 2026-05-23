@@ -116,6 +116,36 @@ export async function deleteStat(id: number): Promise<Result> {
   return { ok: true };
 }
 
+export interface DiagnoseData {
+  guildId: string | null;
+  memberCount: number;
+  membersCached: number;
+  presencesCached: number;
+  presencesNonOffline: number;
+  lastTickAt: string | null;
+  rows: {
+    id: number;
+    type: string;
+    enabled: boolean;
+    channelId: string | null;
+    computedValue: number | null;
+    expectedName: string | null;
+    actualName: string | null;
+    matches: boolean | null;
+    channelExists: boolean;
+  }[];
+}
+
+export async function runDiagnose(): Promise<
+  { ok: true; data: DiagnoseData } | { ok: false; error: string }
+> {
+  const auth = await requireAuth();
+  if (auth) return auth;
+  const r = await callBot<{ data: DiagnoseData }>("/api/serverstats/diagnose", { method: "GET" });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, data: r.data.data };
+}
+
 export async function updateNow(): Promise<
   | { ok: true; renamed: number; unchanged: number; failed: number }
   | { ok: false; error: string }

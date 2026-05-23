@@ -1,5 +1,6 @@
 import { getConfig, prisma } from "@repo/db";
 import { ServerStatsManager } from "./ServerStatsManager";
+import { DiagnosePanel } from "./DiagnosePanel";
 
 export default async function ServerStatsPage() {
   const [config, stats, channels] = await Promise.all([
@@ -43,6 +44,8 @@ export default async function ServerStatsPage() {
           position: c.position,
         }))}
       />
+
+      <DiagnosePanel />
     </div>
   );
 }

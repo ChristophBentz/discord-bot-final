@@ -217,11 +217,95 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
   return { renamed, unchanged, failed };
 }
 
+// ─── Diagnose ───────────────────────────────────────────────────────────────
+
+export interface DiagnoseRow {
+  id: number;
+  type: string;
+  enabled: boolean;
+  channelId: string | null;
+  computedValue: number | null;
+  expectedName: string | null;
+  actualName: string | null;
+  matches: boolean | null;
+  channelExists: boolean;
+}
+
+export interface Diagnose {
+  guildId: string | null;
+  memberCount: number;
+  membersCached: number;
+  presencesCached: number;
+  presencesNonOffline: number;
+  rows: DiagnoseRow[];
+  lastTickAt: string | null;
+}
+
+let lastTickAt: Date | null = null;
+
+export async function diagnose(client: Client): Promise<Diagnose> {
+  const guild = await getGuild(client);
+  if (!guild) {
+    return {
+      guildId: null,
+      memberCount: 0,
+      membersCached: 0,
+      presencesCached: 0,
+      presencesNonOffline: 0,
+      rows: [],
+      lastTickAt: lastTickAt?.toISOString() ?? null,
+    };
+  }
+
+  const presencesNonOffline = guild.presences.cache.filter((p) => p.status !== "offline").size;
+  const stats = await prisma.serverStat.findMany({ orderBy: { position: "asc" } });
+  const rows: DiagnoseRow[] = [];
+
+  for (const stat of stats) {
+    if (!isStatType(stat.type)) continue;
+    const computedValue = computeValue(guild, stat.type);
+    const expectedName = renderName(stat.nameTemplate, computedValue);
+
+    let actualName: string | null = null;
+    let channelExists = false;
+    if (stat.channelId) {
+      const ch = await guild.channels.fetch(stat.channelId, { force: true }).catch(() => null);
+      if (ch && ch.type === ChannelType.GuildVoice) {
+        channelExists = true;
+        actualName = (ch as VoiceChannel).name;
+      }
+    }
+
+    rows.push({
+      id: stat.id,
+      type: stat.type,
+      enabled: stat.enabled,
+      channelId: stat.channelId,
+      computedValue,
+      expectedName,
+      actualName,
+      matches: actualName !== null ? actualName === expectedName : null,
+      channelExists,
+    });
+  }
+
+  return {
+    guildId: guild.id,
+    memberCount: guild.memberCount,
+    membersCached: guild.members.cache.size,
+    presencesCached: guild.presences.cache.size,
+    presencesNonOffline,
+    rows,
+    lastTickAt: lastTickAt?.toISOString() ?? null,
+  };
+}
+
 // ─── Scheduler ──────────────────────────────────────────────────────────────
 
 let timerId: ReturnType<typeof setTimeout> | null = null;
 
 async function tick(client: Client): Promise<void> {
+  lastTickAt = new Date();
   try {
     await ensureStatChannels(client);
     await updateAllStats(client);

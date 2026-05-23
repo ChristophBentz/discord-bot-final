@@ -1,5 +1,21 @@
 import type { Client } from "discord.js";
-import { ensureStatChannels, updateAllStats } from "../../features/serverStats/service.js";
+import {
+  diagnose,
+  ensureStatChannels,
+  updateAllStats,
+  type Diagnose,
+} from "../../features/serverStats/service.js";
+
+export async function handleServerStatsDiagnose(
+  client: Client,
+): Promise<{ ok: true; data: Diagnose } | { ok: false; error: string }> {
+  try {
+    const data = await diagnose(client);
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 export async function handleServerStatsEnsure(
   client: Client,

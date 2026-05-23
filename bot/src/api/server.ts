@@ -37,6 +37,7 @@ import {
 } from "./routes/music.js";
 import { handleFreeGamesCheck } from "./routes/freeGames.js";
 import {
+  handleServerStatsDiagnose,
   handleServerStatsEnsure,
   handleServerStatsUpdate,
 } from "./routes/serverStats.js";
@@ -296,6 +297,14 @@ export function startApiServer(client: Client): void {
       // POST /api/serverstats/update — sofortiges Update aller Stat-Channels
       if (req.method === "POST" && url.pathname === "/api/serverstats/update") {
         const result = await handleServerStatsUpdate(client);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // GET /api/serverstats/diagnose — Live-Diagnose der aktuellen Zustände
+      if (req.method === "GET" && url.pathname === "/api/serverstats/diagnose") {
+        const result = await handleServerStatsDiagnose(client);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;
