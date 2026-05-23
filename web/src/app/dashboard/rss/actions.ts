@@ -98,6 +98,16 @@ export async function deleteFeed(id: number): Promise<Result> {
   return { ok: true };
 }
 
+export async function resetFeedHistory(
+  id: number,
+): Promise<{ ok: true; deleted: number } | { ok: false; error: string }> {
+  const auth = await requireAuth();
+  if (auth) return auth;
+  const r = await prisma.rssFeedItem.deleteMany({ where: { feedId: id } });
+  revalidatePath("/dashboard/rss");
+  return { ok: true, deleted: r.count };
+}
+
 export async function checkFeedNow(
   id: number,
 ): Promise<

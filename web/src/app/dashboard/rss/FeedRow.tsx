@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { ChannelOption } from "@/components/ChannelPicker";
-import { checkFeedNow, deleteFeed, toggleFeed } from "./actions";
+import { checkFeedNow, deleteFeed, resetFeedHistory, toggleFeed } from "./actions";
 import type { FeedDTO, RoleOpt } from "./FeedManager";
 import { FeedForm } from "./FeedForm";
 
@@ -37,10 +37,12 @@ function hostnameOf(url: string): string {
 export function FeedRow({ feed, channels, roles, bot }: Props) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [checkMsg, setCheckMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [isChecking, startCheck] = useTransition();
   const [isToggling, startToggle] = useTransition();
   const [isDeleting, startDelete] = useTransition();
+  const [isResetting, startReset] = useTransition();
 
   const channelName = channels.find((c) => c.channelId === feed.channelId)?.name ?? "?";
   const role = roles.find((r) => r.roleId === feed.pingRoleId);
@@ -71,6 +73,31 @@ export function FeedRow({ feed, channels, roles, bot }: Props) {
   const onDelete = () => {
     startDelete(async () => {
       await deleteFeed(feed.id);
+    });
+  };
+
+  const onReset = () => {
+    setConfirmReset(false);
+    setCheckMsg(null);
+    startReset(async () => {
+      const r = await resetFeedHistory(feed.id);
+      if (!r.ok) {
+        setCheckMsg({ kind: "error", text: r.error });
+        return;
+      }
+      // Direkt im Anschluss neu prüfen → die neuesten Items werden gepostet.
+      const res = await checkFeedNow(feed.id);
+      if (res.ok) {
+        setCheckMsg({
+          kind: "ok",
+          text: `Verlauf zurückgesetzt (${r.deleted} Einträge gelöscht). ${res.posted} neue Posts.`,
+        });
+      } else {
+        setCheckMsg({
+          kind: "error",
+          text: `Verlauf zurückgesetzt, aber Posten fehlgeschlagen: ${res.error}`,
+        });
+      }
     });
   };
 
@@ -175,6 +202,26 @@ export function FeedRow({ feed, channels, roles, bot }: Props) {
           >
             Bearbeiten
           </button>
+          {confirmReset ? (
+            <button
+              type="button"
+              onClick={onReset}
+              disabled={isResetting}
+              className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-500/20"
+              title="Löscht den Dedup-Verlauf und postet die neuesten 3 Artikel erneut"
+            >
+              {isResetting ? "…" : "Sicher? Neu posten"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              className="btn btn-ghost text-xs"
+              title="Verlauf leeren und neueste Artikel erneut posten"
+            >
+              Neu posten
+            </button>
+          )}
           {confirmDelete ? (
             <button
               type="button"
