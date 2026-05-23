@@ -67,11 +67,11 @@ export function ServerStatsManager({ initial, stats, channels }: Props) {
         return;
       }
       const parts: string[] = [];
-      if (r.updated > 0) parts.push(`${r.updated} umbenannt`);
-      if (r.alreadyCurrent > 0) parts.push(`${r.alreadyCurrent} bereits aktuell`);
-      if (r.skipped > 0) parts.push(`${r.skipped} übersprungen`);
+      if (r.renamed > 0) parts.push(`${r.renamed} umbenannt`);
+      if (r.unchanged > 0) parts.push(`${r.unchanged} bereits aktuell`);
+      if (r.failed > 0) parts.push(`${r.failed} fehlgeschlagen`);
       setUpdateFeedback({
-        kind: "ok",
+        kind: r.failed > 0 ? "error" : "ok",
         msg: parts.length > 0 ? parts.join(", ") + "." : "Keine Stats vorhanden.",
       });
     });

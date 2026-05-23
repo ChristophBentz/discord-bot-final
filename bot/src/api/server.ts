@@ -293,10 +293,9 @@ export function startApiServer(client: Client): void {
         return;
       }
 
-      // POST /api/serverstats/update?force=1 — sofortiges Update aller Stat-Channels
+      // POST /api/serverstats/update — sofortiges Update aller Stat-Channels
       if (req.method === "POST" && url.pathname === "/api/serverstats/update") {
-        const force = url.searchParams.get("force") === "1";
-        const result = await handleServerStatsUpdate(client, force);
+        const result = await handleServerStatsUpdate(client);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

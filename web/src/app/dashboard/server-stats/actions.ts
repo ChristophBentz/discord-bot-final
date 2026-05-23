@@ -117,24 +117,21 @@ export async function deleteStat(id: number): Promise<Result> {
 }
 
 export async function updateNow(): Promise<
-  | { ok: true; updated: number; skipped: number; alreadyCurrent: number }
+  | { ok: true; renamed: number; unchanged: number; failed: number }
   | { ok: false; error: string }
 > {
   const auth = await requireAuth();
   if (auth) return auth;
-  // Auch Channels umbenennen wenn der Name eh schon stimmt → User sieht
-  // den Effekt sofort. Wenn das Discord-Rate-Limit-Limit erreicht ist,
-  // schlägt das einzelne Edit fehl, andere Updates laufen weiter.
-  const r = await callBot<{ updated: number; skipped: number; alreadyCurrent: number }>(
-    "/api/serverstats/update?force=1",
+  const r = await callBot<{ renamed: number; unchanged: number; failed: number }>(
+    "/api/serverstats/update",
     { method: "POST" },
   );
   if (!r.ok) return { ok: false, error: r.error };
   revalidatePath("/dashboard/server-stats");
   return {
     ok: true,
-    updated: r.data.updated,
-    skipped: r.data.skipped,
-    alreadyCurrent: r.data.alreadyCurrent,
+    renamed: r.data.renamed,
+    unchanged: r.data.unchanged,
+    failed: r.data.failed,
   };
 }

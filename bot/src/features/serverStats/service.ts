@@ -1,5 +1,5 @@
 import type { Client, Guild, VoiceChannel } from "discord.js";
-import { ChannelType, Events, PermissionFlagsBits } from "discord.js";
+import { ChannelType, PermissionFlagsBits } from "discord.js";
 import { getConfig, prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { env } from "../../lib/env.js";
@@ -22,78 +22,52 @@ function isStatType(s: string): s is StatType {
   return s === "totalMembers" || s === "humanMembers" || s === "onlineMembers";
 }
 
-let lastPresenceFetch = 0;
-const PRESENCE_REFETCH_INTERVAL_MS = 30 * 60_000;
-
-// Zählt eingehende PRESENCE_UPDATE-Events seit Bot-Start. Wenn 0 nach ein
-// paar Minuten → Presence-Intent ist im Dev-Portal nicht aktiviert.
-let presenceEventCount = 0;
-let lastOnlineRecheck = 0;
-const ONLINE_RECHECK_MIN_MS = 6 * 60_000; // Discord rate-limit: ~2 renames/10min
-
-// Lädt Members in den Cache (falls leer) und versucht periodisch Presences
-// nachzuziehen. Discord schickt Presences zuverlässig nur initial via
-// GUILD_CREATE (large_threshold) und über Live-Events; ein expliziter
-// Bulk-Fetch mit withPresences:true wird vom Gateway oft ohne Presences
-// beantwortet — deshalb hier zusätzlich periodisch.
-async function ensureMemberCache(guild: Guild, needPresences: boolean): Promise<void> {
-  const cacheTooSmall = guild.members.cache.size < guild.memberCount * 0.9;
-  const presenceStale =
-    needPresences && Date.now() - lastPresenceFetch > PRESENCE_REFETCH_INTERVAL_MS;
-
-  if (!cacheTooSmall && !presenceStale) return;
-
-  try {
-    await guild.members.fetch({ withPresences: needPresences });
-    if (needPresences) lastPresenceFetch = Date.now();
-    const withPresenceCount = guild.members.cache.filter((m) => m.presence !== null).size;
-    logger.info(
-      {
-        cached: guild.members.cache.size,
-        total: guild.memberCount,
-        withPresence: withPresenceCount,
-        requestedPresences: needPresences,
-      },
-      "ServerStats: Member-Cache geladen",
-    );
-  } catch (err) {
-    logger.warn(
-      { err, needPresences },
-      "ServerStats: Member-Cache laden fehlgeschlagen — Presence-Intent im Dev-Portal aktiviert?",
-    );
-  }
-}
-
-export async function computeStatValue(guild: Guild, type: StatType): Promise<number> {
-  switch (type) {
-    case "totalMembers":
-      return guild.memberCount;
-    case "humanMembers": {
-      await ensureMemberCache(guild, false);
-      return guild.members.cache.filter((m) => !m.user.bot).size;
-    }
-    case "onlineMembers": {
-      // Braucht GuildPresences-Intent — sonst sind presence-Daten leer
-      await ensureMemberCache(guild, true);
-      return guild.members.cache.filter(
-        (m) => !m.user.bot && m.presence && m.presence.status !== "offline",
-      ).size;
-    }
-  }
-}
-
 export function renderName(template: string, count: number): string {
-  // Max-Länge Voice-Channel-Name: 100
-  const formatted = count.toLocaleString("de-DE");
-  return template.replaceAll("{count}", formatted).slice(0, 100);
+  return template.replaceAll("{count}", count.toLocaleString("de-DE")).slice(0, 100);
 }
 
 async function getGuild(client: Client): Promise<Guild | null> {
   return client.guilds.cache.get(env.DISCORD_GUILD_ID) ?? null;
 }
 
-// Stellt sicher, dass jeder enabled Stat einen Channel hat. Erstellt neue,
-// löscht orphaned (in DB, aber enabled=false oder gelöscht).
+// ─── Wert-Berechnung ────────────────────────────────────────────────────────
+// Trick: für "Online" nutzen wir `guild.presences.cache` direkt — discord.js
+// pflegt diesen Cache automatisch sobald die GuildPresences-Intent aktiv ist
+// und Events ankommen. Kein manuelles Member-Fetching nötig.
+
+function countOnline(guild: Guild): number {
+  let count = 0;
+  for (const presence of guild.presences.cache.values()) {
+    if (presence.status === "offline") continue;
+    const member = presence.member ?? guild.members.cache.get(presence.userId);
+    if (!member || member.user.bot) continue;
+    count += 1;
+  }
+  return count;
+}
+
+function countHumans(guild: Guild): number {
+  // Wenn Cache lückenhaft ist (kein Member-Fetch), fallback auf memberCount
+  if (guild.members.cache.size < guild.memberCount * 0.9) {
+    return guild.memberCount;
+  }
+  return guild.members.cache.filter((m) => !m.user.bot).size;
+}
+
+export function computeValue(guild: Guild, type: StatType): number {
+  switch (type) {
+    case "totalMembers":
+      return guild.memberCount;
+    case "humanMembers":
+      return countHumans(guild);
+    case "onlineMembers":
+      return countOnline(guild);
+  }
+}
+
+// ─── Channel-Verwaltung ─────────────────────────────────────────────────────
+
+// Erstellt fehlende Stat-Channels, löscht Channels deaktivierter Stats.
 export async function ensureStatChannels(client: Client): Promise<void> {
   const config = await getConfig();
   if (!config.serverStatsEnabled) return;
@@ -105,12 +79,11 @@ export async function ensureStatChannels(client: Client): Promise<void> {
   }
 
   const stats = await prisma.serverStat.findMany({ orderBy: { position: "asc" } });
-  const everyone = guild.roles.everyone;
 
   for (const stat of stats) {
     if (!isStatType(stat.type)) continue;
 
-    // Disabled → wenn Channel existiert, löschen
+    // Deaktiviert + hat noch Channel → Channel löschen, Verbindung trennen
     if (!stat.enabled) {
       if (stat.channelId) {
         const ch = await guild.channels.fetch(stat.channelId).catch(() => null);
@@ -120,215 +93,150 @@ export async function ensureStatChannels(client: Client): Promise<void> {
       continue;
     }
 
-    // Hat schon einen Channel — checken, ob er noch existiert + Name aktuell halten
+    // Aktiv aber Channel-Referenz da → checken, ob Channel noch existiert
     if (stat.channelId) {
-      const existing = await guild.channels.fetch(stat.channelId).catch(() => null);
-      if (existing && existing.type === ChannelType.GuildVoice) {
-        // Wenn der aktuelle Name nicht zum Template+Wert passt → korrigieren
-        const value = await computeStatValue(guild, stat.type);
-        const expected = renderName(stat.nameTemplate, value);
-        if ((existing as VoiceChannel).name !== expected) {
-          try {
-            await (existing as VoiceChannel).setName(expected, "ServerStats: Name-Sync");
-            await prisma.serverStat.update({
-              where: { id: stat.id },
-              data: { lastValue: value, lastUpdate: new Date() },
-            });
-            logger.info({ statId: stat.id, newName: expected }, "ServerStats: Name korrigiert");
-          } catch (err) {
-            logger.warn({ err, statId: stat.id }, "ServerStats: Name-Sync fehlgeschlagen");
-          }
-        }
-        continue;
-      }
-      // Existiert nicht mehr — Eintrag bereinigen, dann neu erstellen
+      const exists = await guild.channels.fetch(stat.channelId).catch(() => null);
+      if (exists && exists.type === ChannelType.GuildVoice) continue;
+      // Channel wurde gelöscht/verlegt → Referenz bereinigen, neu anlegen
       await prisma.serverStat.update({ where: { id: stat.id }, data: { channelId: null } });
     }
 
-    // Channel anlegen
+    // Neuen Channel anlegen
     try {
-      const initialValue = await computeStatValue(guild, stat.type);
-      const name = renderName(stat.nameTemplate, initialValue);
+      const value = computeValue(guild, stat.type);
       const channel = (await guild.channels.create({
-        name,
+        name: renderName(stat.nameTemplate, value),
         type: ChannelType.GuildVoice,
         parent: config.serverStatsCategoryId ?? undefined,
         position: stat.position,
         permissionOverwrites: [
           {
-            id: everyone.id,
+            id: guild.roles.everyone.id,
             allow: [PermissionFlagsBits.ViewChannel],
             deny: [PermissionFlagsBits.Connect, PermissionFlagsBits.SendMessages],
           },
         ],
-        reason: "Server-Stats: automatischer Counter-Channel",
+        reason: "Server-Stats Channel",
       })) as VoiceChannel;
 
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: { channelId: channel.id, lastValue: initialValue, lastUpdate: new Date() },
+        data: {
+          channelId: channel.id,
+          lastValue: value,
+          lastCheck: new Date(),
+          lastUpdate: new Date(),
+        },
       });
-      logger.info(
-        { statId: stat.id, channelId: channel.id, type: stat.type, value: initialValue },
-        "Server-Stat-Channel erstellt",
-      );
+      logger.info({ statId: stat.id, channelId: channel.id, value }, "ServerStats: Channel erstellt");
     } catch (err) {
-      logger.warn({ err, statId: stat.id, type: stat.type }, "Konnte Stat-Channel nicht anlegen");
+      logger.error({ err, statId: stat.id }, "ServerStats: Channel-Erstellung fehlgeschlagen");
     }
   }
 }
 
-// Aktualisiert die Channel-Namen aller aktiven Stats. Bei `force=true` wird
-// der Channel auch dann umbenannt, wenn der Name bereits stimmt (z.B. für
-// manuelles Trigger via Dashboard).
-export async function updateAllStats(
-  client: Client,
-  force = false,
-): Promise<{ updated: number; skipped: number; alreadyCurrent: number }> {
+// ─── Update-Loop ────────────────────────────────────────────────────────────
+
+export interface UpdateResult {
+  renamed: number;
+  unchanged: number;
+  failed: number;
+}
+
+// Jeder aktive Stat: Wert berechnen → mit aktuellem Channel-Namen vergleichen
+// → wenn unterschiedlich, umbenennen. Keine DB-Cache-Tricks — der echte
+// Channel-Name ist die Source of Truth.
+export async function updateAllStats(client: Client): Promise<UpdateResult> {
   const config = await getConfig();
-  if (!config.serverStatsEnabled) return { updated: 0, skipped: 0, alreadyCurrent: 0 };
+  if (!config.serverStatsEnabled) return { renamed: 0, unchanged: 0, failed: 0 };
 
   const guild = await getGuild(client);
-  if (!guild) return { updated: 0, skipped: 0, alreadyCurrent: 0 };
+  if (!guild) return { renamed: 0, unchanged: 0, failed: 0 };
 
   const stats = await prisma.serverStat.findMany({
     where: { enabled: true, channelId: { not: null } },
   });
 
-  let updated = 0;
-  let skipped = 0;
-  let alreadyCurrent = 0;
+  let renamed = 0;
+  let unchanged = 0;
+  let failed = 0;
   const now = new Date();
 
   for (const stat of stats) {
-    if (!isStatType(stat.type)) continue;
-    if (!stat.channelId) continue;
+    if (!isStatType(stat.type) || !stat.channelId) continue;
 
-    const value = await computeStatValue(guild, stat.type);
+    const value = computeValue(guild, stat.type);
+    const expected = renderName(stat.nameTemplate, value);
+    const channel = await guild.channels.fetch(stat.channelId).catch(() => null);
+
+    if (!channel || channel.type !== ChannelType.GuildVoice) {
+      await prisma.serverStat.update({ where: { id: stat.id }, data: { channelId: null } });
+      failed += 1;
+      continue;
+    }
+
+    const current = (channel as VoiceChannel).name;
     logger.debug(
-      { statId: stat.id, type: stat.type, value, lastValue: stat.lastValue },
+      { statId: stat.id, type: stat.type, value, current, expected },
       "ServerStats: Wert berechnet",
     );
 
-    const channel = await guild.channels.fetch(stat.channelId).catch(() => null);
-    if (!channel || channel.type !== ChannelType.GuildVoice) {
-      // Channel weg → Eintrag bereinigen
-      await prisma.serverStat.update({ where: { id: stat.id }, data: { channelId: null } });
-      continue;
-    }
-
-    const newName = renderName(stat.nameTemplate, value);
-    const currentName = (channel as VoiceChannel).name;
-
-    // lastCheck IMMER setzen — beweist im Dashboard dass der Scheduler läuft.
-    const baseUpdate = { lastCheck: now };
-
-    // Im normalen Lauf: skippen wenn Wert unverändert (Rate-Limit-Schonung).
-    // Bei force=true (Manual-Trigger): nur skippen wenn Name bereits stimmt.
-    if (!force && stat.lastValue === value && currentName === newName) {
+    // Name passt schon → nur lastCheck/lastValue updaten
+    if (current === expected) {
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: { ...baseUpdate, lastValue: value },
+        data: { lastValue: value, lastCheck: now },
       });
-      skipped += 1;
-      continue;
-    }
-    if (currentName === newName) {
-      // Name passt schon — DB nur aktualisieren, kein Discord-Call
-      await prisma.serverStat.update({
-        where: { id: stat.id },
-        data: { ...baseUpdate, lastValue: value, lastUpdate: now },
-      });
-      alreadyCurrent += 1;
+      unchanged += 1;
       continue;
     }
 
+    // Umbenennen
     try {
-      await channel.setName(newName, "Server-Stats-Update");
+      await (channel as VoiceChannel).setName(expected, "Server-Stats-Update");
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: { ...baseUpdate, lastValue: value, lastUpdate: now },
+        data: { lastValue: value, lastCheck: now, lastUpdate: now },
       });
       logger.info(
-        { statId: stat.id, oldName: currentName, newName, value },
+        { statId: stat.id, oldName: current, newName: expected },
         "ServerStats: Channel umbenannt",
       );
-      updated += 1;
+      renamed += 1;
     } catch (err) {
-      // Discord rate-limited Channel-Edits stark (~2 pro 10 min) — bei Fehler
-      // einfach weiter, nächster Lauf versucht's wieder.
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: baseUpdate,
+        data: { lastCheck: now },
       });
-      logger.warn(
-        { err, statId: stat.id, channelId: stat.channelId },
-        "Server-Stat-Channel-Update fehlgeschlagen",
-      );
+      logger.warn({ err, statId: stat.id }, "ServerStats: setName fehlgeschlagen (Rate-Limit?)");
+      failed += 1;
     }
   }
 
-  logger.info(
-    { updated, skipped, alreadyCurrent, statCount: stats.length, force },
-    "ServerStats: Tick abgeschlossen",
-  );
-  return { updated, skipped, alreadyCurrent };
+  logger.info({ renamed, unchanged, failed, total: stats.length }, "ServerStats: Tick fertig");
+  return { renamed, unchanged, failed };
 }
 
-let schedulerRunning = false;
+// ─── Scheduler ──────────────────────────────────────────────────────────────
 
-// Liest das Intervall vor jedem Tick aus der DB — Änderungen am
-// Update-Intervall im Dashboard greifen sofort beim nächsten Lauf.
-async function tickAndReschedule(client: Client): Promise<void> {
-  logger.info("ServerStats: Tick startet");
+let timerId: ReturnType<typeof setTimeout> | null = null;
+
+async function tick(client: Client): Promise<void> {
   try {
+    await ensureStatChannels(client);
     await updateAllStats(client);
   } catch (err) {
-    logger.error({ err }, "ServerStats: Update-Lauf fehlgeschlagen");
+    logger.error({ err }, "ServerStats: Tick fehlgeschlagen");
   }
-  try {
-    const config = await getConfig();
-    const minutes = Math.max(1, Math.min(120, config.serverStatsUpdateMinutes));
-    logger.info({ nextInMinutes: minutes }, "ServerStats: Nächster Tick geplant");
-    setTimeout(() => void tickAndReschedule(client), minutes * 60_000);
-  } catch (err) {
-    logger.error({ err }, "ServerStats: Reschedule fehlgeschlagen — Fallback 10 min");
-    setTimeout(() => void tickAndReschedule(client), 10 * 60_000);
-  }
+
+  const config = await getConfig().catch(() => null);
+  const minutes = Math.max(1, Math.min(120, config?.serverStatsUpdateMinutes ?? 10));
+  timerId = setTimeout(() => void tick(client), minutes * 60_000);
 }
 
 export function startServerStatsScheduler(client: Client): void {
-  if (schedulerRunning) return;
-  schedulerRunning = true;
-
-  // Live-Listener: jede Status-Änderung triggert (rate-limited) ein Update,
-  // damit „Gerade online" deutlich responsiver wird als nur über den Tick.
-  client.on(Events.PresenceUpdate, () => {
-    presenceEventCount += 1;
-    const now = Date.now();
-    if (now - lastOnlineRecheck < ONLINE_RECHECK_MIN_MS) return;
-    lastOnlineRecheck = now;
-    void updateAllStats(client).catch((err) =>
-      logger.warn({ err }, "ServerStats: Presence-getriggertes Update fehlgeschlagen"),
-    );
-  });
-
-  // Diagnose: alle 5 min loggen wie viele Presence-Events angekommen sind.
-  setInterval(() => {
-    logger.info(
-      { presenceEventsSinceStart: presenceEventCount },
-      "ServerStats: Presence-Diagnose",
-    );
-  }, 5 * 60_000);
-
-  // Initial: Channels anlegen + erstes Update nach 15s
-  setTimeout(() => {
-    void (async () => {
-      await ensureStatChannels(client).catch((err) =>
-        logger.error({ err }, "ServerStats: ensureStatChannels fehlgeschlagen"),
-      );
-      await tickAndReschedule(client);
-    })();
-  }, 15_000);
-  logger.info("Server-Stats-Scheduler gestartet (dynamisches Intervall aus Config)");
+  if (timerId) return;
+  logger.info("ServerStats: Scheduler gestartet");
+  // Erster Lauf nach 10s — Bot hat dann genug Zeit Member-Cache aufzubauen
+  timerId = setTimeout(() => void tick(client), 10_000);
 }

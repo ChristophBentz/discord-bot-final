@@ -14,13 +14,13 @@ export async function handleServerStatsEnsure(
 
 export async function handleServerStatsUpdate(
   client: Client,
-  force: boolean,
 ): Promise<
-  | { ok: true; updated: number; skipped: number; alreadyCurrent: number }
+  | { ok: true; renamed: number; unchanged: number; failed: number }
   | { ok: false; error: string }
 > {
   try {
-    const r = await updateAllStats(client, force);
+    await ensureStatChannels(client);
+    const r = await updateAllStats(client);
     return { ok: true, ...r };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
