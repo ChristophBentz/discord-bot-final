@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
+import { MessagePreview } from "@/components/MessagePreview";
 import {
   sendEmbed,
   sendFile,
@@ -10,6 +11,124 @@ import {
   type EmbedSpec,
   type PollSpec,
 } from "./actions";
+
+// Renders ein Discord-Embed innerhalb der MessagePreview (für Embed-Tab)
+function EmbedBody({ spec }: { spec: EmbedSpec }) {
+  const colorHex = "#" + (spec.color ?? 0xa855f7).toString(16).padStart(6, "0");
+  if (!spec.title && !spec.description && !spec.imageUrl && !spec.thumbnailUrl && !spec.footerText) {
+    return (
+      <div className="rounded border-l-2 border-line bg-bg-elevated/40 px-3 py-2 text-xs italic text-ink-subtle">
+        leerer Embed
+      </div>
+    );
+  }
+  return (
+    <div
+      className="flex max-w-[480px] gap-2 rounded border-l-[3px] bg-bg-elevated/60 p-3"
+      style={{ borderLeftColor: colorHex }}
+    >
+      <div className="flex-1 space-y-1.5">
+        {spec.title && (
+          <div className="font-semibold text-ink">{spec.title}</div>
+        )}
+        {spec.description && (
+          <div className="whitespace-pre-wrap break-words text-sm text-ink-muted">
+            {spec.description}
+          </div>
+        )}
+        {spec.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={spec.imageUrl}
+            alt=""
+            className="mt-1 max-h-48 rounded border border-line object-cover"
+          />
+        )}
+        {spec.footerText && (
+          <div className="mt-2 text-[11px] text-ink-subtle">{spec.footerText}</div>
+        )}
+      </div>
+      {spec.thumbnailUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={spec.thumbnailUrl}
+          alt=""
+          className="h-16 w-16 shrink-0 rounded border border-line object-cover"
+        />
+      )}
+    </div>
+  );
+}
+
+// Renders eine Discord-Native-Poll-Anzeige
+function PollBody({
+  question,
+  answers,
+  multi,
+  durationHours,
+}: {
+  question: string;
+  answers: string[];
+  multi: boolean;
+  durationHours: number;
+}) {
+  if (!question.trim() && answers.every((a) => !a.trim())) {
+    return (
+      <div className="rounded border border-line bg-bg-elevated/40 px-3 py-2 text-xs italic text-ink-subtle">
+        leere Umfrage
+      </div>
+    );
+  }
+  return (
+    <div className="max-w-[480px] rounded-xl border border-line bg-bg-elevated/60 p-4">
+      <div className="text-sm font-semibold text-ink">{question || "(keine Frage)"}</div>
+      <ul className="mt-3 space-y-1.5">
+        {answers
+          .map((a) => a.trim())
+          .filter(Boolean)
+          .map((a, i) => (
+            <li
+              key={i}
+              className="flex items-center gap-2 rounded-lg border border-line bg-bg-card px-3 py-2 text-sm"
+            >
+              <span className="grid h-4 w-4 place-items-center rounded-full border border-line">
+                <span className="h-1.5 w-1.5 rounded-full bg-transparent" />
+              </span>
+              <span className="flex-1 text-ink">{a}</span>
+            </li>
+          ))}
+      </ul>
+      <div className="mt-3 flex items-center justify-between text-[11px] text-ink-subtle">
+        <span>0 votes · endet in {durationHours}h</span>
+        {multi && <span className="rounded bg-bg-elevated px-1.5 py-0.5">Mehrfachauswahl</span>}
+      </div>
+    </div>
+  );
+}
+
+// Datei-Attachment-Platzhalter
+function FileBody({ file }: { file: File | null }) {
+  if (!file) {
+    return (
+      <div className="rounded border border-dashed border-line bg-bg-elevated/40 px-3 py-2 text-xs italic text-ink-subtle">
+        noch keine Datei gewählt
+      </div>
+    );
+  }
+  return (
+    <div className="flex max-w-[420px] items-center gap-3 rounded-lg border border-line bg-bg-elevated/60 p-3">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-bg-card text-lg">
+        📎
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium text-ink">{file.name}</div>
+        <div className="text-[11px] text-ink-subtle">
+          {(file.size / 1024).toFixed(1)} KB
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type Tab = "text" | "embed" | "poll" | "file";
 
@@ -130,9 +249,11 @@ function TabButton({
 export function ComposeForm({
   channels,
   roles,
+  bot,
 }: {
   channels: ChannelOption[];
   roles: RoleOption[];
+  bot: { name: string; avatarUrl: string | null };
 }) {
   const [tab, setTab] = useState<Tab>("text");
   const [channelId, setChannelId] = useState("");
@@ -532,6 +653,63 @@ export function ComposeForm({
             />
           </div>
         </div>
+      )}
+
+      {/* Live-Vorschau pro Tab */}
+      {tab === "text" && (
+        <MessagePreview
+          text={text}
+          botName={bot.name}
+          botAvatarUrl={bot.avatarUrl}
+          emptyText="leerer Text — Senden ist blockiert"
+        />
+      )}
+      {tab === "embed" && (
+        <MessagePreview
+          text={embedExtraContent}
+          botName={bot.name}
+          botAvatarUrl={bot.avatarUrl}
+          emptyText={null}
+          embed={
+            <EmbedBody
+              spec={{
+                title: embedTitle.trim() || undefined,
+                description: embedDesc.trim() || undefined,
+                color: embedColor
+                  ? parseInt(embedColor.replace("#", ""), 16)
+                  : undefined,
+                imageUrl: embedImage.trim() || undefined,
+                thumbnailUrl: embedThumb.trim() || undefined,
+                footerText: embedFooter.trim() || undefined,
+              }}
+            />
+          }
+        />
+      )}
+      {tab === "poll" && (
+        <MessagePreview
+          text=""
+          botName={bot.name}
+          botAvatarUrl={bot.avatarUrl}
+          emptyText={null}
+          embed={
+            <PollBody
+              question={pollQuestion}
+              answers={pollAnswers}
+              multi={pollMulti}
+              durationHours={pollDuration}
+            />
+          }
+        />
+      )}
+      {tab === "file" && (
+        <MessagePreview
+          text={fileContent}
+          botName={bot.name}
+          botAvatarUrl={bot.avatarUrl}
+          emptyText={null}
+          embed={<FileBody file={file} />}
+        />
       )}
 
       <div className="flex items-center gap-3 pt-2">

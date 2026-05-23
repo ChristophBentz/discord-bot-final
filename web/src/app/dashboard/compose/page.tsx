@@ -1,9 +1,10 @@
-import { prisma } from "@repo/db";
+import { getConfig, prisma } from "@repo/db";
 import { ComposeForm } from "./ComposeForm";
 import { MessageHistory, type MessageRow } from "./MessageHistory";
 
 export default async function ComposePage() {
-  const [channels, roles, history] = await Promise.all([
+  const [config, channels, roles, history] = await Promise.all([
+    getConfig(),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
     prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
     prisma.botMessage.findMany({ orderBy: { sentAt: "desc" }, take: 20 }),
@@ -48,6 +49,7 @@ export default async function ComposePage() {
             parentId: c.parentId,
             position: c.position,
           }))}
+          bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
           roles={roles.map((r) => ({
             roleId: r.roleId,
             name: r.name,
