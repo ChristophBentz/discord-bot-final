@@ -98,8 +98,9 @@ model Config {
 
   // Server-Stats — Locked-Voice-Channels mit Live-Zählerständen.
   // Einzelne Stats in ServerStat.
-  serverStatsEnabled    Boolean @default(false)
-  serverStatsCategoryId String?
+  serverStatsEnabled        Boolean @default(false)
+  serverStatsCategoryId     String?
+  serverStatsUpdateMinutes  Int     @default(10) // Update-Intervall in Minuten
 
   // Music — DJ-Rollen in MusicRole
   musicEnabled Boolean @default(false)

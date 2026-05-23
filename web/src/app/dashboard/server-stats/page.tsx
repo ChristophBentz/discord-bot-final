@@ -23,6 +23,7 @@ export default async function ServerStatsPage() {
         initial={{
           serverStatsEnabled: config.serverStatsEnabled,
           serverStatsCategoryId: config.serverStatsCategoryId,
+          serverStatsUpdateMinutes: config.serverStatsUpdateMinutes,
         }}
         stats={stats.map((s) => ({
           id: s.id,

@@ -20,14 +20,18 @@ interface Props {
   initial: {
     serverStatsEnabled: boolean;
     serverStatsCategoryId: string | null;
+    serverStatsUpdateMinutes: number;
   };
   stats: StatDTO[];
   channels: ChannelOption[];
 }
 
+const UPDATE_OPTIONS = [5, 10, 15, 30, 60];
+
 export function ServerStatsManager({ initial, stats, channels }: Props) {
   const [enabled, setEnabled] = useState(initial.serverStatsEnabled);
   const [categoryId, setCategoryId] = useState(initial.serverStatsCategoryId ?? "");
+  const [updateMinutes, setUpdateMinutes] = useState(initial.serverStatsUpdateMinutes);
   const [savingFeedback, setSavingFeedback] = useState<{
     kind: "ok" | "error";
     msg: string;
@@ -101,6 +105,27 @@ export function ServerStatsManager({ initial, stats, channels }: Props) {
                 </p>
               </div>
 
+              <div>
+                <span className="mb-1.5 block text-sm font-medium text-ink">Update-Intervall</span>
+                <select
+                  name="serverStatsUpdateMinutes"
+                  value={updateMinutes}
+                  onChange={(e) => setUpdateMinutes(Number(e.target.value))}
+                  className="input w-full"
+                >
+                  {UPDATE_OPTIONS.map((min) => (
+                    <option key={min} value={min}>
+                      Alle {min < 60 ? `${min} Min` : `${min / 60} h`}
+                      {min === 10 ? " (empfohlen)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-ink-subtle">
+                  Discord limitiert Channel-Umbenennungen auf ca. 2 pro 10 Min. Wir editieren nur,
+                  wenn sich der Wert geändert hat — 10 Min ist die sichere Default-Einstellung.
+                </p>
+              </div>
+
               <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-200">
                 <svg
                   viewBox="0 0 24 24"
@@ -133,11 +158,18 @@ export function ServerStatsManager({ initial, stats, channels }: Props) {
           )}
 
           {!enabled && (
-            <input
-              type="hidden"
-              name="serverStatsCategoryId"
-              value={initial.serverStatsCategoryId ?? ""}
-            />
+            <>
+              <input
+                type="hidden"
+                name="serverStatsCategoryId"
+                value={initial.serverStatsCategoryId ?? ""}
+              />
+              <input
+                type="hidden"
+                name="serverStatsUpdateMinutes"
+                value={initial.serverStatsUpdateMinutes}
+              />
+            </>
           )}
 
           <div className="flex items-center justify-between gap-3 pt-1">

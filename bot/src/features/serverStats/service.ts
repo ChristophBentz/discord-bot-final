@@ -174,11 +174,29 @@ export async function updateAllStats(client: Client): Promise<{ updated: number;
   return { updated, skipped };
 }
 
-let intervalId: ReturnType<typeof setInterval> | null = null;
-const UPDATE_INTERVAL_MS = 10 * 60 * 1000; // 10 min — Discord rate-limits Channel-Edits hart.
+let schedulerRunning = false;
+
+// Liest das Intervall vor jedem Tick aus der DB — Änderungen am
+// Update-Intervall im Dashboard greifen sofort beim nächsten Lauf.
+async function tickAndReschedule(client: Client): Promise<void> {
+  try {
+    await updateAllStats(client);
+  } catch (err) {
+    logger.error({ err }, "ServerStats: Update-Lauf fehlgeschlagen");
+  }
+  try {
+    const config = await getConfig();
+    const minutes = Math.max(1, Math.min(120, config.serverStatsUpdateMinutes));
+    setTimeout(() => void tickAndReschedule(client), minutes * 60_000);
+  } catch (err) {
+    logger.error({ err }, "ServerStats: Reschedule fehlgeschlagen — Fallback 10 min");
+    setTimeout(() => void tickAndReschedule(client), 10 * 60_000);
+  }
+}
 
 export function startServerStatsScheduler(client: Client): void {
-  if (intervalId) return;
+  if (schedulerRunning) return;
+  schedulerRunning = true;
 
   // Initial: Channels anlegen + erstes Update nach 15s
   setTimeout(() => {
@@ -186,16 +204,8 @@ export function startServerStatsScheduler(client: Client): void {
       await ensureStatChannels(client).catch((err) =>
         logger.error({ err }, "ServerStats: ensureStatChannels fehlgeschlagen"),
       );
-      await updateAllStats(client).catch((err) =>
-        logger.error({ err }, "ServerStats: initiales Update fehlgeschlagen"),
-      );
+      await tickAndReschedule(client);
     })();
   }, 15_000);
-
-  intervalId = setInterval(() => {
-    void updateAllStats(client).catch((err) =>
-      logger.error({ err }, "ServerStats: Update-Lauf fehlgeschlagen"),
-    );
-  }, UPDATE_INTERVAL_MS);
-  logger.info({ intervalMs: UPDATE_INTERVAL_MS }, "Server-Stats-Scheduler gestartet");
+  logger.info("Server-Stats-Scheduler gestartet (dynamisches Intervall aus Config)");
 }

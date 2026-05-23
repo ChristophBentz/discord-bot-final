@@ -23,6 +23,8 @@ export async function saveSettings(formData: FormData): Promise<Result> {
 
   const enabled = formData.get("serverStatsEnabled") === "on";
   const categoryId = String(formData.get("serverStatsCategoryId") ?? "").trim() || null;
+  const updateMinutesRaw = Number(formData.get("serverStatsUpdateMinutes") ?? 10);
+  const updateMinutes = Math.max(1, Math.min(120, Math.round(updateMinutesRaw)));
 
   if (enabled && !categoryId) {
     return { ok: false, error: "Bitte eine Kategorie auswählen, wenn das Feature aktiv ist." };
@@ -33,8 +35,17 @@ export async function saveSettings(formData: FormData): Promise<Result> {
 
   await prisma.config.upsert({
     where: { id: 1 },
-    update: { serverStatsEnabled: enabled, serverStatsCategoryId: categoryId },
-    create: { id: 1, serverStatsEnabled: enabled, serverStatsCategoryId: categoryId },
+    update: {
+      serverStatsEnabled: enabled,
+      serverStatsCategoryId: categoryId,
+      serverStatsUpdateMinutes: updateMinutes,
+    },
+    create: {
+      id: 1,
+      serverStatsEnabled: enabled,
+      serverStatsCategoryId: categoryId,
+      serverStatsUpdateMinutes: updateMinutes,
+    },
   });
   // Bot kann sofort die Channels anlegen
   await callBot<unknown>("/api/serverstats/ensure", { method: "POST" });
