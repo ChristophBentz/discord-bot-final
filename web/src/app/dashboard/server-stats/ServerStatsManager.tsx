@@ -13,6 +13,7 @@ export interface StatDTO {
   channelId: string | null;
   enabled: boolean;
   lastValue: number | null;
+  lastCheck: string | null;
   lastUpdate: string | null;
 }
 

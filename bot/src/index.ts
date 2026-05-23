@@ -12,6 +12,10 @@ declare module "discord.js" {
 }
 
 const client = new Client({
+  // large_threshold = 250 (Maximum): Discord schickt im GUILD_CREATE alle
+  // bis zu 250 Members samt initial-Presences. Wichtig damit „Gerade online"
+  // korrekte Werte liefert.
+  ws: { large_threshold: 250 },
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,

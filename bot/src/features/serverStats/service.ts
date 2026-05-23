@@ -22,27 +22,31 @@ function isStatType(s: string): s is StatType {
   return s === "totalMembers" || s === "humanMembers" || s === "onlineMembers";
 }
 
-// Trackt, ob wir die Presences seit dem letzten Bot-Start mindestens
-// einmal explizit geladen haben. syncMembers füllt den Cache OHNE
-// Presences, dadurch wäre m.presence sonst dauerhaft null.
-let presencesLoaded = false;
+let lastPresenceFetch = 0;
+const PRESENCE_REFETCH_INTERVAL_MS = 30 * 60_000;
 
-// Lädt die Member-Cache mit Presences nach, falls noch nicht da. Wichtig
-// für humanMembers (Cache muss voll sein) und onlineMembers (braucht Presences).
+// Lädt Members in den Cache (falls leer) und versucht periodisch Presences
+// nachzuziehen. Discord schickt Presences zuverlässig nur initial via
+// GUILD_CREATE (large_threshold) und über Live-Events; ein expliziter
+// Bulk-Fetch mit withPresences:true wird vom Gateway oft ohne Presences
+// beantwortet — deshalb hier zusätzlich periodisch.
 async function ensureMemberCache(guild: Guild, needPresences: boolean): Promise<void> {
   const cacheTooSmall = guild.members.cache.size < guild.memberCount * 0.9;
-  const presencesMissing = needPresences && !presencesLoaded;
+  const presenceStale =
+    needPresences && Date.now() - lastPresenceFetch > PRESENCE_REFETCH_INTERVAL_MS;
 
-  if (!cacheTooSmall && !presencesMissing) return;
+  if (!cacheTooSmall && !presenceStale) return;
 
   try {
     await guild.members.fetch({ withPresences: needPresences });
-    if (needPresences) presencesLoaded = true;
+    if (needPresences) lastPresenceFetch = Date.now();
+    const withPresenceCount = guild.members.cache.filter((m) => m.presence !== null).size;
     logger.info(
       {
         cached: guild.members.cache.size,
         total: guild.memberCount,
-        withPresences: needPresences,
+        withPresence: withPresenceCount,
+        requestedPresences: needPresences,
       },
       "ServerStats: Member-Cache geladen",
     );
@@ -188,12 +192,17 @@ export async function updateAllStats(
   let updated = 0;
   let skipped = 0;
   let alreadyCurrent = 0;
+  const now = new Date();
 
   for (const stat of stats) {
     if (!isStatType(stat.type)) continue;
     if (!stat.channelId) continue;
 
     const value = await computeStatValue(guild, stat.type);
+    logger.debug(
+      { statId: stat.id, type: stat.type, value, lastValue: stat.lastValue },
+      "ServerStats: Wert berechnet",
+    );
 
     const channel = await guild.channels.fetch(stat.channelId).catch(() => null);
     if (!channel || channel.type !== ChannelType.GuildVoice) {
@@ -205,9 +214,16 @@ export async function updateAllStats(
     const newName = renderName(stat.nameTemplate, value);
     const currentName = (channel as VoiceChannel).name;
 
+    // lastCheck IMMER setzen — beweist im Dashboard dass der Scheduler läuft.
+    const baseUpdate = { lastCheck: now };
+
     // Im normalen Lauf: skippen wenn Wert unverändert (Rate-Limit-Schonung).
     // Bei force=true (Manual-Trigger): nur skippen wenn Name bereits stimmt.
     if (!force && stat.lastValue === value && currentName === newName) {
+      await prisma.serverStat.update({
+        where: { id: stat.id },
+        data: { ...baseUpdate, lastValue: value },
+      });
       skipped += 1;
       continue;
     }
@@ -215,7 +231,7 @@ export async function updateAllStats(
       // Name passt schon — DB nur aktualisieren, kein Discord-Call
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: { lastValue: value, lastUpdate: new Date() },
+        data: { ...baseUpdate, lastValue: value, lastUpdate: now },
       });
       alreadyCurrent += 1;
       continue;
@@ -225,7 +241,7 @@ export async function updateAllStats(
       await channel.setName(newName, "Server-Stats-Update");
       await prisma.serverStat.update({
         where: { id: stat.id },
-        data: { lastValue: value, lastUpdate: new Date() },
+        data: { ...baseUpdate, lastValue: value, lastUpdate: now },
       });
       logger.info(
         { statId: stat.id, oldName: currentName, newName, value },
@@ -235,6 +251,10 @@ export async function updateAllStats(
     } catch (err) {
       // Discord rate-limited Channel-Edits stark (~2 pro 10 min) — bei Fehler
       // einfach weiter, nächster Lauf versucht's wieder.
+      await prisma.serverStat.update({
+        where: { id: stat.id },
+        data: baseUpdate,
+      });
       logger.warn(
         { err, statId: stat.id, channelId: stat.channelId },
         "Server-Stat-Channel-Update fehlgeschlagen",
@@ -242,6 +262,10 @@ export async function updateAllStats(
     }
   }
 
+  logger.info(
+    { updated, skipped, alreadyCurrent, statCount: stats.length, force },
+    "ServerStats: Tick abgeschlossen",
+  );
   return { updated, skipped, alreadyCurrent };
 }
 
@@ -250,6 +274,7 @@ let schedulerRunning = false;
 // Liest das Intervall vor jedem Tick aus der DB — Änderungen am
 // Update-Intervall im Dashboard greifen sofort beim nächsten Lauf.
 async function tickAndReschedule(client: Client): Promise<void> {
+  logger.info("ServerStats: Tick startet");
   try {
     await updateAllStats(client);
   } catch (err) {
@@ -258,6 +283,7 @@ async function tickAndReschedule(client: Client): Promise<void> {
   try {
     const config = await getConfig();
     const minutes = Math.max(1, Math.min(120, config.serverStatsUpdateMinutes));
+    logger.info({ nextInMinutes: minutes }, "ServerStats: Nächster Tick geplant");
     setTimeout(() => void tickAndReschedule(client), minutes * 60_000);
   } catch (err) {
     logger.error({ err }, "ServerStats: Reschedule fehlgeschlagen — Fallback 10 min");

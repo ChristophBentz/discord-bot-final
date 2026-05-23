@@ -223,7 +223,8 @@ model ServerStat {
   position     Int       @default(0)
   enabled      Boolean   @default(true)
   lastValue    Int?
-  lastUpdate   DateTime?
+  lastCheck    DateTime? // Jeder Scheduler-Tick (auch wenn nichts geändert)
+  lastUpdate   DateTime? // Nur wenn der Channel-Name tatsächlich neu gesetzt wurde
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }

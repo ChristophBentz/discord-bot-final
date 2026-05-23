@@ -32,6 +32,7 @@ export default async function ServerStatsPage() {
           channelId: s.channelId,
           enabled: s.enabled,
           lastValue: s.lastValue,
+          lastCheck: s.lastCheck ? s.lastCheck.toISOString() : null,
           lastUpdate: s.lastUpdate ? s.lastUpdate.toISOString() : null,
         }))}
         channels={channels.map((c) => ({
