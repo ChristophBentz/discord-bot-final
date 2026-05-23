@@ -162,15 +162,17 @@ export async function runDiagnose(): Promise<
 }
 
 export async function updateNow(): Promise<
-  | { ok: true; renamed: number; unchanged: number; failed: number }
+  | { ok: true; renamed: number; unchanged: number; failed: number; rateLimited: number }
   | { ok: false; error: string }
 > {
   const auth = await requireAuth();
   if (auth) return auth;
-  const r = await callBot<{ renamed: number; unchanged: number; failed: number }>(
-    "/api/serverstats/update",
-    { method: "POST" },
-  );
+  const r = await callBot<{
+    renamed: number;
+    unchanged: number;
+    failed: number;
+    rateLimited: number;
+  }>("/api/serverstats/update", { method: "POST" });
   if (!r.ok) return { ok: false, error: r.error };
   revalidatePath("/dashboard/server-stats");
   return {
@@ -178,5 +180,6 @@ export async function updateNow(): Promise<
     renamed: r.data.renamed,
     unchanged: r.data.unchanged,
     failed: r.data.failed,
+    rateLimited: r.data.rateLimited,
   };
 }

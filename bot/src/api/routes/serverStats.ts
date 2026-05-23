@@ -43,7 +43,7 @@ export async function handleServerStatsEnsure(
 export async function handleServerStatsUpdate(
   client: Client,
 ): Promise<
-  | { ok: true; renamed: number; unchanged: number; failed: number }
+  | { ok: true; renamed: number; unchanged: number; failed: number; rateLimited: number }
   | { ok: false; error: string }
 > {
   try {

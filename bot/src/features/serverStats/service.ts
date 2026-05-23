@@ -159,17 +159,24 @@ export interface UpdateResult {
   renamed: number;
   unchanged: number;
   failed: number;
+  rateLimited: number;
 }
+
+// Discord limitiert Channel-Renames auf 2 pro 10 Min pro Channel. Wir
+// halten uns selbst an min. 5,5 Min Abstand zwischen Renames pro Stat,
+// damit wir nie in die Rate-Limit-Penalty rutschen (die discord.js
+// dann durch Awaiten "auflöst" und das ganze Update-System verzögert).
+const MIN_RENAME_INTERVAL_MS = 5.5 * 60_000;
 
 // Jeder aktive Stat: Wert berechnen → mit aktuellem Channel-Namen vergleichen
 // → wenn unterschiedlich, umbenennen. Keine DB-Cache-Tricks — der echte
 // Channel-Name ist die Source of Truth.
 export async function updateAllStats(client: Client): Promise<UpdateResult> {
   const config = await getConfig();
-  if (!config.serverStatsEnabled) return { renamed: 0, unchanged: 0, failed: 0 };
+  if (!config.serverStatsEnabled) return { renamed: 0, unchanged: 0, failed: 0, rateLimited: 0 };
 
   const guild = await getGuild(client);
-  if (!guild) return { renamed: 0, unchanged: 0, failed: 0 };
+  if (!guild) return { renamed: 0, unchanged: 0, failed: 0, rateLimited: 0 };
 
   const stats = await prisma.serverStat.findMany({
     where: { enabled: true, channelId: { not: null } },
@@ -178,6 +185,7 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
   let renamed = 0;
   let unchanged = 0;
   let failed = 0;
+  let rateLimited = 0;
   const now = new Date();
 
   for (const stat of stats) {
@@ -209,9 +217,31 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
       continue;
     }
 
-    // Umbenennen
+    // Rate-Limit-Schutz: nicht öfter als alle 5,5 Min renamen
+    const sinceLast = stat.lastUpdate ? now.getTime() - stat.lastUpdate.getTime() : Infinity;
+    if (sinceLast < MIN_RENAME_INTERVAL_MS) {
+      const waitSec = Math.ceil((MIN_RENAME_INTERVAL_MS - sinceLast) / 1000);
+      await prisma.serverStat.update({
+        where: { id: stat.id },
+        data: { lastValue: value, lastCheck: now },
+      });
+      logger.info(
+        { statId: stat.id, waitSec, current, expected },
+        "ServerStats: Rename übersprungen (eigener Rate-Limit-Schutz)",
+      );
+      rateLimited += 1;
+      continue;
+    }
+
+    // Umbenennen — mit Timeout damit wir nicht ewig blockieren falls
+    // discord.js trotzdem in die Discord-Rate-Limit-Wartezeit gerät
     try {
-      await (channel as VoiceChannel).setName(expected, "Server-Stats-Update");
+      await Promise.race([
+        (channel as VoiceChannel).setName(expected, "Server-Stats-Update"),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("setName-Timeout (10s)")), 10_000),
+        ),
+      ]);
       await prisma.serverStat.update({
         where: { id: stat.id },
         data: { lastValue: value, lastCheck: now, lastUpdate: now },
@@ -226,13 +256,16 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
         where: { id: stat.id },
         data: { lastCheck: now },
       });
-      logger.warn({ err, statId: stat.id }, "ServerStats: setName fehlgeschlagen (Rate-Limit?)");
+      logger.warn({ err, statId: stat.id }, "ServerStats: setName fehlgeschlagen");
       failed += 1;
     }
   }
 
-  logger.info({ renamed, unchanged, failed, total: stats.length }, "ServerStats: Tick fertig");
-  return { renamed, unchanged, failed };
+  logger.info(
+    { renamed, unchanged, failed, rateLimited, total: stats.length },
+    "ServerStats: Tick fertig",
+  );
+  return { renamed, unchanged, failed, rateLimited };
 }
 
 // ─── Diagnose ───────────────────────────────────────────────────────────────

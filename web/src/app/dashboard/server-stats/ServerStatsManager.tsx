@@ -69,6 +69,8 @@ export function ServerStatsManager({ initial, stats, channels }: Props) {
       const parts: string[] = [];
       if (r.renamed > 0) parts.push(`${r.renamed} umbenannt`);
       if (r.unchanged > 0) parts.push(`${r.unchanged} bereits aktuell`);
+      if (r.rateLimited > 0)
+        parts.push(`${r.rateLimited} Rate-Limit (Discord erlaubt nur alle ~5 Min)`);
       if (r.failed > 0) parts.push(`${r.failed} fehlgeschlagen`);
       setUpdateFeedback({
         kind: r.failed > 0 ? "error" : "ok",
