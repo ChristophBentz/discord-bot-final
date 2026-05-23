@@ -4,6 +4,43 @@ import { SettingsForm } from "./SettingsForm";
 import { SettingsCollapsible } from "./SettingsCollapsible";
 import { LiveRefresh } from "@/components/LiveRefresh";
 
+function StarRating({
+  value,
+  max = 5,
+  size = "md",
+  showValue = false,
+}: {
+  value: number;
+  max?: number;
+  size?: "sm" | "md";
+  showValue?: boolean;
+}) {
+  const px = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
+  const rounded = Math.round(value);
+  return (
+    <span className="inline-flex items-center gap-0.5 align-middle">
+      {Array.from({ length: max }, (_, i) => {
+        const filled = i < rounded;
+        return (
+          <svg
+            key={i}
+            viewBox="0 0 24 24"
+            className={`${px} ${filled ? "fill-amber-400 text-amber-400" : "fill-transparent text-ink-subtle/40"}`}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          >
+            <path d="m12 2.5 2.9 6.1 6.6.95-4.78 4.65 1.13 6.6L12 17.7l-5.85 3.1 1.13-6.6L2.5 9.55l6.6-.95L12 2.5z" />
+          </svg>
+        );
+      })}
+      {showValue && (
+        <span className="ml-1 text-xs font-medium tabular-nums text-ink">{value.toFixed(1)}</span>
+      )}
+    </span>
+  );
+}
+
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   if (seconds < 60) return "gerade eben";
@@ -187,7 +224,6 @@ export default async function TicketsPage() {
                 {modStats.map((m) => {
                   const member = memberById.get(m.modId);
                   const name = member?.displayName ?? `User ${m.modId.slice(-4)}`;
-                  const avg = m.avgRating ? m.avgRating.toFixed(1) : "—";
                   return (
                     <tr key={m.modId} className="hover:bg-bg-hover/50">
                       <td className="px-4 py-3">
@@ -210,11 +246,8 @@ export default async function TicketsPage() {
                       <td className="px-3 py-3 text-right tabular-nums">{m.totalClosed}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {m.avgRating ? (
-                          <div className="font-medium">
-                            <span className="text-amber-400">
-                              {"⭐".repeat(Math.round(m.avgRating))}
-                            </span>{" "}
-                            {avg}
+                          <div className="flex flex-col items-end">
+                            <StarRating value={m.avgRating} size="sm" showValue />
                             <div className="text-[10px] font-normal text-ink-subtle">
                               {m.ratedCount} Bew.
                             </div>
@@ -250,22 +283,27 @@ export default async function TicketsPage() {
                   key={r.id}
                   className="rounded-xl border border-line bg-bg-elevated/40 p-3"
                 >
-                  <div className="mb-1 flex items-center gap-2 text-xs text-ink-subtle">
-                    <span className="text-amber-400 text-sm">
-                      {"⭐".repeat(stars)}
-                      {"☆".repeat(5 - stars)}
-                    </span>
-                    <span>·</span>
+                  <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-subtle">
+                    <StarRating value={stars} />
+                    <span className="text-ink-subtle/60">·</span>
                     <span>
-                      Ticket <Link href={`/dashboard/tickets/${r.id}`} className="text-brand hover:underline">#{r.id}</Link>
+                      Ticket{" "}
+                      <Link
+                        href={`/dashboard/tickets/${r.id}`}
+                        className="text-brand hover:underline"
+                      >
+                        #{r.id}
+                      </Link>
                     </span>
-                    <span>·</span>
+                    <span className="text-ink-subtle/60">·</span>
                     <span>{userName}</span>
-                    <span>·</span>
-                    <span>Beraten von <span className="text-ink">{modName}</span></span>
+                    <span className="text-ink-subtle/60">·</span>
+                    <span>
+                      Beraten von <span className="text-ink">{modName}</span>
+                    </span>
                     {r.ratingAt && (
                       <>
-                        <span>·</span>
+                        <span className="text-ink-subtle/60">·</span>
                         <span>{timeAgo(r.ratingAt)}</span>
                       </>
                     )}
