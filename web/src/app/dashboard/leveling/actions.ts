@@ -30,6 +30,7 @@ export async function saveLevelingSettings(formData: FormData): Promise<SaveLeve
   const enabled = formData.get("levelingEnabled") === "on";
   const levelBase = Math.max(10, Math.min(10000, parseInt0(formData.get("xpLevelBase"), 100, 10)));
   const levelMult = Math.max(0, Math.min(100, parseInt0(formData.get("xpLevelMultiplier"), 15, 0)));
+  const levelUpMessage = String(formData.get("levelUpMessage") ?? "").slice(0, 500);
 
   const data = {
     levelingEnabled: enabled,
@@ -40,6 +41,7 @@ export async function saveLevelingSettings(formData: FormData): Promise<SaveLeve
     xpPerMinuteVoice: voiceRate,
     xpLevelBase: levelBase,
     xpLevelMultiplier: levelMult,
+    levelUpMessage,
   };
 
   await prisma.config.upsert({

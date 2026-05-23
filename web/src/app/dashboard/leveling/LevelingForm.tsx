@@ -14,6 +14,66 @@ interface Initial {
   xpPerMinuteVoice: number;
   xpLevelBase: number;
   xpLevelMultiplier: number;
+  levelUpMessage: string;
+}
+
+const MESSAGE_PRESETS: { label: string; text: string }[] = [
+  { label: "Standard", text: "🎉 {user} ist auf **Level {level}** aufgestiegen!" },
+  { label: "Kurz", text: "{user} → Level **{level}** 🆙" },
+  { label: "Glückwunsch", text: "🎊 Glückwunsch {user}, du bist jetzt **Level {level}** auf {server}!" },
+  { label: "Spielerisch", text: "⚡ {username} hat **Level {level}** freigeschaltet! 🏆" },
+  { label: "Minimalistisch", text: "{user} 💫 Lvl {level}" },
+];
+
+// Renderfunktion — gleich wie im Bot, für die Vorschau
+function renderPreview(
+  template: string,
+  args: { username: string; level: number; serverName: string },
+): string {
+  return template
+    .replaceAll("{user}", `@${args.username}`)
+    .replaceAll("{username}", args.username)
+    .replaceAll("{level}", String(args.level))
+    .replaceAll("{server}", args.serverName);
+}
+
+// Minimaler Markdown-Renderer für die Vorschau: **fett**, *kursiv*, `code`
+function renderMarkdown(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let idx = 0;
+  const regex = /\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|@(\w+)/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[1]) {
+      parts.push(<strong key={idx++}>{match[1]}</strong>);
+    } else if (match[2]) {
+      parts.push(<em key={idx++}>{match[2]}</em>);
+    } else if (match[3]) {
+      parts.push(
+        <code key={idx++} className="rounded bg-bg-elevated px-1 py-0.5 font-mono text-[12px]">
+          {match[3]}
+        </code>,
+      );
+    } else if (match[4]) {
+      parts.push(
+        <span
+          key={idx++}
+          className="rounded bg-brand/20 px-1 text-brand-light font-medium"
+        >
+          @{match[4]}
+        </span>,
+      );
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  void remaining;
+  return parts;
 }
 
 function NumberField({
@@ -57,6 +117,12 @@ export function LevelingForm({
   // Live-Preview der Level-Kurve (controlled inputs für Base + Multiplier)
   const [base, setBase] = useState(initial.xpLevelBase);
   const [mult, setMult] = useState(initial.xpLevelMultiplier);
+  const [message, setMessage] = useState(initial.levelUpMessage);
+  const previewText = renderPreview(message, {
+    username: "Max",
+    level: 5,
+    serverName: "Mein Server",
+  });
   const preview = Array.from({ length: 10 }, (_, i) => ({
     level: i + 1,
     xp: Math.round(base * Math.pow(1 + mult / 100, i)),
@@ -185,6 +251,75 @@ export function LevelingForm({
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+          Level-Up-Nachricht
+        </h3>
+
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {MESSAGE_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => setMessage(p.text)}
+              className="rounded-lg border border-line bg-bg-elevated/60 px-2.5 py-1 text-xs text-ink-muted transition-colors hover:border-brand/40 hover:bg-bg-hover hover:text-ink"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          name="levelUpMessage"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          rows={2}
+          maxLength={500}
+          className="input min-h-[60px] resize-y w-full"
+        />
+
+        <p className="mt-1.5 text-xs text-ink-subtle">
+          Platzhalter:{" "}
+          <code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px]">{"{user}"}</code>{" "}
+          = Mention,{" "}
+          <code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px]">{"{username}"}</code>{" "}
+          = Name,{" "}
+          <code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px]">{"{level}"}</code>{" "}
+          = neues Level,{" "}
+          <code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px]">{"{server}"}</code>{" "}
+          = Server-Name. Discord-Markdown wird gerendert (**fett**, *kursiv*, `code`).
+        </p>
+
+        {/* Live-Preview */}
+        <div className="mt-3 rounded-2xl border border-line bg-bg-elevated/40 p-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            Vorschau (so sieht's im Discord aus)
+          </div>
+          <div className="flex items-start gap-3 rounded-lg bg-bg-card p-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-sm font-semibold text-white">
+              H
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-ink">Harald</span>
+                <span className="rounded bg-brand/20 px-1 py-0.5 text-[9px] font-semibold text-brand-light">
+                  APP
+                </span>
+                <span className="text-[11px] text-ink-subtle">heute · 14:32</span>
+              </div>
+              <div className="mt-0.5 text-sm text-ink whitespace-pre-wrap break-words">
+                {previewText ? renderMarkdown(previewText) : (
+                  <span className="text-ink-subtle italic">leer — keine Nachricht wird gesendet</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-ink-subtle">
+            Beispieldaten: User „Max", Level 5
+          </p>
         </div>
       </div>
 

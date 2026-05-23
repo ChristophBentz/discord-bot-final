@@ -62,6 +62,7 @@ export default async function LevelingPage() {
             xpPerMinuteVoice: c.xpPerMinuteVoice,
             xpLevelBase: c.xpLevelBase,
             xpLevelMultiplier: c.xpLevelMultiplier,
+            levelUpMessage: c.levelUpMessage,
           }}
           channels={channels.map((ch) => ({
             channelId: ch.channelId,

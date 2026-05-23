@@ -70,6 +70,8 @@ model Config {
   // Level-Kurve: nächstes Level kostet `base * (1 + multiplier/100)^level` XP
   xpLevelBase        Int     @default(100)
   xpLevelMultiplier  Int     @default(15) // Prozent — z.B. 15 = 15% mehr XP pro Level
+  // Level-Up-Nachricht. Platzhalter: {user} {username} {level} {server}
+  levelUpMessage     String  @default("🎉 {user} ist auf **Level {level}** aufgestiegen!")
 
   // Achievements
   achievementNotifyDM      Boolean @default(false)
