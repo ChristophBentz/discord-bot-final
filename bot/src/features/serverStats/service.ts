@@ -22,20 +22,35 @@ function isStatType(s: string): s is StatType {
   return s === "totalMembers" || s === "humanMembers" || s === "onlineMembers";
 }
 
+// Trackt, ob wir die Presences seit dem letzten Bot-Start mindestens
+// einmal explizit geladen haben. syncMembers füllt den Cache OHNE
+// Presences, dadurch wäre m.presence sonst dauerhaft null.
+let presencesLoaded = false;
+
 // Lädt die Member-Cache mit Presences nach, falls noch nicht da. Wichtig
 // für humanMembers (Cache muss voll sein) und onlineMembers (braucht Presences).
-async function ensureMemberCache(guild: Guild): Promise<void> {
-  // Wenn der Cache deutlich kleiner als memberCount ist → fetchen
-  if (guild.members.cache.size < guild.memberCount * 0.9) {
-    try {
-      await guild.members.fetch({ withPresences: true });
-      logger.info(
-        { cached: guild.members.cache.size, total: guild.memberCount },
-        "ServerStats: Member-Cache geladen",
-      );
-    } catch (err) {
-      logger.warn({ err }, "ServerStats: Member-Cache laden fehlgeschlagen");
-    }
+async function ensureMemberCache(guild: Guild, needPresences: boolean): Promise<void> {
+  const cacheTooSmall = guild.members.cache.size < guild.memberCount * 0.9;
+  const presencesMissing = needPresences && !presencesLoaded;
+
+  if (!cacheTooSmall && !presencesMissing) return;
+
+  try {
+    await guild.members.fetch({ withPresences: needPresences });
+    if (needPresences) presencesLoaded = true;
+    logger.info(
+      {
+        cached: guild.members.cache.size,
+        total: guild.memberCount,
+        withPresences: needPresences,
+      },
+      "ServerStats: Member-Cache geladen",
+    );
+  } catch (err) {
+    logger.warn(
+      { err, needPresences },
+      "ServerStats: Member-Cache laden fehlgeschlagen — Presence-Intent im Dev-Portal aktiviert?",
+    );
   }
 }
 
@@ -44,12 +59,12 @@ export async function computeStatValue(guild: Guild, type: StatType): Promise<nu
     case "totalMembers":
       return guild.memberCount;
     case "humanMembers": {
-      await ensureMemberCache(guild);
+      await ensureMemberCache(guild, false);
       return guild.members.cache.filter((m) => !m.user.bot).size;
     }
     case "onlineMembers": {
       // Braucht GuildPresences-Intent — sonst sind presence-Daten leer
-      await ensureMemberCache(guild);
+      await ensureMemberCache(guild, true);
       return guild.members.cache.filter(
         (m) => !m.user.bot && m.presence && m.presence.status !== "offline",
       ).size;
