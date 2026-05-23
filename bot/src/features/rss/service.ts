@@ -1,8 +1,40 @@
 import type { Client, TextChannel } from "discord.js";
-import { EmbedBuilder } from "discord.js";
+import { AttachmentBuilder, EmbedBuilder } from "discord.js";
 import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { fetchAndParseFeed, type FeedItem, type ParsedFeed } from "./parser.js";
+
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+// Versucht das Bild selbst zu laden — wenn das klappt, hängen wir es als
+// Attachment an den Embed, damit's über Discord's CDN ausgeliefert wird.
+// Hintergrund: viele Seiten (z.B. Cloudflare-geschützte) blockieren Discord's
+// Image-Fetcher, das eigene Hosting umgeht das.
+async function fetchImageAttachment(
+  url: string,
+): Promise<{ attachment: AttachmentBuilder; filename: string } | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": BROWSER_UA,
+        Accept: "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    if (!contentType.startsWith("image/")) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length === 0 || buf.length > 8 * 1024 * 1024) return null;
+    const ext = contentType.split(";")[0]!.split("/")[1] ?? "png";
+    const filename = `image.${ext.replace(/[^a-z0-9]/g, "") || "png"}`;
+    return { attachment: new AttachmentBuilder(buf, { name: filename }), filename };
+  } catch {
+    return null;
+  }
+}
 
 const MAX_INITIAL_POST_COUNT = 3; // Bei einem brandneuen Feed nicht die ganze History dumpen.
 const MAX_POST_PER_RUN = 5;
@@ -25,7 +57,12 @@ function hostnameOf(url: string | null | undefined): string | null {
   }
 }
 
-function buildEmbed(item: FeedItem, feed: ParsedFeed, feedName: string): EmbedBuilder {
+function buildEmbed(
+  item: FeedItem,
+  feed: ParsedFeed,
+  feedName: string,
+  attachedFilename: string | null,
+): EmbedBuilder {
   const sourceHost = hostnameOf(item.link) ?? hostnameOf(feed.link);
   const embed = new EmbedBuilder()
     .setColor(0xf59e0b)
@@ -40,8 +77,9 @@ function buildEmbed(item: FeedItem, feed: ParsedFeed, feedName: string): EmbedBu
   if (item.description) {
     embed.setDescription(truncate(item.description, 500));
   }
-  const image = item.imageUrl ?? feed.imageUrl;
-  if (image) embed.setImage(image);
+  if (attachedFilename) {
+    embed.setImage(`attachment://${attachedFilename}`);
+  }
   if (item.author) {
     embed.addFields({ name: "Autor", value: truncate(item.author, 100), inline: true });
   }
@@ -133,9 +171,12 @@ export async function checkFeed(client: Client, feedId: number): Promise<FeedChe
   for (const item of candidates) {
     try {
       const rolePing = feed.pingRoleId ? `<@&${feed.pingRoleId}>` : "";
+      const imageUrl = item.imageUrl ?? parsed.imageUrl;
+      const attached = imageUrl ? await fetchImageAttachment(imageUrl) : null;
       const sent = await (channel as TextChannel).send({
         content: rolePing || undefined,
-        embeds: [buildEmbed(item, parsed, feed.name)],
+        embeds: [buildEmbed(item, parsed, feed.name, attached?.filename ?? null)],
+        files: attached ? [attached.attachment] : undefined,
         allowedMentions: feed.pingRoleId ? { roles: [feed.pingRoleId] } : { parse: [] },
       });
       await prisma.rssFeedItem.create({
