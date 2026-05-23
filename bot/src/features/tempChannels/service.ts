@@ -48,6 +48,11 @@ export async function createTempChannel(
 
   const template = trigger.nameTemplate ?? config.tempChannelNameTemplate;
 
+  // Bot-Overwrite: damit der Bot den Channel IMMER managen/löschen kann,
+  // unabhängig von Category-Permissions (häufige Ursache für 50001 Missing
+  // Access). Wir setzen ViewChannel + ManageChannels + ManageRoles explizit.
+  const botMember = guild.members.me;
+
   try {
     const channel = (await guild.channels.create({
       name: renderName(template, state),
@@ -66,6 +71,20 @@ export async function createTempChannel(
             PermissionFlagsBits.Speak,
           ],
         },
+        ...(botMember
+          ? [
+              {
+                id: botMember.id,
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.ManageChannels,
+                  PermissionFlagsBits.ManageRoles,
+                  PermissionFlagsBits.Connect,
+                  PermissionFlagsBits.MoveMembers,
+                ],
+              },
+            ]
+          : []),
       ],
       reason: `Temp-Channel für ${state.member.user.username}`,
     })) as VoiceChannel;
@@ -160,6 +179,29 @@ export async function maybeDeleteTempChannel(
   );
 
   if (count > 0) return;
+
+  // Self-Heal für ALTE Channels (vor dem Bot-Overwrite-Fix): wenn der Bot
+  // keine eigene ManageChannels-Permission auf dem Channel hat, versuche
+  // sie hinzuzufügen. Wenn das auch fehlschlägt (z.B. weil ViewChannel
+  // gleich auf Category fehlt), läuft alles weitere natürlich auch nicht.
+  const botMember = voice.guild.members.me;
+  if (botMember) {
+    const botOw = voice.permissionOverwrites.cache.get(botMember.id);
+    if (!botOw || !botOw.allow.has(PermissionFlagsBits.ManageChannels)) {
+      await voice.permissionOverwrites
+        .edit(botMember.id, {
+          ViewChannel: true,
+          ManageChannels: true,
+          ManageRoles: true,
+        })
+        .catch((err: unknown) => {
+          const e = err as { code?: number; message?: string };
+          logger.warn(
+            `TempChannel Self-Heal-Permission fehlgeschlagen [${channelId}] code=${e?.code} msg=${e?.message}`,
+          );
+        });
+    }
+  }
 
   // Defensiv: leeren + gesperrten Channel vor dem Löschen entsperren,
   // damit er nie als „stuck-locked" hängen bleibt, falls Löschen scheitert.
