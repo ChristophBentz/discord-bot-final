@@ -278,6 +278,21 @@ export async function updateAllStats(client: Client): Promise<UpdateResult> {
 
     // Umbenennen — 30s-Timeout. Kurze Rate-Limit-Wartezeiten gehen durch,
     // ewig hängende Calls werden abgebrochen.
+    // Diagnose: was sieht discord.js für die Bot-Permissions auf diesem Channel?
+    {
+      const me = guild.members.me;
+      if (me) {
+        const perms = (channel as VoiceChannel).permissionsFor(me);
+        const isAdmin = me.permissions.has(PermissionFlagsBits.Administrator);
+        const canView = perms?.has(PermissionFlagsBits.ViewChannel) ?? false;
+        const canManage = perms?.has(PermissionFlagsBits.ManageChannels) ?? false;
+        logger.info(
+          `ServerStats Bot-Permission-Check [${stat.id}] botId=${me.id} serverAdmin=${isAdmin} channelView=${canView} channelManage=${canManage} roleCount=${me.roles.cache.size}`,
+        );
+      } else {
+        logger.warn(`ServerStats [${stat.id}] guild.members.me ist NULL!`);
+      }
+    }
     logger.info(`ServerStats setName-Versuch [${stat.id}] from="${current}" to="${expected}"`);
     try {
       await Promise.race([
