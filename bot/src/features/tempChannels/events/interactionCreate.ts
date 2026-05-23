@@ -5,13 +5,13 @@ import {
   MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
+  StringSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle,
-  UserSelectMenuBuilder,
   type ButtonInteraction,
   type Interaction,
   type ModalSubmitInteraction,
-  type UserSelectMenuInteraction,
+  type StringSelectMenuInteraction,
   type VoiceChannel,
 } from "discord.js";
 import { prisma } from "@repo/db";
@@ -20,7 +20,7 @@ import { logger } from "../../../lib/logger.js";
 import { buildPanel, isChannelLocked } from "../panel.js";
 
 async function getOwnedChannel(
-  interaction: ButtonInteraction | ModalSubmitInteraction | UserSelectMenuInteraction,
+  interaction: ButtonInteraction | ModalSubmitInteraction | StringSelectMenuInteraction,
 ): Promise<{ channel: VoiceChannel } | null> {
   if (!interaction.channelId) return null;
   const record = await prisma.tempChannel.findUnique({
@@ -64,9 +64,9 @@ const event: BotEvent<Events.InteractionCreate> = {
       await handleModal(interaction);
       return;
     }
-    // User-Select
-    if (interaction.isUserSelectMenu() && interaction.customId.startsWith("temp:")) {
-      await handleUserSelect(interaction);
+    // String-Select (Member-Picker für Kick/Transfer)
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith("temp:")) {
+      await handleStringSelect(interaction);
       return;
     }
   },
@@ -150,16 +150,22 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
         });
         return;
       }
+      const options = others.first(25).map((m) => ({
+        label: m.displayName.slice(0, 100),
+        value: m.id,
+        description: `@${m.user.username}`.slice(0, 100),
+      }));
       await interaction.reply({
         content: "Wen willst du kicken?",
         flags: MessageFlags.Ephemeral,
         components: [
-          new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(
-            new UserSelectMenuBuilder()
+          new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+            new StringSelectMenuBuilder()
               .setCustomId("temp:kick:select")
-              .setPlaceholder("User auswählen")
+              .setPlaceholder("User im Channel auswählen")
               .setMinValues(1)
-              .setMaxValues(1),
+              .setMaxValues(1)
+              .addOptions(options),
           ),
         ],
       });
@@ -175,16 +181,22 @@ async function handleButton(interaction: ButtonInteraction): Promise<void> {
         });
         return;
       }
+      const options = others.first(25).map((m) => ({
+        label: m.displayName.slice(0, 100),
+        value: m.id,
+        description: `@${m.user.username}`.slice(0, 100),
+      }));
       await interaction.reply({
         content: "An wen willst du den Channel übertragen?",
         flags: MessageFlags.Ephemeral,
         components: [
-          new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(
-            new UserSelectMenuBuilder()
+          new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+            new StringSelectMenuBuilder()
               .setCustomId("temp:transfer:select")
-              .setPlaceholder("Neuen Owner wählen")
+              .setPlaceholder("User im Channel auswählen")
               .setMinValues(1)
-              .setMaxValues(1),
+              .setMaxValues(1)
+              .addOptions(options),
           ),
         ],
       });
@@ -249,7 +261,7 @@ async function handleModal(interaction: ModalSubmitInteraction): Promise<void> {
   }
 }
 
-async function handleUserSelect(interaction: UserSelectMenuInteraction): Promise<void> {
+async function handleStringSelect(interaction: StringSelectMenuInteraction): Promise<void> {
   const owned = await getOwnedChannel(interaction);
   if (!owned) return;
   const { channel } = owned;
