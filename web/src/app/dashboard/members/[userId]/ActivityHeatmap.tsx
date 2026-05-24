@@ -148,11 +148,11 @@ export function ActivityHeatmap({ cells }: { cells: ActivityCell[] }) {
         </div>
       </div>
 
-      {/* Info-Zeile unter der Heatmap — wechselt zwischen Totals und Hover-Details */}
+      {/* Info-Zeile unter der Heatmap — links wechselt zwischen Totals/Details, rechts immer die Legende */}
       <div className="flex min-h-[40px] flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-bg-elevated/40 px-3 py-2 text-xs">
-        {hover ? (
-          <>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {hover ? (
+            <>
               <span className="font-semibold text-ink">
                 {formatDateDE(hover.cell.date)} · {hover.cell.bucket}
               </span>
@@ -169,10 +169,8 @@ export function ActivityHeatmap({ cells }: { cells: ActivityCell[] }) {
                   </span>
                 </span>
               )}
-            </div>
-          </>
-        ) : (
-          <>
+            </>
+          ) : (
             <span className="text-ink-muted">
               <span className="text-ink-subtle">letzte {DAYS} Tage:</span>{" "}
               <span className="font-medium text-ink">
@@ -184,17 +182,18 @@ export function ActivityHeatmap({ cells }: { cells: ActivityCell[] }) {
               </span>{" "}
               Voice
             </span>
-            <span className="flex items-center gap-1.5 text-ink-subtle">
-              Weniger
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-bg-elevated" />
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/25" />
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/45" />
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/70" />
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand" />
-              Mehr
-            </span>
-          </>
-        )}
+          )}
+        </div>
+
+        <span className="flex items-center gap-1.5 text-ink-subtle">
+          Weniger
+          <span className="h-2.5 w-2.5 rounded-[3px] bg-bg-elevated" />
+          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/25" />
+          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/45" />
+          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/70" />
+          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand" />
+          Mehr
+        </span>
       </div>
     </div>
   );
