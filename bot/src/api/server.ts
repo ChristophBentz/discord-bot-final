@@ -44,8 +44,10 @@ import {
 } from "./routes/serverStats.js";
 import {
   handleGetDescription,
+  handleSetAvatar,
   handleSetDescription,
   handleSetNickname,
+  type AvatarBody,
   type DescriptionBody,
   type NicknameBody,
 } from "./routes/bot.js";
@@ -62,9 +64,11 @@ import {
 async function readJson<T>(req: IncomingMessage): Promise<T | null> {
   return new Promise((resolve) => {
     let raw = "";
+    // 12 MB Limit — Avatar-Uploads kommen als base64 data-URLs rein
+    // und können bis ~10 MB groß werden.
     req.on("data", (chunk) => {
       raw += chunk;
-      if (raw.length > 64 * 1024) {
+      if (raw.length > 12 * 1024 * 1024) {
         req.destroy();
         resolve(null);
       }
@@ -315,6 +319,15 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && url.pathname === "/api/bot/description") {
         const body = (await readJson<DescriptionBody>(req)) ?? {};
         const result = await handleSetDescription(client, body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/bot/avatar — Avatar als data:image/...;base64,... setzen
+      if (req.method === "POST" && url.pathname === "/api/bot/avatar") {
+        const body = (await readJson<AvatarBody>(req)) ?? {};
+        const result = await handleSetAvatar(client, body);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

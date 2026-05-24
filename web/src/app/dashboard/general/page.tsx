@@ -1,7 +1,6 @@
 import { getConfig } from "@repo/db";
 import { BotStatusForm } from "./BotStatusForm";
-import { BotNicknameForm } from "./BotNicknameForm";
-import { BotDescriptionForm } from "./BotDescriptionForm";
+import { BotIdentityForm } from "./BotIdentityForm";
 import { loadBotDescription } from "./actions";
 
 export default async function GeneralPage() {
@@ -15,36 +14,29 @@ export default async function GeneralPage() {
         </div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Allgemein</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Globale Bot-Einstellungen.
+          Globale Bot-Einstellungen — wie der Bot auf eurem Discord aussieht und sich verhält.
         </p>
       </header>
 
       <section className="card p-6">
         <div className="mb-5">
-          <h2 className="text-lg font-semibold">Bot-Name</h2>
+          <h2 className="text-lg font-semibold">Bot-Profil</h2>
           <p className="mt-1 text-sm text-ink-muted">
-            Der Server-Nickname des Bots. Wird in Discord überall angezeigt wo der Bot
-            auftaucht (Mentions, Nachrichten, Member-Liste).
+            Avatar, Name und Beschreibung — so erscheint der Bot in Discord.
           </p>
         </div>
-        <BotNicknameForm initial={config.botName} />
+        <BotIdentityForm
+          initialName={config.botName}
+          initialAvatarUrl={config.botAvatarUrl}
+          initialDescription={description}
+        />
       </section>
 
       <section className="card p-6">
         <div className="mb-5">
-          <h2 className="text-lg font-semibold">Bot-Beschreibung</h2>
+          <h2 className="text-lg font-semibold">Status</h2>
           <p className="mt-1 text-sm text-ink-muted">
-            Text der auf dem Bot-Profil in Discord erscheint (Bot Info-Tab).
-          </p>
-        </div>
-        <BotDescriptionForm initial={description} />
-      </section>
-
-      <section className="card p-6">
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold">Bot-Status</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Wird in Discord als Custom Status unter dem Bot-Namen angezeigt.
+            Custom-Status unter dem Bot-Namen in der Member-Liste.
           </p>
         </div>
         <BotStatusForm initial={config.botStatusText} />

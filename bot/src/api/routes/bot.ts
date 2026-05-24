@@ -11,6 +11,10 @@ export interface DescriptionBody {
   description?: string | null;
 }
 
+export interface AvatarBody {
+  dataUrl?: string | null;
+}
+
 export async function handleSetNickname(
   client: Client,
   body: NicknameBody,
@@ -74,6 +78,59 @@ export async function handleSetDescription(
       ok: false,
       error: `Konnte Beschreibung nicht setzen: ${e?.message ?? "unbekannter Fehler"}`,
     };
+  }
+}
+
+export async function handleSetAvatar(
+  client: Client,
+  body: AvatarBody,
+): Promise<{ ok: true; avatarUrl: string | null } | { ok: false; error: string }> {
+  const dataUrl = typeof body.dataUrl === "string" ? body.dataUrl.trim() : "";
+
+  // Leerer Wert → Avatar entfernen
+  if (!dataUrl) {
+    if (!client.user) return { ok: false, error: "Client-User nicht geladen." };
+    try {
+      const updated = await client.user.setAvatar(null);
+      const avatarUrl = updated.displayAvatarURL({ size: 256 });
+      await prisma.config.update({
+        where: { id: 1 },
+        data: { botAvatarUrl: avatarUrl },
+      });
+      return { ok: true, avatarUrl };
+    } catch (err: unknown) {
+      const e = err as { code?: number; message?: string };
+      return { ok: false, error: `Avatar entfernen fehlgeschlagen: ${e?.message}` };
+    }
+  }
+
+  // Validation: data:image/...;base64,...
+  if (!dataUrl.startsWith("data:image/")) {
+    return { ok: false, error: "Ungültiges Datei-Format (nur Bilder erlaubt)." };
+  }
+  // Größen-Check (~8MB roh = ~10MB base64)
+  if (dataUrl.length > 11_000_000) {
+    return { ok: false, error: "Datei zu groß (max. 8 MB)." };
+  }
+
+  if (!client.user) return { ok: false, error: "Client-User nicht geladen." };
+
+  try {
+    const updated = await client.user.setAvatar(dataUrl);
+    const avatarUrl = updated.displayAvatarURL({ size: 256 });
+    await prisma.config.update({
+      where: { id: 1 },
+      data: { botAvatarUrl: avatarUrl },
+    });
+    return { ok: true, avatarUrl };
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    logger.warn(`Bot setAvatar fehlgeschlagen code=${e?.code} msg=${e?.message}`);
+    const hint =
+      e?.code === 50035
+        ? "Discord-Rate-Limit (max. 2 Avatar-Änderungen pro Stunde)"
+        : (e?.message ?? "unbekannter Fehler");
+    return { ok: false, error: `Avatar setzen fehlgeschlagen: ${hint}` };
   }
 }
 

@@ -75,3 +75,24 @@ export async function loadBotDescription(): Promise<string> {
   const r = await callBot<{ description: string }>("/api/bot/description", { method: "GET" });
   return r.ok ? r.data.description : "";
 }
+
+export type SaveAvatarResult =
+  | { ok: true; avatarUrl: string | null }
+  | { ok: false; error: string };
+
+export async function saveBotAvatar(dataUrl: string | null): Promise<SaveAvatarResult> {
+  if (dataUrl && !dataUrl.startsWith("data:image/")) {
+    return { ok: false, error: "Ungültiges Datei-Format." };
+  }
+  if (dataUrl && dataUrl.length > 11_000_000) {
+    return { ok: false, error: "Datei zu groß (max. 8 MB)." };
+  }
+  const r = await callBot<{ avatarUrl: string | null }>("/api/bot/avatar", {
+    method: "POST",
+    body: { dataUrl: dataUrl ?? "" },
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/general");
+  return { ok: true, avatarUrl: r.data.avatarUrl };
+}
