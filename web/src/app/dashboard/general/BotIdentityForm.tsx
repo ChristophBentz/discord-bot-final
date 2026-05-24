@@ -122,41 +122,42 @@ export function BotIdentityForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      {/* Live-Preview — Discord-Profil-Stil mit Banner */}
+      {/* Live-Preview — Discord-Profil-Stil */}
       <div className="overflow-hidden rounded-2xl border border-line bg-bg-elevated/40">
+        {/* Banner */}
         <div
           className="h-24 w-full"
           style={{
             background: bannerPreview
               ? `url(${bannerPreview}) center / cover`
-              : "linear-gradient(135deg, rgb(168 85 247 / 0.3), rgb(124 58 237 / 0.2))",
+              : "linear-gradient(135deg, rgb(168 85 247 / 0.35), rgb(124 58 237 / 0.2))",
           }}
         />
-        <div className="-mt-8 flex items-end gap-4 px-4 pb-4">
+        {/* Avatar überlappt nur das Banner — nicht den Namen */}
+        <div className="-mt-10 px-5">
           {avatarPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={avatarPreview}
               alt={name}
-              className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-bg-elevated"
+              className="h-20 w-20 rounded-full object-cover ring-4 ring-bg-elevated"
             />
           ) : (
-            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-brand-gradient text-xl font-semibold text-white ring-4 ring-bg-elevated">
+            <span className="grid h-20 w-20 place-items-center rounded-full bg-brand-gradient text-2xl font-semibold text-white ring-4 ring-bg-elevated">
               {initial}
             </span>
           )}
-          <div className="min-w-0 flex-1 pb-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-lg font-semibold text-ink">
-                {name || "Bot"}
-              </span>
-              <span className="rounded bg-brand/20 px-1.5 py-0.5 text-[9px] font-semibold text-brand-light">
-                APP
-              </span>
-            </div>
-            <div className="mt-1 line-clamp-2 text-xs text-ink-muted">
-              {description || <span className="italic text-ink-subtle">Keine Beschreibung</span>}
-            </div>
+        </div>
+        {/* Name + Beschreibung in eigener Zeile unterhalb */}
+        <div className="px-5 pb-5 pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-lg font-semibold text-ink">{name || "Bot"}</span>
+            <span className="rounded bg-brand/20 px-1.5 py-0.5 text-[9px] font-semibold text-brand-light">
+              APP
+            </span>
+          </div>
+          <div className="mt-2 line-clamp-3 text-sm text-ink-muted">
+            {description || <span className="italic text-ink-subtle">Keine Beschreibung</span>}
           </div>
         </div>
       </div>
