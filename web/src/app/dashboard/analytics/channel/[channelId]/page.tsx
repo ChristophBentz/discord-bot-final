@@ -83,7 +83,7 @@ export default async function ChannelAnalyticsPage({
   const avgPerDay = Math.round(total / Math.max(1, range));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       <header className="space-y-3">
         <div className="flex items-center gap-2 text-xs text-ink-subtle">
           <Link href="/dashboard/analytics" className="hover:text-ink">

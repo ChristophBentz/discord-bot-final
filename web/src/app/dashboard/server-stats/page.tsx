@@ -10,7 +10,7 @@ export default async function ServerStatsPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">Info</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Server-Stats</h1>

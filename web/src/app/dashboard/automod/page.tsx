@@ -56,7 +56,7 @@ export default async function AutoModPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">Moderation</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">AutoMod · Wortfilter</h1>

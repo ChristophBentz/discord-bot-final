@@ -43,7 +43,7 @@ export default async function TicketDetailPage({
   const avatarById = new Map(authorMembers.map((m) => [m.userId, m.avatarUrl]));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <Link
         href="/dashboard/tickets"
         className="text-xs text-ink-subtle hover:text-ink"
