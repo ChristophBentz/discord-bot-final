@@ -328,14 +328,16 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
                 )}
               </div>
 
-              {/* Name + Status-Badge — direkt rechts neben Avatar, unten-bündig */}
-              <div className="pb-1">
+              {/* Name + Status-Badge — Badge inline neben dem Namen, unten-bündig */}
+              <div className="flex flex-wrap items-end gap-3 pb-1">
                 <h1 className="text-4xl font-bold tracking-tight text-white">
                   {member.displayName}
                 </h1>
                 {member.inServer && (
-                  <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-bg-elevated/60 px-2 py-0.5 text-xs">
-                    <span className={`h-2 w-2 rounded-full ${PRESENCE_INFO[presenceStatus].color}`} />
+                  <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-bg-elevated/60 px-2.5 py-1 text-xs">
+                    <span
+                      className={`h-2 w-2 rounded-full ${PRESENCE_INFO[presenceStatus].color}`}
+                    />
                     <span className="text-ink-muted">{PRESENCE_INFO[presenceStatus].label}</span>
                   </div>
                 )}
