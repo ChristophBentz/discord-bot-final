@@ -14,7 +14,7 @@ export default async function FreeGamesPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-8">
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">Utility</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Free Games</h1>
