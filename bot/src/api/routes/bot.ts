@@ -7,6 +7,10 @@ export interface NicknameBody {
   nickname?: string | null;
 }
 
+export interface DescriptionBody {
+  description?: string | null;
+}
+
 export async function handleSetNickname(
   client: Client,
   body: NicknameBody,
@@ -41,6 +45,52 @@ export async function handleSetNickname(
     return {
       ok: false,
       error: `Konnte Nickname nicht setzen: ${e?.message ?? "unbekannter Fehler"}`,
+    };
+  }
+}
+
+export async function handleSetDescription(
+  client: Client,
+  body: DescriptionBody,
+): Promise<{ ok: true; description: string } | { ok: false; error: string }> {
+  const raw = typeof body.description === "string" ? body.description.trim() : "";
+  if (raw.length > 400) {
+    return { ok: false, error: "Beschreibung darf max. 400 Zeichen lang sein." };
+  }
+
+  if (!client.application) {
+    return { ok: false, error: "Application-Objekt ist nicht geladen." };
+  }
+
+  try {
+    const updated = await client.application.edit({ description: raw });
+    return { ok: true, description: updated.description ?? raw };
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    logger.warn(
+      `Bot setDescription fehlgeschlagen code=${e?.code} msg=${e?.message}`,
+    );
+    return {
+      ok: false,
+      error: `Konnte Beschreibung nicht setzen: ${e?.message ?? "unbekannter Fehler"}`,
+    };
+  }
+}
+
+export async function handleGetDescription(
+  client: Client,
+): Promise<{ ok: true; description: string } | { ok: false; error: string }> {
+  if (!client.application) {
+    return { ok: false, error: "Application-Objekt ist nicht geladen." };
+  }
+  try {
+    const app = await client.application.fetch();
+    return { ok: true, description: app.description ?? "" };
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    return {
+      ok: false,
+      error: `Konnte Beschreibung nicht laden: ${e?.message ?? "unbekannter Fehler"}`,
     };
   }
 }

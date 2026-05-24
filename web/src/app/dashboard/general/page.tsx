@@ -1,9 +1,11 @@
 import { getConfig } from "@repo/db";
 import { BotStatusForm } from "./BotStatusForm";
 import { BotNicknameForm } from "./BotNicknameForm";
+import { BotDescriptionForm } from "./BotDescriptionForm";
+import { loadBotDescription } from "./actions";
 
 export default async function GeneralPage() {
-  const config = await getConfig();
+  const [config, description] = await Promise.all([getConfig(), loadBotDescription()]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -26,6 +28,16 @@ export default async function GeneralPage() {
           </p>
         </div>
         <BotNicknameForm initial={config.botName} />
+      </section>
+
+      <section className="card p-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold">Bot-Beschreibung</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Text der auf dem Bot-Profil in Discord erscheint (Bot Info-Tab).
+          </p>
+        </div>
+        <BotDescriptionForm initial={description} />
       </section>
 
       <section className="card p-6">

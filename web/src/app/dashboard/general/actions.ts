@@ -53,3 +53,25 @@ export async function saveBotNickname(formData: FormData): Promise<SaveNicknameR
   revalidatePath("/dashboard/general");
   return { ok: true, nickname: r.data.nickname };
 }
+
+export type SaveDescriptionResult =
+  | { ok: true; description: string }
+  | { ok: false; error: string };
+
+export async function saveBotDescription(formData: FormData): Promise<SaveDescriptionResult> {
+  const raw = String(formData.get("botDescription") ?? "").trim();
+  if (raw.length > 400) {
+    return { ok: false, error: "Maximal 400 Zeichen erlaubt." };
+  }
+  const r = await callBot<{ description: string }>("/api/bot/description", {
+    method: "POST",
+    body: { description: raw },
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, description: r.data.description };
+}
+
+export async function loadBotDescription(): Promise<string> {
+  const r = await callBot<{ description: string }>("/api/bot/description", { method: "GET" });
+  return r.ok ? r.data.description : "";
+}
