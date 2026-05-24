@@ -45,9 +45,11 @@ import {
 import {
   handleGetDescription,
   handleSetAvatar,
+  handleSetBanner,
   handleSetDescription,
   handleSetNickname,
   type AvatarBody,
+  type BannerBody,
   type DescriptionBody,
   type NicknameBody,
 } from "./routes/bot.js";
@@ -328,6 +330,15 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && url.pathname === "/api/bot/avatar") {
         const body = (await readJson<AvatarBody>(req)) ?? {};
         const result = await handleSetAvatar(client, body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/bot/banner — Banner-Image setzen
+      if (req.method === "POST" && url.pathname === "/api/bot/banner") {
+        const body = (await readJson<BannerBody>(req)) ?? {};
+        const result = await handleSetBanner(client, body);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

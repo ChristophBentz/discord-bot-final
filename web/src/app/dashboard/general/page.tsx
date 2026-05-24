@@ -28,6 +28,7 @@ export default async function GeneralPage() {
         <BotIdentityForm
           initialName={config.botName}
           initialAvatarUrl={config.botAvatarUrl}
+          initialBannerUrl={config.botBannerUrl}
           initialDescription={description}
         />
       </section>

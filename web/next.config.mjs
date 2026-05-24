@@ -6,7 +6,7 @@ const nextConfig = {
   // Server Actions haben default 1 MB Body-Limit — für Bild-Uploads zu klein.
   experimental: {
     serverActions: {
-      bodySizeLimit: "8mb",
+      bodySizeLimit: "16mb",
     },
   },
 };

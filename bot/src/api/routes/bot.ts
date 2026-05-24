@@ -15,6 +15,10 @@ export interface AvatarBody {
   dataUrl?: string | null;
 }
 
+export interface BannerBody {
+  dataUrl?: string | null;
+}
+
 export async function handleSetNickname(
   client: Client,
   body: NicknameBody,
@@ -131,6 +135,50 @@ export async function handleSetAvatar(
         ? "Discord-Rate-Limit (max. 2 Avatar-Änderungen pro Stunde)"
         : (e?.message ?? "unbekannter Fehler");
     return { ok: false, error: `Avatar setzen fehlgeschlagen: ${hint}` };
+  }
+}
+
+export async function handleSetBanner(
+  client: Client,
+  body: BannerBody,
+): Promise<{ ok: true; bannerUrl: string | null } | { ok: false; error: string }> {
+  const dataUrl = typeof body.dataUrl === "string" ? body.dataUrl.trim() : "";
+
+  if (!client.user) return { ok: false, error: "Client-User nicht geladen." };
+
+  // Leer → Banner entfernen
+  if (!dataUrl) {
+    try {
+      const updated = await client.user.setBanner(null);
+      const bannerUrl = updated.bannerURL({ size: 1024 }) ?? null;
+      await prisma.config.update({ where: { id: 1 }, data: { botBannerUrl: bannerUrl } });
+      return { ok: true, bannerUrl };
+    } catch (err: unknown) {
+      const e = err as { code?: number; message?: string };
+      return { ok: false, error: `Banner entfernen fehlgeschlagen: ${e?.message}` };
+    }
+  }
+
+  if (!dataUrl.startsWith("data:image/")) {
+    return { ok: false, error: "Ungültiges Datei-Format (nur Bilder erlaubt)." };
+  }
+  // Banner-Limit: Discord erlaubt bis 10 MB
+  if (dataUrl.length > 14_000_000) {
+    return { ok: false, error: "Datei zu groß (max. 10 MB)." };
+  }
+
+  try {
+    const updated = await client.user.setBanner(dataUrl);
+    const bannerUrl = updated.bannerURL({ size: 1024 }) ?? null;
+    await prisma.config.update({ where: { id: 1 }, data: { botBannerUrl: bannerUrl } });
+    return { ok: true, bannerUrl };
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    logger.warn(`Bot setBanner fehlgeschlagen code=${e?.code} msg=${e?.message}`);
+    return {
+      ok: false,
+      error: `Banner setzen fehlgeschlagen: ${e?.message ?? "unbekannter Fehler"}`,
+    };
   }
 }
 

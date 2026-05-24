@@ -12,6 +12,8 @@ async function syncGuild(client: Client, guild: Guild): Promise<void> {
       me?.displayAvatarURL({ size: 128 }) ??
       client.user?.displayAvatarURL({ size: 128 }) ??
       null;
+    // Banner ist nur am User-Objekt verfügbar, nicht am GuildMember
+    const botBannerUrl = client.user?.bannerURL({ size: 1024 }) ?? null;
 
     const data = {
       guildName: guild.name,
@@ -19,6 +21,7 @@ async function syncGuild(client: Client, guild: Guild): Promise<void> {
       guildMemberCount: guild.memberCount,
       botName,
       botAvatarUrl,
+      botBannerUrl,
     };
     await prisma.config.upsert({
       where: { id: 1 },

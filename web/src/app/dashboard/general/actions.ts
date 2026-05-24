@@ -96,3 +96,25 @@ export async function saveBotAvatar(dataUrl: string | null): Promise<SaveAvatarR
   revalidatePath("/dashboard/general");
   return { ok: true, avatarUrl: r.data.avatarUrl };
 }
+
+export type SaveBannerResult =
+  | { ok: true; bannerUrl: string | null }
+  | { ok: false; error: string };
+
+export async function saveBotBanner(dataUrl: string | null): Promise<SaveBannerResult> {
+  if (dataUrl && !dataUrl.startsWith("data:image/")) {
+    return { ok: false, error: "Ungültiges Datei-Format." };
+  }
+  // Banner-Limit: 10 MB roh ≈ 14 MB als base64
+  if (dataUrl && dataUrl.length > 14_000_000) {
+    return { ok: false, error: "Datei zu groß (max. 10 MB)." };
+  }
+  const r = await callBot<{ bannerUrl: string | null }>("/api/bot/banner", {
+    method: "POST",
+    body: { dataUrl: dataUrl ?? "" },
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/general");
+  return { ok: true, bannerUrl: r.data.bannerUrl };
+}
