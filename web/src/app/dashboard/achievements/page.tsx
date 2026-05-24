@@ -2,15 +2,18 @@ import { getConfig, prisma } from "@repo/db";
 import { CreateAchievementForm } from "./CreateAchievementForm";
 import { AchievementCard, type AchievementItem } from "./AchievementCard";
 import { NotifySettingsForm } from "./NotifySettingsForm";
+import { FeatureHero } from "@/components/FeatureHero";
 
 export default async function AchievementsPage() {
-  const [config, achievements, channels] = await Promise.all([
+  const [config, achievements, channels, totalAwards, uniqueRecipients] = await Promise.all([
     getConfig(),
     prisma.achievement.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { awards: true } } },
     }),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
+    prisma.userAchievement.count(),
+    prisma.userAchievement.groupBy({ by: ["userId"] }).then((g) => g.length),
   ]);
 
   const items: AchievementItem[] = achievements.map((a) => ({
@@ -23,6 +26,8 @@ export default async function AchievementsPage() {
     awardsCount: a._count.awards,
   }));
 
+  const notifyActive = config.achievementNotifyDM || config.achievementNotifyChannel;
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
@@ -33,8 +38,47 @@ export default async function AchievementsPage() {
         </p>
       </header>
 
+      <FeatureHero
+        icon={
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="7" />
+            <path d="M8.21 13.89 7 23l5-3 5 3-1.21-9.12" />
+          </svg>
+        }
+        title="Achievements"
+        status={
+          items.length > 0
+            ? `${items.length} ${items.length === 1 ? "Achievement" : "Achievements"} angelegt`
+            : "Noch keine Achievements"
+        }
+        active={items.length > 0}
+        tone="amber"
+        stats={[
+          {
+            label: "Angelegt",
+            value: items.length,
+          },
+          {
+            label: "Vergaben gesamt",
+            value: totalAwards.toLocaleString("de-DE"),
+          },
+          {
+            label: "Empfänger",
+            value: uniqueRecipients,
+            sublabel: uniqueRecipients === 1 ? "User" : "User",
+          },
+        ]}
+      />
+
       <section className="card p-6">
-        <h2 className="mb-1 text-lg font-semibold">Benachrichtigungen</h2>
+        <h2 className="mb-1 text-lg font-semibold">
+          Benachrichtigungen
+          {notifyActive && (
+            <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-400">
+              Aktiv
+            </span>
+          )}
+        </h2>
         <p className="mb-5 text-sm text-ink-muted">
           Wohin der Bot Achievements ankündigt. Beide Optionen können gleichzeitig aktiv sein.
         </p>

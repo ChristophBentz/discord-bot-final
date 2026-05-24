@@ -1,6 +1,7 @@
 import { getConfig, prisma } from "@repo/db";
 import { WelcomeForm } from "./WelcomeForm";
 import type { AutoRoleOption } from "./AutoRoleEditor";
+import { FeatureHero } from "@/components/FeatureHero";
 
 export default async function WelcomePage() {
   const [config, autoRoles, allRoles, channels] = await Promise.all([
@@ -22,6 +23,10 @@ export default async function WelcomePage() {
     color: r.color,
   }));
 
+  const activeSub = [config.welcomeEnabled, config.leaveEnabled, config.autoRolesEnabled].filter(
+    Boolean,
+  ).length;
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
@@ -32,6 +37,43 @@ export default async function WelcomePage() {
           Beitritt.
         </p>
       </header>
+
+      <FeatureHero
+        icon={
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <path d="M20 8v6M23 11h-6" />
+          </svg>
+        }
+        title="Welcome-Modul"
+        status={
+          activeSub > 0 ? (
+            <>
+              <span className="text-emerald-400">{activeSub}</span> von 3 Sub-Features aktiv
+            </>
+          ) : (
+            "Alle Sub-Features inaktiv"
+          )
+        }
+        active={activeSub > 0}
+        tone="emerald"
+        stats={[
+          {
+            label: "Begrüßung",
+            value: config.welcomeEnabled ? "An" : "Aus",
+          },
+          {
+            label: "Verabschiedung",
+            value: config.leaveEnabled ? "An" : "Aus",
+          },
+          {
+            label: "Auto-Rollen",
+            value: config.autoRolesEnabled ? String(currentAutoRoles.length) : "Aus",
+            sublabel: config.autoRolesEnabled ? "vergeben" : undefined,
+          },
+        ]}
+      />
 
       <section className="card p-6">
         <WelcomeForm

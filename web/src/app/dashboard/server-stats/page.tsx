@@ -1,6 +1,7 @@
 import { getConfig, prisma } from "@repo/db";
 import { ServerStatsManager } from "./ServerStatsManager";
 import { DiagnosePanel } from "./DiagnosePanel";
+import { FeatureHero } from "@/components/FeatureHero";
 
 export default async function ServerStatsPage() {
   const [config, stats, channels] = await Promise.all([
@@ -8,6 +9,9 @@ export default async function ServerStatsPage() {
     prisma.serverStat.findMany({ orderBy: { position: "asc" } }),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
   ]);
+
+  const enabledStats = stats.filter((s) => s.enabled).length;
+  const liveChannels = stats.filter((s) => s.enabled && s.channelId).length;
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -19,6 +23,33 @@ export default async function ServerStatsPage() {
           selbst an und aktualisiert sie alle 10 Minuten — Discord limitiert Channel-Edits stark.
         </p>
       </header>
+
+      <FeatureHero
+        icon={
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 3v18h18" />
+            <path d="M7 14l4-4 4 4 5-6" />
+          </svg>
+        }
+        title="Server-Stats"
+        status={
+          config.serverStatsEnabled ? (
+            <>
+              <span className="text-emerald-400">{liveChannels}</span> von {enabledStats} Channel
+              {enabledStats === 1 ? "" : "s"} live
+            </>
+          ) : (
+            "Feature deaktiviert"
+          )
+        }
+        active={config.serverStatsEnabled}
+        tone="emerald"
+        stats={[
+          { label: "Konfigurierte Stats", value: stats.length },
+          { label: "Live-Channels", value: liveChannels },
+          { label: "Update-Intervall", value: `${config.serverStatsUpdateMinutes} Min` },
+        ]}
+      />
 
       <ServerStatsManager
         initial={{

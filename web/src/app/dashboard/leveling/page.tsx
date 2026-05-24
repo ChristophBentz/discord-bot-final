@@ -1,5 +1,6 @@
 import { getConfig, prisma } from "@repo/db";
 import { LevelingForm } from "./LevelingForm";
+import { FeatureHero } from "@/components/FeatureHero";
 
 interface Curve { base: number; mult: number }
 
@@ -30,12 +31,18 @@ function formatVoiceTime(seconds: number): string {
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export default async function LevelingPage() {
-  const [c, top, channels] = await Promise.all([
+  const [c, top, channels, totalUsers, leader, totalVoice] = await Promise.all([
     getConfig(),
     prisma.levelUser.findMany({ orderBy: [{ xp: "desc" }], take: 25 }),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
+    prisma.levelUser.count(),
+    prisma.levelUser.findFirst({ orderBy: [{ xp: "desc" }], select: { displayName: true, xp: true } }),
+    prisma.levelUser.aggregate({ _sum: { voiceSeconds: true } }),
   ]);
   const curve: Curve = { base: c.xpLevelBase, mult: c.xpLevelMultiplier };
+  const leaderLevel = leader ? progressFromXp(leader.xp, curve).level : 0;
+  const totalVoiceSec = totalVoice._sum.voiceSeconds ?? 0;
+  const totalVoiceH = Math.floor(totalVoiceSec / 3600);
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -46,6 +53,41 @@ export default async function LevelingPage() {
           Members sammeln XP durch Nachrichten und Zeit in Voice-Channeln.
         </p>
       </header>
+
+      <FeatureHero
+        icon={
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16M10 14.66V17c0 .55.47.98.97 1.21C12.15 18.75 13 20.24 13 22M14 14.66V17c0 .55-.47.98-.97 1.21C11.85 18.75 11 20.24 11 22" />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+          </svg>
+        }
+        title="Leveling"
+        status={
+          c.levelingEnabled ? (
+            <>XP-System aktiv · {totalUsers} aktive User</>
+          ) : (
+            "Leveling deaktiviert"
+          )
+        }
+        active={c.levelingEnabled}
+        tone="amber"
+        stats={[
+          {
+            label: "Top-User",
+            value: leader ? `Lvl ${leaderLevel}` : "—",
+            sublabel: leader?.displayName ?? undefined,
+          },
+          {
+            label: "XP / Nachricht",
+            value: `${c.xpPerMessageMin}–${c.xpPerMessageMax}`,
+          },
+          {
+            label: "Voice gesamt",
+            value: `${totalVoiceH.toLocaleString("de-DE")}h`,
+          },
+        ]}
+      />
 
       <section className="card p-6">
         <h2 className="text-lg font-semibold">Einstellungen</h2>
