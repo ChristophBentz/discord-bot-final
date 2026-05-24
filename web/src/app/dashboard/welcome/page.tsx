@@ -75,29 +75,27 @@ export default async function WelcomePage() {
         ]}
       />
 
-      <section className="card p-6">
-        <WelcomeForm
-          initial={{
-            welcomeEnabled: config.welcomeEnabled,
-            welcomeChannelId: config.welcomeChannelId,
-            welcomeMessage: config.welcomeMessage,
-            leaveEnabled: config.leaveEnabled,
-            leaveChannelId: config.leaveChannelId,
-            leaveMessage: config.leaveMessage,
-            autoRolesEnabled: config.autoRolesEnabled,
-          }}
-          currentAutoRoles={currentAutoRoles}
-          availableRoles={availableRoles}
-          bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
-          channels={channels.map((c) => ({
-            channelId: c.channelId,
-            name: c.name,
-            type: c.type,
-            parentId: c.parentId,
-            position: c.position,
-          }))}
-        />
-      </section>
+      <WelcomeForm
+        initial={{
+          welcomeEnabled: config.welcomeEnabled,
+          welcomeChannelId: config.welcomeChannelId,
+          welcomeMessage: config.welcomeMessage,
+          leaveEnabled: config.leaveEnabled,
+          leaveChannelId: config.leaveChannelId,
+          leaveMessage: config.leaveMessage,
+          autoRolesEnabled: config.autoRolesEnabled,
+        }}
+        currentAutoRoles={currentAutoRoles}
+        availableRoles={availableRoles}
+        bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
+        channels={channels.map((c) => ({
+          channelId: c.channelId,
+          name: c.name,
+          type: c.type,
+          parentId: c.parentId,
+          position: c.position,
+        }))}
+      />
     </div>
   );
 }

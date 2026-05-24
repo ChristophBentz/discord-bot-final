@@ -89,12 +89,7 @@ export default async function LevelingPage() {
         ]}
       />
 
-      <section className="card p-6">
-        <h2 className="text-lg font-semibold">Einstellungen</h2>
-        <p className="mt-1 mb-5 text-sm text-ink-muted">
-          Anpassen, wie schnell User XP sammeln.
-        </p>
-        <LevelingForm
+      <LevelingForm
           initial={{
             levelingEnabled: c.levelingEnabled,
             levelUpChannelId: c.levelUpChannelId,
@@ -115,7 +110,6 @@ export default async function LevelingPage() {
             position: ch.position,
           }))}
         />
-      </section>
 
       <section className="card overflow-hidden p-0">
         <div className="px-6 pt-6 pb-4">
