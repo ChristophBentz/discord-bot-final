@@ -21,18 +21,21 @@ interface Giveaway {
   gamerpower_url: string;
 }
 
+// Substring-Matches gegen den lowercase platforms-String. GamerPower
+// liefert die Werte mit Leerzeichen (z.B. "Epic Games Store",
+// "Playstation 4", "Xbox One") — NICHT mit Bindestrichen.
 const PLATFORM_KEYS = {
-  epic: ["epic-games-store"],
+  epic: ["epic games store", "epic"],
   steam: ["steam"],
   gog: ["gog"],
   console: [
-    "playstation-4",
-    "playstation-5",
+    "playstation 4",
+    "playstation 5",
     "ps4",
     "ps5",
-    "xbox-one",
-    "xbox-series-xs",
-    "nintendo-switch",
+    "xbox one",
+    "xbox series",
+    "nintendo switch",
   ],
 } as const;
 
@@ -48,12 +51,15 @@ function matchesPlatform(
   return false;
 }
 
+// GamerPower Types: "Game", "DLC", "Early Access", "Other" (für Beta-Keys etc.).
+// Wir mappen Early-Access + Other unter "games", weil sie meistens spielbare
+// Inhalte sind die User auch sehen wollen.
 function matchesType(
   type: string,
   flags: { games: boolean; dlc: boolean; loot: boolean },
 ): boolean {
   const t = type.toLowerCase();
-  if (flags.games && t === "game") return true;
+  if (flags.games && (t === "game" || t === "early access" || t === "other")) return true;
   if (flags.dlc && t === "dlc") return true;
   if (flags.loot && (t === "loot" || t === "in-game loot")) return true;
   return false;
@@ -229,15 +235,18 @@ export async function checkAndPostFreeGames(client: Client): Promise<CheckResult
     data: { freeGamesLastCheck: new Date() },
   });
 
+  logger.info(
+    `Free-Games-Check fertig: ${posted} gepostet, ${skipped} bekannt, ${active.length} matched (von ${giveaways.length} total)`,
+  );
   return { posted, skipped, fetched: active.length, channelMissing: false };
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
-const INTERVAL_MS = 6 * 60 * 60 * 1000; // 6h
+const INTERVAL_MS = 60 * 60 * 1000; // 1h — Dedup verhindert Doppel-Posts
 
 export function startFreeGamesScheduler(client: Client): void {
   if (intervalId) return;
-  // Erste Prüfung nach 30s, dann alle 6h.
+  // Erste Prüfung nach 30s, dann stündlich.
   setTimeout(() => {
     void checkAndPostFreeGames(client).catch((err) =>
       logger.error({ err }, "Free-Games-Check fehlgeschlagen"),
@@ -248,5 +257,5 @@ export function startFreeGamesScheduler(client: Client): void {
       logger.error({ err }, "Free-Games-Check fehlgeschlagen"),
     );
   }, INTERVAL_MS);
-  logger.info({ intervalMs: INTERVAL_MS }, "Free-Games-Scheduler gestartet");
+  logger.info(`Free-Games-Scheduler gestartet (Check alle ${INTERVAL_MS / 60_000} Min)`);
 }
