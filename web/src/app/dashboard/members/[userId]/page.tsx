@@ -21,6 +21,41 @@ function intToHex(color: number, fallback = "#a1a1aa"): string {
   return "#" + color.toString(16).padStart(6, "0");
 }
 
+type PresenceStatus = "online" | "idle" | "dnd" | "offline";
+
+const PRESENCE_INFO: Record<
+  PresenceStatus,
+  { color: string; label: string; ring: string }
+> = {
+  online: { color: "bg-emerald-500", label: "Online", ring: "ring-bg-card" },
+  idle: { color: "bg-amber-400", label: "Abwesend", ring: "ring-bg-card" },
+  dnd: { color: "bg-rose-500", label: "Bitte nicht stören", ring: "ring-bg-card" },
+  offline: { color: "bg-zinc-500", label: "Offline", ring: "ring-bg-card" },
+};
+
+function PresenceIndicator({ status }: { status: PresenceStatus }) {
+  const info = PRESENCE_INFO[status];
+  return (
+    <span
+      title={info.label}
+      className={`absolute bottom-2 right-2 grid h-5 w-5 place-items-center rounded-full ${info.color} ring-4 ${info.ring}`}
+    >
+      {status === "idle" && (
+        // Halbmond-Symbol für idle
+        <span className="block h-2.5 w-2.5 rounded-full bg-bg-card" style={{ transform: "translate(-2px, -2px)" }} />
+      )}
+      {status === "dnd" && (
+        // Roter Minus-Bar
+        <span className="block h-1 w-2.5 rounded-full bg-bg-card" />
+      )}
+      {status === "offline" && (
+        // Kleiner Ring für offline
+        <span className="block h-2 w-2 rounded-full bg-bg-card" />
+      )}
+    </span>
+  );
+}
+
 function formatVoice(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const h = Math.floor(m / 60);
@@ -165,6 +200,17 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
   const topRole = roles[0];
   const topRoleColor = topRole ? intToHex(topRole.color, "#a855f7") : "#a855f7";
 
+  // Aktuellen Presence-Status vom Bot holen (online/idle/dnd/offline).
+  // Wenn Member nicht im Server → offline. Sonst Cache abfragen.
+  let presenceStatus: "online" | "idle" | "dnd" | "offline" = "offline";
+  if (member.inServer) {
+    const r = await callBot<{ status: "online" | "idle" | "dnd" | "offline" }>(
+      `/api/members/${userId}/presence`,
+      { method: "GET" },
+    );
+    if (r.ok) presenceStatus = r.data.status;
+  }
+
   const joined = joinedLabel(member.joinedAt);
   const noteRows: Note[] = notes.map((n) => ({
     id: n.id,
@@ -278,14 +324,22 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
                   </span>
                 )}
                 {member.inServer && (
-                  <span className="absolute bottom-2 right-2 h-5 w-5 rounded-full bg-emerald-500 ring-4 ring-bg-card" />
+                  <PresenceIndicator status={presenceStatus} />
                 )}
               </div>
 
-              {/* Name — direkt rechts neben Avatar, unten-bündig */}
-              <h1 className="pb-1 text-4xl font-bold tracking-tight text-white">
-                {member.displayName}
-              </h1>
+              {/* Name + Status-Badge — direkt rechts neben Avatar, unten-bündig */}
+              <div className="pb-1">
+                <h1 className="text-4xl font-bold tracking-tight text-white">
+                  {member.displayName}
+                </h1>
+                {member.inServer && (
+                  <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-bg-elevated/60 px-2 py-0.5 text-xs">
+                    <span className={`h-2 w-2 rounded-full ${PRESENCE_INFO[presenceStatus].color}`} />
+                    <span className="text-ink-muted">{PRESENCE_INFO[presenceStatus].label}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Action-Buttons rechts, ebenfalls unten-bündig */}

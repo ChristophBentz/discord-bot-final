@@ -52,7 +52,7 @@ import {
   type NicknameBody,
 } from "./routes/bot.js";
 import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
-import { handleRefreshProfile } from "./routes/profile.js";
+import { getMemberPresence, handleRefreshProfile } from "./routes/profile.js";
 import {
   handleSendMessage,
   handleEditMessage,
@@ -407,6 +407,16 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && refreshMatch) {
         const userId = refreshMatch[1]!;
         const result = await handleRefreshProfile(client, userId);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // GET /api/members/:userId/presence — aktueller Online-Status aus Cache
+      const presenceMatch = url.pathname.match(/^\/api\/members\/(\d{17,20})\/presence$/);
+      if (req.method === "GET" && presenceMatch) {
+        const userId = presenceMatch[1]!;
+        const result = getMemberPresence(client, userId);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;
