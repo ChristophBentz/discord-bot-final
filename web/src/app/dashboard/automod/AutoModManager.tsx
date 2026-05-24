@@ -202,17 +202,15 @@ export function AutoModManager({
             tone="purple"
           >
             {mentionOn && (
-              <div className="mt-3 flex items-center gap-2">
-                <span className="text-xs text-ink-muted">Limit:</span>
-                <input
-                  type="number"
+              <div className="mt-4 rounded-xl border border-line bg-bg-card/50 p-3">
+                <NumberField
+                  label="Maximale Mentions pro Nachricht"
+                  hint="zählt User- und Rollen-Mentions zusammen"
+                  value={mentionLimit}
                   min={1}
                   max={50}
-                  value={mentionLimit}
-                  onChange={(e) => setMentionLimit(Number(e.target.value) || 0)}
-                  className="input h-8 w-20 px-2 py-1 text-sm"
+                  onChange={setMentionLimit}
                 />
-                <span className="text-xs text-ink-subtle">Mentions/Nachricht</span>
               </div>
             )}
           </RuleCard>
@@ -232,39 +230,33 @@ export function AutoModManager({
             tone="rose"
           >
             {spamOn && (
-              <div className="mt-3 space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={2}
-                    max={50}
-                    value={spamMsg}
-                    onChange={(e) => setSpamMsg(Number(e.target.value) || 0)}
-                    className="input h-8 w-16 px-2 py-1 text-sm"
-                  />
-                  <span className="text-ink-muted">Nachrichten in</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={120}
-                    value={spamSec}
-                    onChange={(e) => setSpamSec(Number(e.target.value) || 0)}
-                    className="input h-8 w-16 px-2 py-1 text-sm"
-                  />
-                  <span className="text-ink-muted">Sek.</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-ink-muted">→ Timeout:</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={1440}
-                    value={spamTimeout}
-                    onChange={(e) => setSpamTimeout(Number(e.target.value) || 0)}
-                    className="input h-8 w-16 px-2 py-1 text-sm"
-                  />
-                  <span className="text-ink-muted">Min</span>
-                </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-line bg-bg-card/50 p-3">
+                <NumberField
+                  label="Nachrichten"
+                  value={spamMsg}
+                  min={2}
+                  max={50}
+                  onChange={setSpamMsg}
+                  compact
+                />
+                <NumberField
+                  label="Zeitfenster"
+                  suffix="Sek"
+                  value={spamSec}
+                  min={1}
+                  max={120}
+                  onChange={setSpamSec}
+                  compact
+                />
+                <NumberField
+                  label="Timeout"
+                  suffix="Min"
+                  value={spamTimeout}
+                  min={1}
+                  max={1440}
+                  onChange={setSpamTimeout}
+                  compact
+                />
               </div>
             )}
           </RuleCard>
@@ -382,6 +374,78 @@ export function AutoModManager({
   );
 }
 
+// ─── Number Field mit Steppern ─────────────────────────────────────────────
+function NumberField({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  onChange,
+  suffix,
+  compact = false,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+  suffix?: string;
+  compact?: boolean;
+}) {
+  const dec = () => onChange(Math.max(min, value - 1));
+  const inc = () => onChange(Math.min(max, value + 1));
+  return (
+    <div className="min-w-0">
+      <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
+        {label}
+      </label>
+      <div className="flex items-stretch overflow-hidden rounded-lg border border-line bg-bg-elevated">
+        <button
+          type="button"
+          onClick={dec}
+          disabled={value <= min}
+          className="grid w-7 shrink-0 place-items-center text-ink-muted transition-colors hover:bg-bg-hover hover:text-ink disabled:opacity-30"
+        >
+          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            if (Number.isFinite(n)) onChange(Math.max(min, Math.min(max, n)));
+          }}
+          min={min}
+          max={max}
+          className={`min-w-0 flex-1 border-x border-line bg-transparent text-center font-semibold tabular-nums text-ink outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+            compact ? "py-1 text-sm" : "py-1.5 text-base"
+          }`}
+        />
+        <button
+          type="button"
+          onClick={inc}
+          disabled={value >= max}
+          className="grid w-7 shrink-0 place-items-center text-ink-muted transition-colors hover:bg-bg-hover hover:text-ink disabled:opacity-30"
+        >
+          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+        {suffix && (
+          <span className="grid shrink-0 place-items-center bg-bg-card px-2 text-[10px] font-medium uppercase text-ink-subtle">
+            {suffix}
+          </span>
+        )}
+      </div>
+      {hint && <p className="mt-1 text-[10px] text-ink-subtle">{hint}</p>}
+    </div>
+  );
+}
+
 // ─── Rule Card ─────────────────────────────────────────────────────────────
 interface RuleCardProps {
   icon: ReactNode;
@@ -426,7 +490,7 @@ function RuleCard({
     : "bg-zinc-500/10 text-zinc-500";
 
   return (
-    <div className={`rounded-2xl border p-4 transition-colors ${toneClass}`}>
+    <div className={`flex h-full flex-col rounded-2xl border p-4 transition-colors ${toneClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${iconClass}`}>
