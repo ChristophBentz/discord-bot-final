@@ -110,7 +110,7 @@ export function ActivityHeatmap({ cells }: { cells: ActivityCell[] }) {
           ))}
         </div>
 
-        <div className="relative min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
           <div
             className="grid gap-1"
             style={{ gridTemplateColumns: `repeat(${DAYS}, minmax(0, 1fr))` }}
@@ -126,7 +126,7 @@ export function ActivityHeatmap({ cells }: { cells: ActivityCell[] }) {
                     className={`aspect-square cursor-pointer rounded-[3px] ${colorClass(
                       cell.s,
                     )} transition-shadow ${
-                      isHovered ? "shadow-glow ring-2 ring-brand" : "hover:ring-1 hover:ring-line-strong"
+                      isHovered ? "ring-2 ring-brand" : "hover:ring-1 hover:ring-line-strong"
                     }`}
                   />
                 );
@@ -145,54 +145,56 @@ export function ActivityHeatmap({ cells }: { cells: ActivityCell[] }) {
               );
             })}
           </div>
-
-          {/* Tooltip — schwebt über dem Grid, an der Hover-Position */}
-          {hover && (
-            <div
-              className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-bg-card px-3 py-2 text-xs shadow-card-lg"
-              style={{
-                left: `${((hover.col + 0.5) / DAYS) * 100}%`,
-                top: `calc(${(hover.row / BUCKETS.length) * 100}% - 4rem)`,
-              }}
-            >
-              <div className="font-semibold text-ink">
-                {formatDateDE(hover.cell.date)} · {hover.cell.bucket}
-              </div>
-              {hover.cell.s === 0 ? (
-                <div className="mt-0.5 italic text-ink-subtle">Keine Aktivität</div>
-              ) : (
-                <div className="mt-1 flex flex-col gap-0.5 text-ink-muted">
-                  <div>
-                    <span className="text-ink">{hover.cell.messages}</span> Nachrichten
-                  </div>
-                  <div>
-                    <span className="text-ink">{hover.cell.voiceMinutes}</span> Minuten Voice
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-ink-subtle">
-        <span>
-          letzte {DAYS} Tage
-          <span className="mx-2">·</span>
-          <span className="text-ink-muted">
-            {totalMessages.toLocaleString("de-DE")} Nachrichten,{" "}
-            {Math.floor(totalVoiceMinutes / 60)}h Voice
-          </span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          Weniger
-          <span className="h-2.5 w-2.5 rounded-[3px] bg-bg-elevated" />
-          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/25" />
-          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/45" />
-          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/70" />
-          <span className="h-2.5 w-2.5 rounded-[3px] bg-brand" />
-          Mehr
-        </span>
+      {/* Info-Zeile unter der Heatmap — wechselt zwischen Totals und Hover-Details */}
+      <div className="flex min-h-[40px] flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-bg-elevated/40 px-3 py-2 text-xs">
+        {hover ? (
+          <>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="font-semibold text-ink">
+                {formatDateDE(hover.cell.date)} · {hover.cell.bucket}
+              </span>
+              {hover.cell.s === 0 ? (
+                <span className="italic text-ink-subtle">Keine Aktivität</span>
+              ) : (
+                <span className="flex items-center gap-2 text-ink-muted">
+                  <span>
+                    <span className="font-medium text-ink">{hover.cell.messages}</span> Nachrichten
+                  </span>
+                  <span className="text-ink-subtle">·</span>
+                  <span>
+                    <span className="font-medium text-ink">{hover.cell.voiceMinutes}</span> Min Voice
+                  </span>
+                </span>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-ink-muted">
+              <span className="text-ink-subtle">letzte {DAYS} Tage:</span>{" "}
+              <span className="font-medium text-ink">
+                {totalMessages.toLocaleString("de-DE")}
+              </span>{" "}
+              Nachrichten ·{" "}
+              <span className="font-medium text-ink">
+                {Math.floor(totalVoiceMinutes / 60)}h
+              </span>{" "}
+              Voice
+            </span>
+            <span className="flex items-center gap-1.5 text-ink-subtle">
+              Weniger
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-bg-elevated" />
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/25" />
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/45" />
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand/70" />
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-brand" />
+              Mehr
+            </span>
+          </>
+        )}
       </div>
     </div>
   );
