@@ -212,7 +212,7 @@ export function LoggingForm({
     <form onSubmit={onSubmit} className="space-y-6">
       {/* Hero: Status + Channel-Picker */}
       <div
-        className={`overflow-hidden rounded-2xl border p-6 ${
+        className={`relative rounded-2xl border p-6 ${
           channelSet
             ? "border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-bg-card"
             : "border-line bg-bg-elevated/40"
