@@ -42,6 +42,7 @@ import {
   handleServerStatsReset,
   handleServerStatsUpdate,
 } from "./routes/serverStats.js";
+import { handleSetNickname, type NicknameBody } from "./routes/bot.js";
 import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
 import { handleRefreshProfile } from "./routes/profile.js";
 import {
@@ -282,6 +283,15 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && rssCheckMatch) {
         const feedId = Number(rssCheckMatch[1]!);
         const result = await handleRssCheck(client, feedId);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/bot/nickname — Server-Nickname des Bots ändern
+      if (req.method === "POST" && url.pathname === "/api/bot/nickname") {
+        const body = (await readJson<NicknameBody>(req)) ?? {};
+        const result = await handleSetNickname(client, body);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;
