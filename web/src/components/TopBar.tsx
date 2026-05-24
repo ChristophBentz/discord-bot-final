@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { Breadcrumb } from "./Breadcrumb";
 import { SearchPalette } from "./SearchPalette";
+import { HelpModal } from "./HelpModal";
 
 export function TopBar({ serverName }: { serverName: string }) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -55,6 +57,18 @@ export function TopBar({ serverName }: { serverName: string }) {
 
           <button
             type="button"
+            onClick={() => setHelpOpen(true)}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-bg-elevated text-ink-muted transition-colors hover:bg-bg-hover hover:text-ink"
+            title="Was kann der Bot?"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1 1-1 1.7M12 17h.01" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
             className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-bg-elevated text-ink-muted transition-colors hover:bg-bg-hover hover:text-ink"
             title="Abmelden"
@@ -69,6 +83,7 @@ export function TopBar({ serverName }: { serverName: string }) {
       </header>
 
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   );
 }
