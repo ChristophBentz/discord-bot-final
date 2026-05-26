@@ -46,25 +46,31 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm pt-[5vh]" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm pt-[5vh]"
+      onClick={onClose}
+    >
       <div
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-line bg-bg-card shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-line bg-bg-card shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-brand">
-              {originalName ? "Command bearbeiten" : "Neuer Command"}
-            </div>
-            <h2 className="mt-0.5 text-lg font-semibold text-ink">
-              {form.name ? `/${form.name}` : "/dein-command"}
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold text-ink">
+              {originalName
+                ? `Bearbeiten: /${originalName}`
+                : "Neuen Command anlegen"}
             </h2>
+            <p className="mt-0.5 text-xs text-ink-subtle">
+              Speichern triggert sofort Discord-Sync.
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-muted hover:bg-bg-hover hover:text-ink"
+            aria-label="Schließen"
+            className="grid h-8 w-8 place-items-center rounded-md text-ink-muted hover:bg-bg-hover hover:text-ink"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18M6 6l12 12" />
@@ -75,166 +81,195 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
         {/* Body */}
         <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-[1fr_1fr]">
           {/* Form */}
-          <div className="overflow-y-auto border-r border-line px-6 py-5 space-y-5">
-            <Field label="Name" hint="a-z, 0-9, _ und - · wird zu /<name>">
-              <div className="flex items-center gap-2">
-                <span className="text-ink-subtle">/</span>
+          <div className="overflow-y-auto px-6 py-6 space-y-6 md:border-r md:border-line">
+            <Section title="Allgemein">
+              <Field label="Befehl">
+                <div className="flex items-stretch overflow-hidden rounded-md border border-line bg-bg-elevated/60 focus-within:border-ink/30">
+                  <span className="grid place-items-center border-r border-line bg-bg-elevated/80 px-3 font-mono text-sm text-ink-subtle">
+                    /
+                  </span>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) =>
+                      update("name", e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))
+                    }
+                    placeholder="willkommen"
+                    className="flex-1 bg-transparent px-3 py-2 font-mono text-sm placeholder:text-ink-subtle/60 focus:outline-none"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-ink-subtle">
+                  Nur Kleinbuchstaben, Ziffern, _ und -. Max 32 Zeichen.
+                </p>
+              </Field>
+
+              <Field label="Beschreibung">
                 <input
                   type="text"
-                  value={form.name}
-                  onChange={(e) => update("name", e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-                  placeholder="willkommen"
-                  className="input flex-1"
+                  value={form.description}
+                  onChange={(e) => update("description", e.target.value.slice(0, 100))}
+                  placeholder="Was tut dieser Command?"
+                  className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
                 />
-              </div>
-            </Field>
-
-            <Field label="Beschreibung" hint="Wird in der Discord-Slash-Command-Auswahl angezeigt">
-              <input
-                type="text"
-                value={form.description}
-                onChange={(e) => update("description", e.target.value.slice(0, 100))}
-                placeholder="Was tut dieser Command?"
-                className="input w-full"
-              />
-            </Field>
-
-            <Field label="Antwort-Typ">
-              <div className="flex gap-2">
-                <PillButton
-                  active={form.responseType === "text"}
-                  onClick={() => update("responseType", "text")}
-                >
-                  Einfacher Text
-                </PillButton>
-                <PillButton
-                  active={form.responseType === "embed"}
-                  onClick={() => update("responseType", "embed")}
-                >
-                  Embed
-                </PillButton>
-              </div>
-            </Field>
-
-            {form.responseType === "text" ? (
-              <Field label="Antwort-Text" hint="Platzhalter erlaubt — siehe Vorschau unten">
-                <textarea
-                  value={form.response}
-                  onChange={(e) => update("response", e.target.value.slice(0, 2000))}
-                  rows={6}
-                  placeholder="Hi {user}! Willkommen auf {server}."
-                  className="input w-full font-mono text-sm"
-                />
-                <div className="mt-1 text-[11px] text-ink-subtle">
-                  {form.response.length} / 2000
-                </div>
+                <p className="mt-1 text-[11px] text-ink-subtle">
+                  Erscheint im Discord-Autocomplete unter dem Befehl.
+                </p>
               </Field>
-            ) : (
-              <>
-                <Field label="Embed-Title">
-                  <input
-                    type="text"
-                    value={form.embedTitle}
-                    onChange={(e) => update("embedTitle", e.target.value.slice(0, 256))}
-                    placeholder="Optional"
-                    className="input w-full"
-                  />
-                </Field>
-                <Field label="Embed-Description">
+            </Section>
+
+            <Section title="Antwort">
+              <Field label="Format">
+                <SegmentedControl
+                  value={form.responseType}
+                  onChange={(v) => update("responseType", v)}
+                  options={[
+                    { value: "text", label: "Text" },
+                    { value: "embed", label: "Embed" },
+                  ]}
+                />
+              </Field>
+
+              {form.responseType === "text" ? (
+                <Field label="Text">
                   <textarea
-                    value={form.embedDescription}
-                    onChange={(e) => update("embedDescription", e.target.value.slice(0, 4000))}
-                    rows={5}
-                    placeholder="Längere Texte mit Markdown + Platzhaltern…"
-                    className="input w-full font-mono text-sm"
+                    value={form.response}
+                    onChange={(e) => update("response", e.target.value.slice(0, 2000))}
+                    rows={6}
+                    placeholder="Hi {user}! Willkommen auf {server}."
+                    className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 font-mono text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
                   />
-                </Field>
-                <Field label="Akzent-Farbe">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={form.embedColor}
-                      onChange={(e) => update("embedColor", e.target.value)}
-                      className="h-9 w-12 cursor-pointer rounded border border-line bg-transparent"
-                    />
-                    <input
-                      type="text"
-                      value={form.embedColor}
-                      onChange={(e) => update("embedColor", e.target.value)}
-                      className="input flex-1 font-mono text-sm"
-                    />
+                  <div className="mt-1 flex items-center justify-between text-[11px] text-ink-subtle">
+                    <span>Markdown erlaubt · Platzhalter siehe Vorschau</span>
+                    <span className="tabular-nums">{form.response.length} / 2000</span>
                   </div>
                 </Field>
-                <Field label="Bild-URL" hint="Wird am unteren Embed-Rand angezeigt">
-                  <input
-                    type="url"
-                    value={form.embedImageUrl}
-                    onChange={(e) => update("embedImageUrl", e.target.value)}
-                    placeholder="https://…"
-                    className="input w-full text-sm"
-                  />
-                </Field>
-                <Field label="Footer">
-                  <input
-                    type="text"
-                    value={form.embedFooter}
-                    onChange={(e) => update("embedFooter", e.target.value.slice(0, 2048))}
-                    placeholder="Optional"
-                    className="input w-full text-sm"
-                  />
-                </Field>
-              </>
-            )}
+              ) : (
+                <>
+                  <Field label="Titel">
+                    <input
+                      type="text"
+                      value={form.embedTitle}
+                      onChange={(e) => update("embedTitle", e.target.value.slice(0, 256))}
+                      placeholder="Optional"
+                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                    />
+                  </Field>
 
-            <Field label="Sichtbarkeit">
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={form.ephemeral}
-                  onChange={(e) => update("ephemeral", e.target.checked)}
-                  className="h-4 w-4 rounded border-line"
-                />
-                Nur Aufrufer sieht die Antwort (ephemeral)
-              </label>
-            </Field>
+                  <Field label="Beschreibung">
+                    <textarea
+                      value={form.embedDescription}
+                      onChange={(e) => update("embedDescription", e.target.value.slice(0, 4000))}
+                      rows={5}
+                      placeholder="Längere Texte mit Markdown + Platzhaltern…"
+                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 font-mono text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                    />
+                  </Field>
 
-            <Field label="Berechtigung" hint="Leer = alle dürfen — sonst nur die ausgewählten Rollen">
-              <RolePicker
-                roles={roles}
-                selected={form.allowedRoleIds}
-                onChange={(ids) => update("allowedRoleIds", ids)}
+                  <Field label="Akzent-Farbe">
+                    <div className="flex items-center gap-2">
+                      <label className="relative h-9 w-9 cursor-pointer overflow-hidden rounded-md border border-line">
+                        <span
+                          className="absolute inset-0"
+                          style={{ backgroundColor: form.embedColor }}
+                        />
+                        <input
+                          type="color"
+                          value={form.embedColor}
+                          onChange={(e) => update("embedColor", e.target.value)}
+                          className="absolute inset-0 cursor-pointer opacity-0"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        value={form.embedColor}
+                        onChange={(e) => update("embedColor", e.target.value)}
+                        className="flex-1 rounded-md border border-line bg-bg-elevated/60 px-3 py-2 font-mono text-sm uppercase placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Bild-URL">
+                    <input
+                      type="url"
+                      value={form.embedImageUrl}
+                      onChange={(e) => update("embedImageUrl", e.target.value)}
+                      placeholder="https://… (optional)"
+                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                    />
+                  </Field>
+
+                  <Field label="Footer">
+                    <input
+                      type="text"
+                      value={form.embedFooter}
+                      onChange={(e) => update("embedFooter", e.target.value.slice(0, 2048))}
+                      placeholder="Optional"
+                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                    />
+                  </Field>
+                </>
+              )}
+            </Section>
+
+            <Section title="Zugriff">
+              <SwitchRow
+                label="Nur Aufrufer sieht die Antwort"
+                sub="Ephemeral — die Nachricht wird nicht in den Chat geposted."
+                checked={form.ephemeral}
+                onChange={(v) => update("ephemeral", v)}
               />
-            </Field>
 
-            <PlaceholderHelp />
+              <Field label="Berechtigte Rollen">
+                <RoleMultiselect
+                  roles={roles}
+                  selected={form.allowedRoleIds}
+                  onChange={(ids) => update("allowedRoleIds", ids)}
+                />
+                <p className="mt-1 text-[11px] text-ink-subtle">
+                  Leer = alle dürfen ihn ausführen.
+                </p>
+              </Field>
+            </Section>
           </div>
 
           {/* Preview */}
-          <div className="overflow-y-auto bg-bg-base/40 px-6 py-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
-              Vorschau
+          <div className="overflow-y-auto bg-bg-base/60 px-6 py-6">
+            <div className="sticky top-0 z-10 -mt-1 mb-3 flex items-baseline justify-between bg-bg-base/60 pb-2 pt-1 backdrop-blur-sm">
+              <span className="text-xs font-medium uppercase tracking-wider text-ink-subtle">
+                Vorschau
+              </span>
+              <span className="text-[11px] text-ink-subtle">Live</span>
             </div>
-            <div className="mt-3">
-              <PreviewBox form={form} />
-            </div>
-            <PreviewHint />
+
+            <PreviewBox form={form} />
+
+            <details className="mt-5 rounded-md border border-line bg-bg-card/60 text-xs">
+              <summary className="cursor-pointer select-none px-3 py-2 text-ink-muted hover:text-ink">
+                Platzhalter
+              </summary>
+              <div className="border-t border-line px-3 py-3">
+                <PlaceholderTable />
+              </div>
+            </details>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-line bg-bg-elevated/40 px-6 py-3">
-          <div className="min-w-0 text-xs text-ink-muted">
+        <div className="flex items-center justify-between gap-3 border-t border-line bg-bg-elevated/30 px-6 py-3">
+          <div className="min-w-0 text-xs">
             {error ? (
               <span className="text-rose-400">⚠ {error}</span>
             ) : (
-              <span className="text-ink-subtle">Speichern triggert sofort Discord-Sync.</span>
+              <span className="text-ink-subtle">
+                Bei jeder Änderung wird der Command bei Discord neu registriert.
+              </span>
             )}
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-line bg-bg-elevated px-4 py-2 text-sm text-ink-muted hover:bg-bg-hover hover:text-ink"
+              className="rounded-md px-3 py-1.5 text-sm text-ink-muted hover:text-ink"
             >
               Abbrechen
             </button>
@@ -242,9 +277,16 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
               type="button"
               onClick={submit}
               disabled={pending || !form.name}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-ink px-3.5 py-1.5 text-sm font-medium text-bg-base transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {pending ? "Speichern…" : "Speichern + Sync"}
+              {pending ? (
+                <>
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-bg-base border-t-transparent" />
+                  Speichern…
+                </>
+              ) : (
+                "Speichern"
+              )}
             </button>
           </div>
         </div>
@@ -255,51 +297,101 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
 
 // ─── Bausteine ─────────────────────────────────────────────────────────────
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+        {title}
+      </h3>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
 function Field({
   label,
-  hint,
   children,
 }: {
   label: string;
-  hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium uppercase tracking-wider text-ink-subtle">
-        {label}
-      </label>
+      <label className="block text-xs font-medium text-ink">{label}</label>
       <div className="mt-1.5">{children}</div>
-      {hint && <p className="mt-1 text-[11px] text-ink-subtle">{hint}</p>}
     </div>
   );
 }
 
-function PillButton({
-  active,
-  onClick,
-  children,
+function SegmentedControl<T extends string>({
+  value,
+  onChange,
+  options,
 }: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  return (
+    <div className="inline-flex rounded-md border border-line bg-bg-elevated/60 p-0.5">
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+              active
+                ? "bg-bg-base text-ink shadow-sm"
+                : "text-ink-muted hover:text-ink"
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SwitchRow({
+  label,
+  sub,
+  checked,
+  onChange,
+}: {
+  label: string;
+  sub?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-        active
-          ? "border-brand bg-brand/15 text-brand-fg text-white"
-          : "border-line bg-bg-elevated text-ink-muted hover:bg-bg-hover hover:text-ink"
-      }`}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center justify-between gap-3 text-left"
     >
-      {children}
+      <div className="min-w-0">
+        <div className="text-sm text-ink">{label}</div>
+        {sub && <div className="mt-0.5 text-[11px] text-ink-subtle">{sub}</div>}
+      </div>
+      <span
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-ink" : "bg-bg-elevated"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </span>
     </button>
   );
 }
 
-function RolePicker({
+function RoleMultiselect({
   roles,
   selected,
   onChange,
@@ -311,53 +403,82 @@ function RolePicker({
   const toggle = (id: string) =>
     onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
 
+  if (roles.length === 0) {
+    return (
+      <div className="rounded-md border border-line bg-bg-elevated/40 px-3 py-2 text-xs text-ink-subtle">
+        Keine Rollen vorhanden.
+      </div>
+    );
+  }
+
   return (
-    <div className="max-h-40 overflow-y-auto rounded-lg border border-line bg-bg-elevated/40 p-2">
-      {roles.length === 0 && (
-        <div className="px-2 py-3 text-xs text-ink-subtle">Keine Rollen vorhanden.</div>
-      )}
+    <div className="max-h-44 overflow-y-auto rounded-md border border-line bg-bg-elevated/40 py-1">
       {roles.map((r) => {
         const active = selected.includes(r.roleId);
-        const color = r.color ? `#${r.color.toString(16).padStart(6, "0")}` : "#a1a1aa";
+        const color = r.color
+          ? `#${r.color.toString(16).padStart(6, "0")}`
+          : "#a1a1aa";
         return (
-          <label
+          <button
             key={r.roleId}
-            className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm ${active ? "bg-brand/10" : "hover:bg-bg-hover/60"}`}
+            type="button"
+            onClick={() => toggle(r.roleId)}
+            className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors ${
+              active
+                ? "bg-bg-hover/80 text-ink"
+                : "text-ink-muted hover:bg-bg-hover/40 hover:text-ink"
+            }`}
           >
-            <input
-              type="checkbox"
-              checked={active}
-              onChange={() => toggle(r.roleId)}
-              className="h-3.5 w-3.5"
-            />
+            <span
+              className={`grid h-3.5 w-3.5 place-items-center rounded border ${
+                active ? "border-ink bg-ink" : "border-line"
+              }`}
+            >
+              {active && (
+                <svg
+                  viewBox="0 0 12 12"
+                  className="h-2.5 w-2.5 text-bg-base"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m2 6 3 3 5-6" />
+                </svg>
+              )}
+            </span>
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-            <span className="truncate text-ink">{r.name}</span>
-          </label>
+            <span className="truncate">{r.name}</span>
+          </button>
         );
       })}
     </div>
   );
 }
 
-function PlaceholderHelp() {
+function PlaceholderTable() {
+  const items: [string, string][] = [
+    ["{user}", "Anzeigename"],
+    ["{user.mention}", "@-Mention"],
+    ["{user.id}", "Discord-ID"],
+    ["{server}", "Server-Name"],
+    ["{channel}", "#kanal"],
+    ["{random:a|b|c}", "zufällige Auswahl"],
+  ];
   return (
-    <details className="rounded-lg border border-line bg-bg-elevated/40 p-3 text-xs text-ink-muted">
-      <summary className="cursor-pointer font-medium text-ink">Verfügbare Platzhalter</summary>
-      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px]">
-        <span>{"{user}"}</span>
-        <span className="text-ink-subtle">Anzeigename</span>
-        <span>{"{user.mention}"}</span>
-        <span className="text-ink-subtle">@-Mention</span>
-        <span>{"{user.id}"}</span>
-        <span className="text-ink-subtle">Discord-ID</span>
-        <span>{"{server}"}</span>
-        <span className="text-ink-subtle">Server-Name</span>
-        <span>{"{channel}"}</span>
-        <span className="text-ink-subtle">#kanal</span>
-        <span>{"{random:a|b|c}"}</span>
-        <span className="text-ink-subtle">Zufallswahl</span>
-      </div>
-    </details>
+    <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[11px]">
+      {items.map(([key, desc]) => (
+        <div key={key} className="contents">
+          <dt>
+            <code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-ink">
+              {key}
+            </code>
+          </dt>
+          <dd className="text-ink-muted">{desc}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -371,19 +492,46 @@ function PreviewBox({ form }: { form: CommandFormState }) {
       .replace(/\{channel\}/g, "#allgemein")
       .replace(/\{random:([^}]+)\}/g, (_, opts: string) => opts.split("|")[0]?.trim() ?? "");
 
+  // Top-Slash-Banner (Discord-typischer Hinweis)
+  const slashLine = (
+    <div className="mb-2 flex items-center gap-2 text-[11px] text-ink-subtle">
+      <svg viewBox="0 0 16 16" className="h-3 w-3" fill="currentColor">
+        <path d="M5 1a1 1 0 0 1 .89 1.45L4.5 5h2.79l1.25-2.5a1 1 0 1 1 1.79.9L9.79 5H11a1 1 0 1 1 0 2H8.79l-1 2H10a1 1 0 1 1 0 2H6.79L5.45 13.55a1 1 0 1 1-1.79-.9L4.71 11H4a1 1 0 1 1 0-2h1.71l1-2H4a1 1 0 0 1 0-2h3.71L8.95 1.55A1 1 0 0 1 8.05.55 1 1 0 0 1 5 1Z" />
+      </svg>
+      <span>
+        {exampleUser} hat <code className="rounded bg-bg-elevated px-1 py-0 font-mono text-[10px]">/{form.name || "..."}</code> verwendet
+      </span>
+    </div>
+  );
+
   if (form.responseType === "text") {
     return (
       <div className="rounded-lg border border-line bg-bg-card p-4">
-        <DiscordMsgHeader user={exampleUser} />
-        <div className="mt-1 whitespace-pre-wrap text-sm text-ink">
-          {example(form.response) || (
-            <span className="text-ink-subtle italic">(noch keine Antwort)</span>
-          )}
+        {slashLine}
+        <div className="flex items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-xs font-semibold text-white">
+            B
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold text-white">Bot</span>
+              <span className="rounded bg-brand/15 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-brand">
+                App
+              </span>
+              <span className="text-[11px] text-ink-subtle">heute · 14:32</span>
+            </div>
+            <div className="mt-1 whitespace-pre-wrap text-sm text-ink">
+              {example(form.response) || (
+                <span className="italic text-ink-subtle">noch keine Antwort</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Embed
   const titleEx = form.embedTitle ? example(form.embedTitle) : null;
   const descEx = form.embedDescription
     ? example(form.embedDescription)
@@ -393,48 +541,53 @@ function PreviewBox({ form }: { form: CommandFormState }) {
 
   return (
     <div className="rounded-lg border border-line bg-bg-card p-4">
-      <DiscordMsgHeader user={exampleUser} />
-      <div
-        className="mt-2 rounded border-l-4 bg-bg-elevated/60 p-3"
-        style={{ borderLeftColor: form.embedColor || "#a855f7" }}
-      >
-        {titleEx && <div className="text-sm font-semibold text-white">{titleEx}</div>}
-        {descEx && (
-          <div className="mt-1 whitespace-pre-wrap text-sm text-ink">{descEx}</div>
-        )}
-        {form.embedImageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={form.embedImageUrl}
-            alt=""
-            className="mt-2 max-h-48 rounded"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
-        )}
-        {form.embedFooter && (
-          <div className="mt-2 text-[11px] text-ink-subtle">{example(form.embedFooter)}</div>
-        )}
+      {slashLine}
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-xs font-semibold text-white">
+          B
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-semibold text-white">Bot</span>
+            <span className="rounded bg-brand/15 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-brand">
+              App
+            </span>
+            <span className="text-[11px] text-ink-subtle">heute · 14:32</span>
+          </div>
+          <div
+            className="mt-2 max-w-md rounded border-l-[3px] bg-bg-elevated/60 p-3"
+            style={{ borderLeftColor: form.embedColor || "#a855f7" }}
+          >
+            {titleEx && (
+              <div className="text-sm font-semibold text-white">{titleEx}</div>
+            )}
+            {descEx && (
+              <div className="mt-1 whitespace-pre-wrap text-sm text-ink">{descEx}</div>
+            )}
+            {!titleEx && !descEx && (
+              <div className="italic text-ink-subtle text-sm">
+                Embed ist noch leer
+              </div>
+            )}
+            {form.embedImageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={form.embedImageUrl}
+                alt=""
+                className="mt-2 max-h-48 rounded"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            )}
+            {form.embedFooter && (
+              <div className="mt-2 text-[11px] text-ink-subtle">
+                {example(form.embedFooter)}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
-  );
-}
-
-function DiscordMsgHeader({ user }: { user: string }) {
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="h-6 w-6 rounded-full bg-brand-gradient" />
-      <span className="font-semibold text-white">{user}</span>
-      <span className="text-ink-subtle">heute · 14:32</span>
-    </div>
-  );
-}
-
-function PreviewHint() {
-  return (
-    <p className="mt-3 text-[11px] text-ink-subtle">
-      Vorschau verwendet Beispieldaten · Platzhalter werden zur Laufzeit ersetzt.
-    </p>
   );
 }
