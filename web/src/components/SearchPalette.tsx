@@ -39,7 +39,9 @@ export function SearchPalette({ open, onClose }: Props) {
 
   // Scrollt das aktiv markierte Ergebnis in den sichtbaren Bereich.
   // Nur bei Keyboard-Nav scrollen — sonst spürt Mouse-Selection sich
-  // aufdringlich an.
+  // aufdringlich an. Verwendet getBoundingClientRect() weil offsetTop
+  // unzuverlässig ist wenn zwischen Item und Container ungesetzte
+  // position-Werte liegen.
   useEffect(() => {
     if (lastNavSource.current !== "keyboard") return;
     const container = listRef.current;
@@ -49,23 +51,28 @@ export function SearchPalette({ open, onClose }: Props) {
     );
     if (!el) return;
 
-    // Wenn dieses Item das erste seiner Group ist, nutze die Group-Box
-    // als Scroll-Anker (inkl. Header darüber).
+    const cRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+
+    // Wenn dieses Item das erste seiner Group ist, nutze die Group-Box-Top
+    // als Anker (inkl. Header darüber).
     const parent = el.parentElement;
     const isFirstInGroup =
       parent?.querySelector<HTMLElement>("[data-search-idx]") === el;
-    const topAnchor = isFirstInGroup && parent ? parent.offsetTop : el.offsetTop;
-
-    const cTop = container.scrollTop;
-    const cBottom = cTop + container.clientHeight;
-    const eBottom = el.offsetTop + el.offsetHeight;
+    const topRect =
+      isFirstInGroup && parent ? parent.getBoundingClientRect() : elRect;
 
     const PAD = 8;
 
-    if (topAnchor < cTop + PAD) {
-      container.scrollTop = Math.max(0, topAnchor - PAD);
-    } else if (eBottom > cBottom - PAD) {
-      container.scrollTop = eBottom - container.clientHeight + PAD;
+    // Distanz vom Container-Top zum Item-Top (kann negativ sein wenn
+    // Item oberhalb sichtbar)
+    const overshootTop = cRect.top - topRect.top + PAD;
+    const overshootBottom = elRect.bottom - cRect.bottom + PAD;
+
+    if (overshootTop > 0) {
+      container.scrollTop -= overshootTop;
+    } else if (overshootBottom > 0) {
+      container.scrollTop += overshootBottom;
     }
   }, [selected]);
 
