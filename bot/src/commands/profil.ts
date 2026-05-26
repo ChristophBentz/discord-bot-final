@@ -93,22 +93,24 @@ const command: SlashCommand = {
         .setTitle("🔐  Bearbeiten-Link zurückgesetzt")
         .setThumbnail(avatar)
         .setDescription(
-          "Dein alter Link ist ab sofort **ungültig**.\n" +
-            "Benutze unten den neuen Button um dein Profil zu bearbeiten.",
+          "Dein alter Bearbeiten-Link ist ab sofort **ungültig**.\n" +
+            "Hier ist dein neuer — bewahre ihn sicher auf.",
         )
         .addFields(
           {
-            name: "​",
-            value: "**Was bedeutet das?**",
+            name: "✏️  Neuer Bearbeiten-Link",
+            value: `\`\`\`${state.editUrl}\`\`\``,
             inline: false,
           },
           {
-            name: "🛡️  Sicherheit",
-            value: "Alle alten Links führen jetzt auf die öffentliche Ansicht ohne Edit-Rechte.",
+            name: "🛡️  Was passiert mit dem alten Link?",
+            value:
+              "Alle alten Links zeigen jetzt nur die öffentliche Ansicht ohne Edit-Rechte. " +
+              "Falls du den neuen versehentlich erneut leakst, einfach nochmal `/profil reset`.",
             inline: false,
           },
         )
-        .setFooter({ text: "Bewahre den neuen Link sicher auf — er ist dein Bearbeiten-Schlüssel." })
+        .setFooter({ text: "Bot-Dashboard · Profile · Klick aufs Copy-Icon zum Kopieren" })
         .setTimestamp(new Date());
 
       await interaction.reply({
@@ -134,32 +136,32 @@ const command: SlashCommand = {
       .setTitle("🪪  Dein Profil")
       .setThumbnail(avatar)
       .setDescription(
-        `\`\`\`${statusEmoji} ${statusLabel}\`\`\`` +
-          `${statusDescription}\n​`,
+        `**${statusEmoji}  ${statusLabel}**\n${statusDescription}`,
       )
       .addFields(
         {
-          name: "🌐  Öffentliche Ansicht",
+          name: "🌐  Öffentlicher Link",
           value:
-            "Diesen Link kannst du teilen — zeigt deine Profilseite mit Level, Stats und Achievements.",
+            "Diesen Link kannst du teilen — zeigt deine Profilseite mit Level, Stats und Achievements.\n" +
+            `\`\`\`${state.publicUrl}\`\`\``,
           inline: false,
         },
         {
-          name: "✏️  Bearbeiten-Modus",
+          name: "✏️  Bearbeiten-Link",
           value:
-            "Nur du. Hier kannst du dein Profil auf **privat** oder **öffentlich** stellen.\n" +
-            "_Bitte den Link niemals teilen!_",
+            "Nur für dich. Hier kannst du dein Profil auf **privat** oder **öffentlich** stellen.\n" +
+            "_Niemals teilen — sonst kann jemand anders deine Sichtbarkeit ändern!_\n" +
+            `\`\`\`${state.editUrl}\`\`\``,
           inline: false,
         },
         {
           name: "​",
           value:
-            "💡 Bei Bedarf neuen Link erzeugen: `/profil reset`\n" +
-            "_Der alte Link wird sofort ungültig._",
+            "💡 Bei Verdacht auf geleakten Link: `/profil reset` — alter Link sofort ungültig.",
           inline: false,
         },
       )
-      .setFooter({ text: "Bot-Dashboard · Profile" })
+      .setFooter({ text: "Bot-Dashboard · Profile · Tipp: Klick aufs Copy-Icon eines Links" })
       .setTimestamp(new Date());
 
     await interaction.reply({
