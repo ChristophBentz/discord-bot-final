@@ -77,6 +77,7 @@ const SECTIONS: NavSection[] = [
       { href: "/dashboard/music", label: "Musik", icon: "music" },
       { href: "/dashboard/free-games", label: "Free Games", icon: "gift" },
       { href: "/dashboard/rss", label: "RSS-Feeds", icon: "rss" },
+      { href: "/dashboard/emojis", label: "Emojis", icon: "sparkles" },
       { href: "/dashboard/compose", label: "Nachrichten", icon: "send" },
     ],
   },

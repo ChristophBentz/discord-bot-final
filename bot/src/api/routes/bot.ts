@@ -214,6 +214,47 @@ export async function handleListEmojis(
   return { ok: true, emojis: list };
 }
 
+export async function handleDeleteEmoji(
+  client: Client,
+  emojiId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!/^\d{17,20}$/.test(emojiId)) return { ok: false, error: "Ungültige Emoji-ID." };
+  const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+  if (!guild) return { ok: false, error: "Server nicht im Cache." };
+  try {
+    await guild.emojis.delete(emojiId, "Dashboard-Löschung");
+    return { ok: true };
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    return { ok: false, error: `Löschen fehlgeschlagen: ${e?.message ?? "unbekannt"}` };
+  }
+}
+
+export interface EmojiRenameBody {
+  name?: string;
+}
+
+export async function handleRenameEmoji(
+  client: Client,
+  emojiId: string,
+  body: EmojiRenameBody,
+): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+  if (!/^\d{17,20}$/.test(emojiId)) return { ok: false, error: "Ungültige Emoji-ID." };
+  const name = (body.name ?? "").trim();
+  if (!/^\w{2,32}$/.test(name)) {
+    return { ok: false, error: "Name: 2–32 Zeichen, nur Buchstaben/Ziffern/Unterstrich." };
+  }
+  const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+  if (!guild) return { ok: false, error: "Server nicht im Cache." };
+  try {
+    const updated = await guild.emojis.edit(emojiId, { name });
+    return { ok: true, name: updated.name ?? name };
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    return { ok: false, error: `Umbenennen fehlgeschlagen: ${e?.message ?? "unbekannt"}` };
+  }
+}
+
 export async function handleUploadEmoji(
   client: Client,
   body: EmojiUploadBody,

@@ -82,6 +82,10 @@ const GROUPS: Group[] = [
         name: "Nachrichten",
         desc: "Sende Text, Embeds, Umfragen oder Datei-Anhänge im Namen des Bots in beliebige Channels.",
       },
+      {
+        name: "Emojis",
+        desc: "Custom-Emojis hochladen und verwalten — mit Drag&Drop, Mehrfach-Upload, Auto-Resize auf 128×128 und Kompression auf 256 KB.",
+      },
     ],
   },
   {

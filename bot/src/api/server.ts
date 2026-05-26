@@ -43,8 +43,10 @@ import {
   handleServerStatsUpdate,
 } from "./routes/serverStats.js";
 import {
+  handleDeleteEmoji,
   handleGetDescription,
   handleListEmojis,
+  handleRenameEmoji,
   handleSetAvatar,
   handleSetBanner,
   handleSetDescription,
@@ -53,6 +55,7 @@ import {
   type AvatarBody,
   type BannerBody,
   type DescriptionBody,
+  type EmojiRenameBody,
   type EmojiUploadBody,
   type NicknameBody,
 } from "./routes/bot.js";
@@ -383,6 +386,24 @@ export function startApiServer(client: Client): void {
       // GET /api/bot/emojis — alle Server-Emojis listen
       if (req.method === "GET" && url.pathname === "/api/bot/emojis") {
         const result = await handleListEmojis(client);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // DELETE /api/bot/emojis/:id
+      const emojiIdMatch = url.pathname.match(/^\/api\/bot\/emojis\/(\d{17,20})$/);
+      if (req.method === "DELETE" && emojiIdMatch) {
+        const result = await handleDeleteEmoji(client, emojiIdMatch[1]!);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // PATCH /api/bot/emojis/:id — Rename
+      if (req.method === "PATCH" && emojiIdMatch) {
+        const body = (await readJson<EmojiRenameBody>(req)) ?? {};
+        const result = await handleRenameEmoji(client, emojiIdMatch[1]!, body);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;
