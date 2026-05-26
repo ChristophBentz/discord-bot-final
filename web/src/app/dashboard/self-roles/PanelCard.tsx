@@ -10,6 +10,7 @@ import {
   updatePanel,
 } from "./actions";
 import type { PanelDTO, RoleOpt } from "./SelfRolesManager";
+import { EmojiDisplay, parseEmoji } from "./EmojiDisplay";
 
 const TYPE_LABEL = {
   reaction: "Reactions",
@@ -141,14 +142,16 @@ export function PanelCard({
                 key={opt.id}
                 className="flex items-center gap-3 rounded-xl border border-line bg-bg-elevated/40 px-3 py-2"
               >
-                {opt.emoji && (
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-bg-card text-base">
-                    {opt.emoji}
-                  </span>
-                )}
+                <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-md bg-bg-card">
+                  {opt.emoji ? (
+                    <EmojiDisplay raw={opt.emoji} size={20} />
+                  ) : (
+                    <span className="text-ink-subtle">•</span>
+                  )}
+                </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-ink">{opt.label}</span>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="truncate font-medium text-ink">{opt.label}</span>
                     <span
                       className="inline-flex items-center gap-1 rounded bg-bg-elevated px-1.5 py-0.5 text-[10px]"
                       style={{ color }}
@@ -303,14 +306,31 @@ function AddOptionForm({
           <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
             Emoji {type === "reaction" ? "(erforderlich)" : "(optional)"}
           </label>
-          <input
-            name="emoji"
-            value={emoji}
-            onChange={(e) => setEmoji(e.target.value)}
-            placeholder="z.B. 🎮 oder <:custom:123…>"
-            required={type === "reaction"}
-            className="input"
-          />
+          <div className="flex items-stretch gap-2">
+            <input
+              name="emoji"
+              value={emoji}
+              onChange={(e) => setEmoji(e.target.value)}
+              placeholder="🎮 oder <:name:123…>"
+              required={type === "reaction"}
+              className="input flex-1"
+            />
+            {emoji && (
+              <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-md border border-line bg-bg-card">
+                <EmojiDisplay raw={emoji} size={20} />
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[10px] text-ink-subtle">
+            Unicode wie 🎮 direkt einfügen, oder für Custom-Emoji im Discord{" "}
+            <code className="rounded bg-bg-elevated px-1 font-mono">\:name:</code> tippen (Backslash davor) →
+            das ausgegebene <code className="rounded bg-bg-elevated px-1 font-mono">{"<:name:id>"}</code> hier reinkopieren.
+          </p>
+          {emoji && parseEmoji(emoji)?.kind === "invalid" && (
+            <p className="mt-1 text-[10px] text-rose-400">
+              ⚠ Discord-Shortcode (z.B. <code>:name:</code>) funktioniert nicht via API. Brauchst die volle Form.
+            </p>
+          )}
         </div>
         {type === "button" && (
           <div>
