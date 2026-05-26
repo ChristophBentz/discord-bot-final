@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
 import { createPanel, syncPanel, type PanelType } from "./actions";
+import { ColorPicker } from "./ColorPicker";
 
 const TYPE_INFO: { value: PanelType; label: string; desc: string }[] = [
   {
@@ -183,24 +184,7 @@ export function CreatePanelForm({
       <div className="grid gap-3 sm:grid-cols-2">
         {useEmbed && (
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="sp-color">
-              Embed-Farbe
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                id="sp-color"
-                name="color"
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-bg-elevated"
-              />
-              <input
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="input flex-1 font-mono text-sm"
-              />
-            </div>
+            <ColorPicker name="color" value={color} onChange={setColor} />
           </div>
         )}
         {!useEmbed && <input type="hidden" name="color" value={color} />}

@@ -13,6 +13,7 @@ import type { PanelDTO, RoleOpt } from "./SelfRolesManager";
 import { EmojiDisplay } from "./EmojiDisplay";
 import { EmojiPicker } from "./EmojiPicker";
 import { RolePicker } from "./RolePicker";
+import { ColorPicker } from "./ColorPicker";
 
 const TYPE_LABEL = {
   reaction: "Reactions",
@@ -447,17 +448,7 @@ function EditPanelOverlay({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink">Farbe</label>
-            <div className="flex items-center gap-2">
-              <input
-                name="color"
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-bg-elevated"
-              />
-              <input value={color} onChange={(e) => setColor(e.target.value)} className="input flex-1 font-mono text-sm" />
-            </div>
+            <ColorPicker name="color" value={color} onChange={setColor} />
           </div>
           <div className="flex flex-col gap-2">
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-bg-elevated/40 px-3 py-2 text-sm">
