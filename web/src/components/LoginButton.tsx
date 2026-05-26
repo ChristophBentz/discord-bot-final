@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 
 export function LoginButton() {
@@ -11,21 +12,36 @@ export function LoginButton() {
 
   if (session?.user) {
     return (
-      <div className="flex items-center gap-3">
-        {session.user.image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={session.user.image}
-            alt={session.user.name ?? "Avatar"}
-            className="h-8 w-8 rounded-full ring-1 ring-line"
-          />
-        )}
-        <div className="hidden text-sm sm:block">
-          <div className="font-medium text-ink">{session.user.name}</div>
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-line bg-bg-elevated/40 px-4 py-2.5">
+          {session.user.image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={session.user.image}
+              alt={session.user.name ?? "Avatar"}
+              className="h-9 w-9 rounded-full ring-1 ring-line"
+            />
+          )}
+          <div className="text-left text-sm">
+            <div className="text-xs text-ink-subtle">Eingeloggt als</div>
+            <div className="font-medium text-ink">{session.user.name}</div>
+          </div>
         </div>
-        <button type="button" onClick={() => signOut({ callbackUrl: "/" })} className="btn-secondary">
-          Abmelden
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard" className="btn-primary">
+            Zum Dashboard
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </Link>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="btn-secondary"
+          >
+            Abmelden
+          </button>
+        </div>
       </div>
     );
   }
