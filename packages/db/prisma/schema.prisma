@@ -376,13 +376,29 @@ model TicketMessage {
   @@index([ticketId, createdAt])
 }
 
-// Vom User im Dashboard definierte Text-Commands.
+// Vom User im Dashboard definierte Custom-Slash-Commands.
+// Werden bei jeder Änderung als echte Guild-Commands bei Discord registriert.
 model CustomCommand {
-  name      String   @id
-  response  String
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name        String   @id // Discord-Slash-Name (lowercase, 1-32 chars, regex ^[\w-]{1,32}$)
+  description String   @default("Custom-Command") // 1-100 chars, vom User editierbar
+  // "text" = einfache Text-Antwort, "embed" = Embed mit Title/Description/Color
+  responseType String  @default("text")
+  // Text-Mode: response wird direkt geschickt (mit Placeholder-Substitution).
+  // Embed-Mode: optional als Embed-Description, falls embedDescription leer.
+  response    String   @default("")
+  // Embed-Felder (nur relevant wenn responseType = "embed")
+  embedTitle       String?
+  embedDescription String?
+  embedColor       Int?     // 0xRRGGBB
+  embedImageUrl    String?
+  embedFooter      String?
+  // Nur Aufrufer sieht die Antwort
+  ephemeral   Boolean  @default(false)
+  // Komma-separierte Role-IDs die den Command nutzen dürfen. Leer = alle.
+  allowedRoleIds String @default("")
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // Synchronisiert vom Bot — alle bekannten Server-Mitglieder.

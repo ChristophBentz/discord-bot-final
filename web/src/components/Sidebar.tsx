@@ -66,7 +66,7 @@ const SECTIONS: NavSection[] = [
       { href: "/dashboard/leveling", label: "Leveling", icon: "trophy" },
       { href: "/dashboard/achievements", label: "Achievements", icon: "medal" },
       { href: "/dashboard/server-stats", label: "Server-Stats", icon: "stats" },
-      { href: "/dashboard/commands", label: "Custom Commands", icon: "terminal", soon: true },
+      { href: "/dashboard/commands", label: "Custom Commands", icon: "terminal" },
       { href: "/dashboard/self-roles", label: "Auto-Rollen", icon: "sparkles" },
     ],
   },

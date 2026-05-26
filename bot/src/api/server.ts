@@ -72,6 +72,7 @@ import {
   type SendBody,
   type EditBody,
 } from "./routes/messages.js";
+import { syncAllCommands } from "../features/customCommands/register.js";
 
 async function readJson<T>(req: IncomingMessage): Promise<T | null> {
   return new Promise((resolve) => {
@@ -495,6 +496,18 @@ export function startApiServer(client: Client): void {
         const result = getMemberPresence(client, userId);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/commands/sync — re-registriert built-in + custom Slash-Commands
+      if (req.method === "POST" && url.pathname === "/api/commands/sync") {
+        try {
+          const result = await syncAllCommands();
+          ok(res, { ok: true, ...result });
+        } catch (err) {
+          logger.error({ err }, "Command-Sync fehlgeschlagen");
+          fail(res, 500, "Sync fehlgeschlagen — siehe Bot-Logs");
+        }
         return;
       }
 
