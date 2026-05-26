@@ -56,7 +56,7 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
   // Hülle für privaten Modus (Außenstehende)
   if (!showFull) {
     return (
-      <main className="min-h-screen bg-bg p-6">
+      <main className="min-h-screen bg-bg-base p-6">
         <div className="mx-auto max-w-2xl pt-20 text-center">
           <div className="mx-auto h-24 w-24">
             {member.avatarUrl ? (
@@ -92,17 +92,17 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
   const messageCount = levelUser?.messageCount ?? 0;
 
   return (
-    <main className="min-h-screen bg-bg pb-16">
-      {/* Banner / Hero */}
-      <div className="relative">
+    <main className="min-h-screen bg-bg-base pb-16">
+      {/* Banner */}
+      <div className="relative h-48 w-full overflow-hidden">
         {member.bannerUrl ? (
           <div
-            className="h-48 bg-cover bg-center"
+            className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${member.bannerUrl})` }}
           />
         ) : member.accentColor ? (
           <div
-            className="h-48"
+            className="absolute inset-0"
             style={{
               background: `linear-gradient(135deg, #${member.accentColor
                 .toString(16)
@@ -111,7 +111,7 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
           />
         ) : (
           <div
-            className="h-48"
+            className="absolute inset-0"
             style={{
               background: `
                 radial-gradient(120% 140% at 100% 0%, rgba(236, 72, 153, 0.55), transparent 60%),
@@ -121,10 +121,14 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
             }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-bg" />
+        {/* Sanfter Übergang vom Banner zur Page-Hintergrundfarbe */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+          style={{ background: "linear-gradient(to bottom, transparent, #0a0a0f)" }}
+        />
       </div>
 
-      <div className="mx-auto -mt-20 max-w-4xl px-6 space-y-8">
+      <div className="relative z-10 mx-auto -mt-20 max-w-4xl px-6 space-y-8">
         {/* Header */}
         <header className="flex flex-wrap items-end gap-5">
           <div className="shrink-0">
@@ -133,10 +137,10 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
               <img
                 src={member.avatarUrl}
                 alt=""
-                className="h-32 w-32 rounded-full ring-[6px] ring-bg shadow-2xl"
+                className="h-32 w-32 rounded-full ring-[6px] ring-bg-base shadow-2xl"
               />
             ) : (
-              <span className="grid h-32 w-32 place-items-center rounded-full bg-brand-gradient text-4xl font-semibold text-white ring-[6px] ring-bg shadow-2xl">
+              <span className="grid h-32 w-32 place-items-center rounded-full bg-brand-gradient text-4xl font-semibold text-white ring-[6px] ring-bg-base shadow-2xl">
                 {member.displayName[0]?.toUpperCase() ?? "?"}
               </span>
             )}
