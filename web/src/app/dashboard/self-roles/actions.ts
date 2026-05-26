@@ -163,6 +163,11 @@ export interface UploadedEmoji {
   mention: string;
 }
 
+export async function listServerEmojis(): Promise<UploadedEmoji[]> {
+  const r = await callBot<{ emojis: UploadedEmoji[] }>("/api/bot/emojis", { method: "GET" });
+  return r.ok ? r.data.emojis : [];
+}
+
 export async function uploadEmoji(
   name: string,
   dataUrl: string,

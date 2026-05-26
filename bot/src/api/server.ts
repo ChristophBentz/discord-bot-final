@@ -44,6 +44,7 @@ import {
 } from "./routes/serverStats.js";
 import {
   handleGetDescription,
+  handleListEmojis,
   handleSetAvatar,
   handleSetBanner,
   handleSetDescription,
@@ -374,6 +375,14 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && url.pathname === "/api/bot/emoji") {
         const body = (await readJson<EmojiUploadBody>(req)) ?? {};
         const result = await handleUploadEmoji(client, body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // GET /api/bot/emojis — alle Server-Emojis listen
+      if (req.method === "GET" && url.pathname === "/api/bot/emojis") {
+        const result = await handleListEmojis(client);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

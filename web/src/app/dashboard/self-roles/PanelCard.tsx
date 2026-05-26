@@ -10,8 +10,9 @@ import {
   updatePanel,
 } from "./actions";
 import type { PanelDTO, RoleOpt } from "./SelfRolesManager";
-import { EmojiDisplay, parseEmoji } from "./EmojiDisplay";
-import { EmojiUploader } from "./EmojiUploader";
+import { EmojiDisplay } from "./EmojiDisplay";
+import { EmojiPicker } from "./EmojiPicker";
+import { RolePicker } from "./RolePicker";
 
 const TYPE_LABEL = {
   reaction: "Reactions",
@@ -246,8 +247,6 @@ function AddOptionForm({
   const [error, setError] = useState<string | null>(null);
   const [isAdding, start] = useTransition();
 
-  const available = roles.filter((r) => !existing.includes(r.roleId));
-
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -266,26 +265,16 @@ function AddOptionForm({
           <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
             Rolle
           </label>
-          <select
+          <RolePicker
             name="roleId"
             value={roleId}
-            onChange={(e) => {
-              setRoleId(e.target.value);
-              if (!label) {
-                const role = roles.find((r) => r.roleId === e.target.value);
-                if (role) setLabel(role.name);
-              }
+            roles={roles}
+            excludeIds={existing}
+            onChange={(id, role) => {
+              setRoleId(id);
+              if (!label && role) setLabel(role.name);
             }}
-            required
-            className="input"
-          >
-            <option value="">— Rolle wählen —</option>
-            {available.map((r) => (
-              <option key={r.roleId} value={r.roleId}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div>
           <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
@@ -307,38 +296,16 @@ function AddOptionForm({
           <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
             Emoji {type === "reaction" ? "(erforderlich)" : "(optional)"}
           </label>
-          <div className="flex items-stretch gap-2">
-            <input
-              name="emoji"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              placeholder="🎮 oder <:name:123…>"
-              required={type === "reaction"}
-              className="input flex-1"
-            />
-            {emoji && (
-              <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-md border border-line bg-bg-card">
-                <EmojiDisplay raw={emoji} size={20} />
-              </span>
-            )}
-          </div>
+          <EmojiPicker
+            name="emoji"
+            value={emoji}
+            onChange={setEmoji}
+            suggestedName={label}
+            required={type === "reaction"}
+          />
           <p className="mt-1 text-[10px] text-ink-subtle">
-            Unicode wie 🎮 direkt einfügen, oder im Discord{" "}
-            <code className="rounded bg-bg-elevated px-1 font-mono">\:name:</code> tippen → das
-            ausgegebene <code className="rounded bg-bg-elevated px-1 font-mono">{"<:name:id>"}</code>{" "}
-            hier reinkopieren.
+            Wähl aus Server-Emojis, Unicode-Favoriten — oder lade dein eigenes Bild hoch.
           </p>
-          {emoji && parseEmoji(emoji)?.kind === "invalid" && (
-            <p className="mt-1 text-[10px] text-rose-400">
-              ⚠ Discord-Shortcode (z.B. <code>:name:</code>) funktioniert nicht via API. Brauchst die volle Form.
-            </p>
-          )}
-          <div className="mt-1.5">
-            <EmojiUploader
-              suggestedName={label}
-              onUploaded={(mention) => setEmoji(mention)}
-            />
-          </div>
         </div>
         {type === "button" && (
           <div>

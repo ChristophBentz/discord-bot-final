@@ -187,6 +187,33 @@ export async function handleSetBanner(
   }
 }
 
+export interface EmojiListItem {
+  id: string;
+  name: string;
+  animated: boolean;
+  mention: string;
+}
+
+export async function handleListEmojis(
+  client: Client,
+): Promise<{ ok: true; emojis: EmojiListItem[] } | { ok: false; error: string }> {
+  const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+  if (!guild) return { ok: false, error: "Server nicht im Cache." };
+
+  const list: EmojiListItem[] = [];
+  for (const e of guild.emojis.cache.values()) {
+    if (!e.id || !e.name) continue;
+    list.push({
+      id: e.id,
+      name: e.name,
+      animated: e.animated ?? false,
+      mention: e.toString(),
+    });
+  }
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  return { ok: true, emojis: list };
+}
+
 export async function handleUploadEmoji(
   client: Client,
   body: EmojiUploadBody,
