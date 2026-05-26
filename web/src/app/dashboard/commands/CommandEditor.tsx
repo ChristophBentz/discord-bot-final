@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { saveCommand, type CommandFormState } from "./actions";
 
 interface Props {
@@ -29,6 +30,17 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
   const [form, setForm] = useState<CommandFormState>(initial ?? DEFAULT_FORM);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Body-Scroll sperren während Modal offen ist
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
 
   const update = <K extends keyof CommandFormState>(key: K, value: CommandFormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -45,9 +57,11 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
     });
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm pt-[5vh]"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 backdrop-blur-sm pt-[5vh]"
       onClick={onClose}
     >
       <div
@@ -291,7 +305,8 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
