@@ -31,13 +31,17 @@ export function SearchPalette({ open, onClose }: Props) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState(0);
   const [isLoading, startLoad] = useTransition();
+  // Quelle der letzten Selection — verhindert dass scroll-getriggerte
+  // Mouseover-Events (während ↑↓-Nav) die Selection zurückwerfen.
+  const lastNavSource = useRef<"keyboard" | "mouse">("keyboard");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Scrollt das aktiv markierte Ergebnis in den sichtbaren Bereich.
-  // Wenn das erste Item einer Gruppe markiert ist, scrolled wir den
-  // Group-Header gleich mit in den Viewport — sonst hängt der oben raus.
+  // Nur bei Keyboard-Nav scrollen — sonst spürt Mouse-Selection sich
+  // aufdringlich an.
   useEffect(() => {
+    if (lastNavSource.current !== "keyboard") return;
     const container = listRef.current;
     if (!container) return;
     const el = container.querySelector<HTMLElement>(
@@ -97,10 +101,12 @@ export function SearchPalette({ open, onClose }: Props) {
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelected((s) => Math.min(s + 1, results.length - 1));
+      lastNavSource.current = "keyboard";
+      setSelected((s) => (s + 1) % Math.max(1, results.length));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelected((s) => Math.max(s - 1, 0));
+      lastNavSource.current = "keyboard";
+      setSelected((s) => (s - 1 + results.length) % Math.max(1, results.length));
     } else if (e.key === "Enter") {
       e.preventDefault();
       const target = results[selected];
@@ -175,17 +181,31 @@ export function SearchPalette({ open, onClose }: Props) {
                 {group.items.map((item) => {
                   flatIdx += 1;
                   const isSelected = flatIdx === selected;
+                  const idx = flatIdx;
                   return (
                     <button
                       key={`${item.type}-${item.id}`}
                       type="button"
-                      data-search-idx={flatIdx}
+                      data-search-idx={idx}
                       onClick={() => navigate(item.href)}
-                      onMouseEnter={() => setSelected(flatIdx)}
-                      className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
-                        isSelected ? "bg-bg-hover text-ink" : "text-ink-muted hover:bg-bg-hover/50"
+                      onPointerMove={() => {
+                        // Nur reagieren wenn die Maus sich tatsächlich
+                        // bewegt — verhindert dass scroll-triggered
+                        // mouseenter die Keyboard-Selection klaut.
+                        if (selected !== idx) {
+                          lastNavSource.current = "mouse";
+                          setSelected(idx);
+                        }
+                      }}
+                      className={`relative flex w-full items-center gap-3 px-3 py-2 pl-[14px] text-left ${
+                        isSelected
+                          ? "bg-bg-hover text-ink"
+                          : "text-ink-muted"
                       }`}
                     >
+                      {isSelected && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r bg-brand" />
+                      )}
                       <ResultIcon item={item} />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{item.title}</div>
