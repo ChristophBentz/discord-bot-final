@@ -23,6 +23,7 @@ const PAGES: { title: string; subtitle: string; href: string }[] = [
   { title: "Leveling", subtitle: "XP-System & Ränge", href: "/dashboard/leveling" },
   { title: "Achievements", subtitle: "Erfolge & Auszeichnungen", href: "/dashboard/achievements" },
   { title: "Server-Stats", subtitle: "Live-Counter-Channels", href: "/dashboard/server-stats" },
+  { title: "Auto-Rollen", subtitle: "Self-Assign-Panels (Reactions/Buttons/Dropdown)", href: "/dashboard/self-roles" },
   { title: "Temp-Channels", subtitle: "Join-to-Create Voice", href: "/dashboard/temp-channels" },
   { title: "Tickets", subtitle: "Ticket-System", href: "/dashboard/tickets" },
   { title: "Musik", subtitle: "Music-Bot-Steuerung", href: "/dashboard/music" },

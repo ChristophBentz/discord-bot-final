@@ -49,6 +49,10 @@ const GROUPS: Group[] = [
         name: "Server-Stats",
         desc: "Locked-Voice-Channels mit Live-Counter (Mitglieder, ohne Bots, Online). Update alle 5-60 Min.",
       },
+      {
+        name: "Auto-Rollen",
+        desc: "Self-Assign-Panels mit Reactions, Buttons oder Dropdown. User wählt sich seine Rollen selbst.",
+      },
     ],
   },
   {

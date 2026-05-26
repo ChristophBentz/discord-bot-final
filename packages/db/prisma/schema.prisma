@@ -214,6 +214,41 @@ model RssFeedItem {
   @@index([feedId, postedAt])
 }
 
+// Self-Assign-Rollen-Panel — eine Discord-Nachricht via die User sich
+// Rollen selbst geben können. Drei Modi: Reaction (Emoji-Reaktionen),
+// Button (klickbare Buttons), Dropdown (StringSelectMenu).
+model SelfRolePanel {
+  id           Int       @id @default(autoincrement())
+  channelId    String
+  messageId    String? // null bis der Bot die Nachricht gepostet hat
+  type         String // "reaction" | "button" | "dropdown"
+  title        String
+  description  String?
+  color        Int? // Embed-Farbe als RGB-Integer
+  uniqueChoice Boolean   @default(false) // wenn true: pro Panel max. eine Rolle (alte wird entfernt)
+  enabled      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  options SelfRoleOption[]
+
+  @@index([channelId])
+}
+
+model SelfRoleOption {
+  id          Int           @id @default(autoincrement())
+  panelId     Int
+  panel       SelfRolePanel @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  roleId      String
+  label       String
+  description String? // gezeigt im Dropdown als Untertitel
+  emoji       String? // Reaction-Emoji ODER Icon im Button/Dropdown
+  buttonStyle String? // "primary" | "secondary" | "success" | "danger"
+  position    Int           @default(0)
+
+  @@unique([panelId, roleId])
+}
+
 // Server-Stats — pro Eintrag ein automatisch erzeugter Voice-Channel mit
 // Live-Zählerstand im Namen.
 model ServerStat {

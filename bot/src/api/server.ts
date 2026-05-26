@@ -54,6 +54,10 @@ import {
   type NicknameBody,
 } from "./routes/bot.js";
 import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
+import {
+  handleSelfRoleSync,
+  handleSelfRoleDeleteMessage,
+} from "./routes/selfRoles.js";
 import { getMemberPresence, handleRefreshProfile } from "./routes/profile.js";
 import {
   handleSendMessage,
@@ -285,6 +289,26 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && url.pathname === "/api/rss/test") {
         const body = (await readJson<RssTestBody>(req)) ?? {};
         const result = await handleRssTest(body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/selfroles/panels/:id/sync — Panel-Nachricht posten/aktualisieren
+      const srSyncMatch = url.pathname.match(/^\/api\/selfroles\/panels\/(\d+)\/sync$/);
+      if (req.method === "POST" && srSyncMatch) {
+        const panelId = Number(srSyncMatch[1]!);
+        const result = await handleSelfRoleSync(client, panelId);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/selfroles/panels/:id/delete-message — Nachricht löschen (Panel bleibt)
+      const srDelMatch = url.pathname.match(/^\/api\/selfroles\/panels\/(\d+)\/delete-message$/);
+      if (req.method === "POST" && srDelMatch) {
+        const panelId = Number(srDelMatch[1]!);
+        const result = await handleSelfRoleDeleteMessage(client, panelId);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;
