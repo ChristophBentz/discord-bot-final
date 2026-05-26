@@ -31,9 +31,24 @@ export async function syncAllCommands(): Promise<{ builtIn: number; custom: numb
   const builtInNames = new Set(builtInCollection.map((c) => c.data.name));
 
   const customs = await prisma.customCommand.findMany();
+  const skipped: { name: string; reason: string }[] = [];
   const customJson = customs
-    .filter((c) => isValidCustomCommandName(c.name) && !builtInNames.has(c.name))
+    .filter((c) => {
+      if (!isValidCustomCommandName(c.name)) {
+        skipped.push({ name: c.name, reason: "ungültiger Name (nur a-z0-9_- erlaubt)" });
+        return false;
+      }
+      if (builtInNames.has(c.name)) {
+        skipped.push({ name: c.name, reason: "Konflikt mit Built-in-Command" });
+        return false;
+      }
+      return true;
+    })
     .map((c) => customCommandToJSON(c));
+
+  if (skipped.length > 0) {
+    logger.warn({ skipped }, "Custom-Commands beim Sync übersprungen");
+  }
 
   const body = [...builtInJson, ...customJson];
 

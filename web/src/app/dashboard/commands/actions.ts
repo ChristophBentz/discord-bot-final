@@ -64,15 +64,18 @@ export async function saveCommand(form: CommandFormState, originalName?: string)
 
   const userId = await getUserId();
 
-  if (originalName && originalName !== name) {
-    // Rename: alten Eintrag löschen, neuen anlegen
-    await prisma.customCommand.delete({ where: { name: originalName } });
-  }
-
-  await prisma.customCommand.upsert({
-    where: { name },
-    update: data,
-    create: { ...data, createdBy: userId },
+  // Atomic: Rename = delete+create in einer Transaction.
+  // Sonst Risk dass bei Crash zwischen Delete und Upsert der alte
+  // Command weg ist und der neue nie angelegt wird.
+  await prisma.$transaction(async (tx) => {
+    if (originalName && originalName !== name) {
+      await tx.customCommand.delete({ where: { name: originalName } });
+    }
+    await tx.customCommand.upsert({
+      where: { name },
+      update: data,
+      create: { ...data, createdBy: userId },
+    });
   });
 
   const sync = await triggerSync();

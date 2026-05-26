@@ -3,7 +3,6 @@ import Link from "next/link";
 import { progressFromXp, type Curve } from "../u/[userId]/levelCurve";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 60;
 
 const PAGE_LIMIT = 100;
 
