@@ -32,6 +32,17 @@ export function SearchPalette({ open, onClose }: Props) {
   const [selected, setSelected] = useState(0);
   const [isLoading, startLoad] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Scrollt das aktiv markierte Ergebnis in den sichtbaren Bereich,
+  // wenn man mit ↑↓ navigiert.
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.querySelector<HTMLElement>(
+      `[data-search-idx="${selected}"]`,
+    );
+    el?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
 
   useEffect(() => {
     if (open) {
@@ -123,7 +134,7 @@ export function SearchPalette({ open, onClose }: Props) {
         </div>
 
         {/* Ergebnisse */}
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div ref={listRef} className="max-h-[60vh] overflow-y-auto">
           {!query.trim() ? (
             <div className="px-4 py-8 text-center text-sm text-ink-subtle">
               Tippen, um in Mitgliedern, Channels und Dashboard-Seiten zu suchen.
@@ -147,6 +158,7 @@ export function SearchPalette({ open, onClose }: Props) {
                     <button
                       key={`${item.type}-${item.id}`}
                       type="button"
+                      data-search-idx={flatIdx}
                       onClick={() => navigate(item.href)}
                       onMouseEnter={() => setSelected(flatIdx)}
                       className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
