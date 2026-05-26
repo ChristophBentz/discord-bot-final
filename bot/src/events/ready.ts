@@ -4,7 +4,10 @@ import { logger } from "../lib/logger.js";
 import { startPresenceSync } from "../features/presence/service.js";
 import { bootstrapSessions } from "../features/leveling/voiceSessions.js";
 import { startServerInfoSync } from "../features/serverInfo/service.js";
-import { bulkSync as syncMembers } from "../features/members/service.js";
+import {
+  bulkSync as syncMembers,
+  startPeriodicMemberSync,
+} from "../features/members/service.js";
 import { bulkSyncChannels } from "../features/channels/service.js";
 import {
   cleanupOrphanedTempChannels,
@@ -33,6 +36,7 @@ const event: BotEvent<Events.ClientReady> = {
     startRssScheduler(client);
     startApiServer(client);
     await syncMembers(client);
+    startPeriodicMemberSync(client);
     // Stats-Scheduler braucht den Members-Cache (humanMembers/online), deshalb erst hier.
     startServerStatsScheduler(client);
     await bulkSyncChannels(client);

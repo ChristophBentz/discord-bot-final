@@ -98,3 +98,27 @@ async function syncGuild(guild: Guild): Promise<void> {
     logger.error({ err }, "Bulk-Sync fehlgeschlagen");
   }
 }
+
+// Safety-Net: alle 6h einen Full-Sync fahren, falls der Bot zwischendurch
+// offline war und userUpdate/guildMemberUpdate-Events verpasst hat.
+// Verhindert dass Avatars/Nicknames veraltet bleiben.
+const PERIODIC_SYNC_MS = 6 * 60 * 60 * 1000;
+let syncInProgress = false;
+let syncIntervalId: ReturnType<typeof setInterval> | null = null;
+
+export function startPeriodicMemberSync(client: Client): void {
+  if (syncIntervalId) return;
+  syncIntervalId = setInterval(async () => {
+    if (syncInProgress) return;
+    syncInProgress = true;
+    try {
+      await bulkSync(client);
+    } finally {
+      syncInProgress = false;
+    }
+  }, PERIODIC_SYNC_MS);
+  logger.info(
+    { intervalHours: PERIODIC_SYNC_MS / 3_600_000 },
+    "Periodischer Member-Sync gestartet",
+  );
+}
