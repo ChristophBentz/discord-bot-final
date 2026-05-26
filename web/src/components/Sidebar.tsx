@@ -15,6 +15,7 @@ type IconName =
   | "trophy"
   | "terminal"
   | "sparkles"
+  | "smile"
   | "medal"
   | "ticket"
   | "music"
@@ -77,7 +78,7 @@ const SECTIONS: NavSection[] = [
       { href: "/dashboard/music", label: "Musik", icon: "music" },
       { href: "/dashboard/free-games", label: "Free Games", icon: "gift" },
       { href: "/dashboard/rss", label: "RSS-Feeds", icon: "rss" },
-      { href: "/dashboard/emojis", label: "Emojis", icon: "sparkles" },
+      { href: "/dashboard/emojis", label: "Emojis", icon: "smile" },
       { href: "/dashboard/compose", label: "Nachrichten", icon: "send" },
     ],
   },
@@ -132,6 +133,10 @@ function Icon({ name }: { name: IconName }) {
     case "sparkles":
       return (
         <svg className={cls} viewBox="0 0 24 24" {...stroke}><path d="m12 4 1.5 4.5L18 10l-4.5 1.5L12 16l-1.5-4.5L6 10l4.5-1.5L12 4Z" /><path d="M19 4v3M21 5.5h-3M5 16v3M6.5 17.5h-3" /></svg>
+      );
+    case "smile":
+      return (
+        <svg className={cls} viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="12" r="9" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><path d="M9 9h.01M15 9h.01" /></svg>
       );
     case "medal":
       return (
