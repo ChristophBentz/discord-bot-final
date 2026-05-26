@@ -156,6 +156,29 @@ export async function addOption(panelId: number, formData: FormData): Promise<Re
   return { ok: true };
 }
 
+export interface UploadedEmoji {
+  id: string;
+  name: string;
+  animated: boolean;
+  mention: string;
+}
+
+export async function uploadEmoji(
+  name: string,
+  dataUrl: string,
+): Promise<{ ok: true; emoji: UploadedEmoji } | { ok: false; error: string }> {
+  const auth = await requireAuth();
+  if (auth) return auth;
+  if (!dataUrl.startsWith("data:image/")) return { ok: false, error: "Nur Bilder erlaubt." };
+  if (dataUrl.length > 400_000) return { ok: false, error: "Bild zu groß (max. 256 KB roh)." };
+  const r = await callBot<UploadedEmoji>("/api/bot/emoji", {
+    method: "POST",
+    body: { name, dataUrl },
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, emoji: r.data };
+}
+
 export async function removeOption(panelId: number, optionId: number): Promise<Result> {
   const auth = await requireAuth();
   if (auth) return auth;

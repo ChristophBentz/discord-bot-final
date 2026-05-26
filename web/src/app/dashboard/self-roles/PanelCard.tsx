@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import type { PanelDTO, RoleOpt } from "./SelfRolesManager";
 import { EmojiDisplay, parseEmoji } from "./EmojiDisplay";
+import { EmojiUploader } from "./EmojiUploader";
 
 const TYPE_LABEL = {
   reaction: "Reactions",
@@ -322,15 +323,22 @@ function AddOptionForm({
             )}
           </div>
           <p className="mt-1 text-[10px] text-ink-subtle">
-            Unicode wie 🎮 direkt einfügen, oder für Custom-Emoji im Discord{" "}
-            <code className="rounded bg-bg-elevated px-1 font-mono">\:name:</code> tippen (Backslash davor) →
-            das ausgegebene <code className="rounded bg-bg-elevated px-1 font-mono">{"<:name:id>"}</code> hier reinkopieren.
+            Unicode wie 🎮 direkt einfügen, oder im Discord{" "}
+            <code className="rounded bg-bg-elevated px-1 font-mono">\:name:</code> tippen → das
+            ausgegebene <code className="rounded bg-bg-elevated px-1 font-mono">{"<:name:id>"}</code>{" "}
+            hier reinkopieren.
           </p>
           {emoji && parseEmoji(emoji)?.kind === "invalid" && (
             <p className="mt-1 text-[10px] text-rose-400">
               ⚠ Discord-Shortcode (z.B. <code>:name:</code>) funktioniert nicht via API. Brauchst die volle Form.
             </p>
           )}
+          <div className="mt-1.5">
+            <EmojiUploader
+              suggestedName={label}
+              onUploaded={(mention) => setEmoji(mention)}
+            />
+          </div>
         </div>
         {type === "button" && (
           <div>

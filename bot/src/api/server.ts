@@ -48,9 +48,11 @@ import {
   handleSetBanner,
   handleSetDescription,
   handleSetNickname,
+  handleUploadEmoji,
   type AvatarBody,
   type BannerBody,
   type DescriptionBody,
+  type EmojiUploadBody,
   type NicknameBody,
 } from "./routes/bot.js";
 import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
@@ -363,6 +365,15 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && url.pathname === "/api/bot/banner") {
         const body = (await readJson<BannerBody>(req)) ?? {};
         const result = await handleSetBanner(client, body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/bot/emoji — Custom-Emoji auf Server hochladen
+      if (req.method === "POST" && url.pathname === "/api/bot/emoji") {
+        const body = (await readJson<EmojiUploadBody>(req)) ?? {};
+        const result = await handleUploadEmoji(client, body);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

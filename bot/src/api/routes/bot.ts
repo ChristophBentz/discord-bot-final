@@ -19,6 +19,11 @@ export interface BannerBody {
   dataUrl?: string | null;
 }
 
+export interface EmojiUploadBody {
+  name?: string;
+  dataUrl?: string;
+}
+
 export async function handleSetNickname(
   client: Client,
   body: NicknameBody,
@@ -179,6 +184,53 @@ export async function handleSetBanner(
       ok: false,
       error: `Banner setzen fehlgeschlagen: ${e?.message ?? "unbekannter Fehler"}`,
     };
+  }
+}
+
+export async function handleUploadEmoji(
+  client: Client,
+  body: EmojiUploadBody,
+): Promise<
+  | { ok: true; id: string; name: string; animated: boolean; mention: string }
+  | { ok: false; error: string }
+> {
+  const name = (body.name ?? "").trim();
+  const dataUrl = (body.dataUrl ?? "").trim();
+
+  if (!/^\w{2,32}$/.test(name)) {
+    return { ok: false, error: "Name: 2–32 Zeichen, nur Buchstaben/Ziffern/Unterstrich." };
+  }
+  const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|gif|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) {
+    return { ok: false, error: "Ungültiges Bild (nur PNG/JPG/GIF/WEBP)." };
+  }
+  const buffer = Buffer.from(match[2]!, "base64");
+  if (buffer.length === 0) return { ok: false, error: "Leeres Bild." };
+  if (buffer.length > 256 * 1024) {
+    return { ok: false, error: "Bild zu groß — Discord-Limit ist 256 KB pro Emoji." };
+  }
+
+  const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+  if (!guild) return { ok: false, error: "Server nicht im Cache." };
+
+  try {
+    const emoji = await guild.emojis.create({ attachment: buffer, name });
+    return {
+      ok: true,
+      id: emoji.id,
+      name: emoji.name ?? name,
+      animated: emoji.animated ?? false,
+      mention: emoji.toString(),
+    };
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    const hint =
+      e?.code === 30008
+        ? "Emoji-Slots des Servers sind voll. Erst alte Emojis löschen oder Server-Boost erhöhen."
+        : e?.code === 50013
+          ? "Bot fehlt die 'Emojis verwalten'-Permission auf dem Server."
+          : e?.message ?? "unbekannter Fehler";
+    return { ok: false, error: `Emoji-Upload fehlgeschlagen: ${hint}` };
   }
 }
 
