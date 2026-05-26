@@ -78,7 +78,7 @@ const command: SlashCommand = {
 
       await interaction.reply({
         embeds: [embed],
-        flags: MessageFlags.Ephemeral | MessageFlags.SuppressEmbeds,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -114,7 +114,7 @@ const command: SlashCommand = {
 
     await interaction.reply({
       embeds: [embed],
-      flags: MessageFlags.Ephemeral | MessageFlags.SuppressEmbeds,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };
