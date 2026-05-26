@@ -31,4 +31,5 @@ export const env = {
   DISCORD_GUILD_ID: required("DISCORD_GUILD_ID"),
   BOT_API_SECRET: required("BOT_API_SECRET"),
   BOT_API_PORT: Number(process.env.BOT_API_PORT ?? 4001),
+  PUBLIC_WEB_URL: process.env.PUBLIC_WEB_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000",
 };
