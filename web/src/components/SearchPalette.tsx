@@ -34,10 +34,9 @@ export function SearchPalette({ open, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Scrollt das aktiv markierte Ergebnis in den sichtbaren Bereich,
-  // wenn man mit ↑↓ navigiert. Manueller scrollTop weil scrollIntoView
-  // bei verschachtelten overflow-Containern unzuverlässig ist und nicht
-  // die Group-Headers berücksichtigt.
+  // Scrollt das aktiv markierte Ergebnis in den sichtbaren Bereich.
+  // Wenn das erste Item einer Gruppe markiert ist, scrolled wir den
+  // Group-Header gleich mit in den Viewport — sonst hängt der oben raus.
   useEffect(() => {
     const container = listRef.current;
     if (!container) return;
@@ -46,16 +45,21 @@ export function SearchPalette({ open, onClose }: Props) {
     );
     if (!el) return;
 
+    // Wenn dieses Item das erste seiner Group ist, nutze die Group-Box
+    // als Scroll-Anker (inkl. Header darüber).
+    const parent = el.parentElement;
+    const isFirstInGroup =
+      parent?.querySelector<HTMLElement>("[data-search-idx]") === el;
+    const topAnchor = isFirstInGroup && parent ? parent.offsetTop : el.offsetTop;
+
     const cTop = container.scrollTop;
     const cBottom = cTop + container.clientHeight;
-    const eTop = el.offsetTop;
-    const eBottom = eTop + el.offsetHeight;
+    const eBottom = el.offsetTop + el.offsetHeight;
 
-    // Padding damit Group-Header oder Border nicht das Item überlappt
-    const PAD = 12;
+    const PAD = 8;
 
-    if (eTop < cTop + PAD) {
-      container.scrollTop = Math.max(0, eTop - PAD);
+    if (topAnchor < cTop + PAD) {
+      container.scrollTop = Math.max(0, topAnchor - PAD);
     } else if (eBottom > cBottom - PAD) {
       container.scrollTop = eBottom - container.clientHeight + PAD;
     }
