@@ -26,10 +26,16 @@ interface RoleOpt {
   color: number;
 }
 
+interface BotInfo {
+  name: string;
+  avatarUrl: string | null;
+}
+
 interface Props {
   commands: CommandSummary[];
   roles: RoleOpt[];
   roleMap: Record<string, { name: string; color: number }>;
+  bot: BotInfo;
 }
 
 function intToHex(n: number | null): string {
@@ -65,7 +71,7 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString("de-DE", { day: "numeric", month: "short" });
 }
 
-export function CommandsManager({ commands, roles, roleMap }: Props) {
+export function CommandsManager({ commands, roles, roleMap, bot }: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState<CommandSummary | "new" | null>(null);
   const [deletingName, setDeletingName] = useState<string | null>(null);
@@ -175,6 +181,7 @@ export function CommandsManager({ commands, roles, roleMap }: Props) {
           initial={editing === "new" ? undefined : summaryToForm(editing)}
           originalName={editing === "new" ? undefined : editing.name}
           roles={roles}
+          bot={bot}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);

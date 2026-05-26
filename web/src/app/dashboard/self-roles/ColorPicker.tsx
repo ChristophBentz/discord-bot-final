@@ -42,9 +42,10 @@ interface Props {
   name: string;
   value: string;
   onChange: (color: string) => void;
+  label?: string;
 }
 
-export function ColorPicker({ name, value, onChange }: Props) {
+export function ColorPicker({ name, value, onChange, label = "Embed-Farbe" }: Props) {
   const normalized = normalizeHex(value);
   const valid = isValidHex(normalized);
   const display = valid ? normalized : "#a855f7";
@@ -92,7 +93,7 @@ export function ColorPicker({ name, value, onChange }: Props) {
         </span>
         <span className="flex-1 text-left">
           <span className="block text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
-            Embed-Farbe
+            {label}
           </span>
           <span className="font-mono text-xs uppercase text-ink">{display}</span>
         </span>

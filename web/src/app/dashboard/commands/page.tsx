@@ -1,10 +1,11 @@
-import { prisma } from "@repo/db";
+import { getConfig, prisma } from "@repo/db";
 import { CommandsManager, type CommandSummary } from "./CommandsManager";
 
 export default async function CommandsPage() {
-  const [commands, roles] = await Promise.all([
+  const [commands, roles, config] = await Promise.all([
     prisma.customCommand.findMany({ orderBy: { name: "asc" } }),
     prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
+    getConfig(),
   ]);
 
   const roleMap = new Map(roles.map((r) => [r.roleId, r]));
@@ -46,6 +47,10 @@ export default async function CommandsPage() {
         roleMap={Object.fromEntries(
           Array.from(roleMap.entries()).map(([id, r]) => [id, { name: r.name, color: r.color }]),
         )}
+        bot={{
+          name: config.botName ?? "Bot",
+          avatarUrl: config.botAvatarUrl ?? null,
+        }}
       />
     </div>
   );

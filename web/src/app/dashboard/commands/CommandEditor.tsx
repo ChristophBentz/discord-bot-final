@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import { ColorPicker } from "../self-roles/ColorPicker";
 import { saveCommand, type CommandFormState } from "./actions";
 
 interface Props {
   initial?: CommandFormState;
   originalName?: string;
   roles: { roleId: string; name: string; color: number }[];
+  bot: { name: string; avatarUrl: string | null };
   onClose: () => void;
   onSaved: () => void;
 }
@@ -26,7 +28,7 @@ const DEFAULT_FORM: CommandFormState = {
   allowedRoleIds: [],
 };
 
-export function CommandEditor({ initial, originalName, roles, onClose, onSaved }: Props) {
+export function CommandEditor({ initial, originalName, roles, bot, onClose, onSaved }: Props) {
   const [form, setForm] = useState<CommandFormState>(initial ?? DEFAULT_FORM);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -180,26 +182,12 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
                   </Field>
 
                   <Field label="Akzent-Farbe">
-                    <div className="flex items-center gap-2">
-                      <label className="relative h-9 w-9 cursor-pointer overflow-hidden rounded-md border border-line">
-                        <span
-                          className="absolute inset-0"
-                          style={{ backgroundColor: form.embedColor }}
-                        />
-                        <input
-                          type="color"
-                          value={form.embedColor}
-                          onChange={(e) => update("embedColor", e.target.value)}
-                          className="absolute inset-0 cursor-pointer opacity-0"
-                        />
-                      </label>
-                      <input
-                        type="text"
-                        value={form.embedColor}
-                        onChange={(e) => update("embedColor", e.target.value)}
-                        className="flex-1 rounded-md border border-line bg-bg-elevated/60 px-3 py-2 font-mono text-sm uppercase placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
-                      />
-                    </div>
+                    <ColorPicker
+                      name="embedColor"
+                      value={form.embedColor}
+                      onChange={(c) => update("embedColor", c)}
+                      label="Akzent-Farbe"
+                    />
                   </Field>
 
                   <Field label="Bild-URL">
@@ -255,7 +243,7 @@ export function CommandEditor({ initial, originalName, roles, onClose, onSaved }
               <span className="text-[11px] text-ink-subtle">Live</span>
             </div>
 
-            <PreviewBox form={form} />
+            <PreviewBox form={form} bot={bot} />
 
             <details className="mt-5 rounded-md border border-line bg-bg-card/60 text-xs">
               <summary className="cursor-pointer select-none px-3 py-2 text-ink-muted hover:text-ink">
@@ -497,7 +485,13 @@ function PlaceholderTable() {
   );
 }
 
-function PreviewBox({ form }: { form: CommandFormState }) {
+function PreviewBox({
+  form,
+  bot,
+}: {
+  form: CommandFormState;
+  bot: { name: string; avatarUrl: string | null };
+}) {
   const exampleUser = "Max";
   const example = (s: string) =>
     s
@@ -506,6 +500,30 @@ function PreviewBox({ form }: { form: CommandFormState }) {
       .replace(/\{server\}/g, "Jumpy's Server")
       .replace(/\{channel\}/g, "#allgemein")
       .replace(/\{random:([^}]+)\}/g, (_, opts: string) => opts.split("|")[0]?.trim() ?? "");
+
+  const BotAvatar = () =>
+    bot.avatarUrl ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={bot.avatarUrl}
+        alt=""
+        className="h-9 w-9 shrink-0 rounded-full"
+      />
+    ) : (
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-xs font-semibold text-white">
+        {bot.name[0]?.toUpperCase() ?? "B"}
+      </span>
+    );
+
+  const BotHeader = () => (
+    <div className="flex items-baseline gap-2">
+      <span className="text-sm font-semibold text-white">{bot.name}</span>
+      <span className="rounded bg-brand/15 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-brand">
+        App
+      </span>
+      <span className="text-[11px] text-ink-subtle">heute · 14:32</span>
+    </div>
+  );
 
   // Top-Slash-Banner (Discord-typischer Hinweis)
   const slashLine = (
@@ -524,17 +542,9 @@ function PreviewBox({ form }: { form: CommandFormState }) {
       <div className="rounded-lg border border-line bg-bg-card p-4">
         {slashLine}
         <div className="flex items-start gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-xs font-semibold text-white">
-            B
-          </span>
+          <BotAvatar />
           <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm font-semibold text-white">Bot</span>
-              <span className="rounded bg-brand/15 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-brand">
-                App
-              </span>
-              <span className="text-[11px] text-ink-subtle">heute · 14:32</span>
-            </div>
+            <BotHeader />
             <div className="mt-1 whitespace-pre-wrap text-sm text-ink">
               {example(form.response) || (
                 <span className="italic text-ink-subtle">noch keine Antwort</span>
@@ -558,17 +568,9 @@ function PreviewBox({ form }: { form: CommandFormState }) {
     <div className="rounded-lg border border-line bg-bg-card p-4">
       {slashLine}
       <div className="flex items-start gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-xs font-semibold text-white">
-          B
-        </span>
+        <BotAvatar />
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-sm font-semibold text-white">Bot</span>
-            <span className="rounded bg-brand/15 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-brand">
-              App
-            </span>
-            <span className="text-[11px] text-ink-subtle">heute · 14:32</span>
-          </div>
+          <BotHeader />
           <div
             className="mt-2 max-w-md rounded border-l-[3px] bg-bg-elevated/60 p-3"
             style={{ borderLeftColor: form.embedColor || "#a855f7" }}
