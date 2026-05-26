@@ -1,4 +1,11 @@
-import { EmbedBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  MessageFlags,
+  SlashCommandBuilder,
+} from "discord.js";
 import { prisma } from "@repo/db";
 
 import { env } from "../lib/env.js";
@@ -7,32 +14,48 @@ import type { SlashCommand } from "../lib/types.js";
 
 const BASE_URL = env.PUBLIC_WEB_URL.replace(/\/+$/, "");
 const BRAND_COLOR = 0xa855f7;
+const RESET_COLOR = 0xf59e0b;
 
 async function ensureMember(userId: string, username: string, displayName: string) {
   await prisma.member.upsert({
     where: { userId },
     update: {},
-    create: {
-      userId,
-      username,
-      displayName,
-      inServer: true,
-    },
+    create: { userId, username, displayName, inServer: true },
   });
 }
 
-async function getProfileState(userId: string) {
+interface ProfileState {
+  isPublic: boolean;
+  publicUrl: string;
+  editUrl: string;
+}
+
+async function getProfileState(userId: string): Promise<ProfileState> {
   const member = await prisma.member.findUnique({
     where: { userId },
     select: { profileTokenVersion: true, profilePublic: true },
   });
   const version = member?.profileTokenVersion ?? 0;
   return {
-    version,
     isPublic: member?.profilePublic ?? true,
     publicUrl: `${BASE_URL}/u/${userId}`,
     editUrl: `${BASE_URL}/u/${userId}?key=${signProfileToken(userId, version)}`,
   };
+}
+
+function buildActionRow(state: ProfileState): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setLabel("Profil ansehen")
+      .setEmoji("🌐")
+      .setURL(state.publicUrl),
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setLabel("Bearbeiten-Modus")
+      .setEmoji("✏️")
+      .setURL(state.editUrl),
+  );
 }
 
 const command: SlashCommand = {
@@ -51,69 +74,97 @@ const command: SlashCommand = {
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
     const user = interaction.user;
+    const memberName = user.displayName ?? user.username;
+    const avatar = user.displayAvatarURL({ size: 256, extension: "png" });
 
-    await ensureMember(user.id, user.username, user.displayName ?? user.username);
+    await ensureMember(user.id, user.username, memberName);
 
+    // ─── /profil reset ─────────────────────────────────────────────────
     if (sub === "reset") {
       await prisma.member.update({
         where: { userId: user.id },
         data: { profileTokenVersion: { increment: 1 } },
       });
       const state = await getProfileState(user.id);
+
       const embed = new EmbedBuilder()
-        .setColor(BRAND_COLOR)
-        .setAuthor({
-          name: `${user.displayName ?? user.username} — Neuer Bearbeiten-Link`,
-          iconURL: user.displayAvatarURL({ size: 128 }),
-        })
+        .setColor(RESET_COLOR)
+        .setAuthor({ name: memberName, iconURL: avatar })
+        .setTitle("🔐  Bearbeiten-Link zurückgesetzt")
+        .setThumbnail(avatar)
         .setDescription(
-          "🔐 Dein alter Link wurde **ungültig** gemacht.\n" +
-            "Unten findest du den neuen — bewahre ihn sicher auf.",
+          "Dein alter Link ist ab sofort **ungültig**.\n" +
+            "Benutze unten den neuen Button um dein Profil zu bearbeiten.",
         )
-        .addFields({
-          name: "✏️ Bearbeiten-Link (NEU — geheim halten)",
-          value: `[${state.editUrl.replace(BASE_URL + "/", "")}](${state.editUrl})`,
-        })
-        .setFooter({ text: "Nur du siehst diese Nachricht." });
+        .addFields(
+          {
+            name: "​",
+            value: "**Was bedeutet das?**",
+            inline: false,
+          },
+          {
+            name: "🛡️  Sicherheit",
+            value: "Alle alten Links führen jetzt auf die öffentliche Ansicht ohne Edit-Rechte.",
+            inline: false,
+          },
+        )
+        .setFooter({ text: "Bewahre den neuen Link sicher auf — er ist dein Bearbeiten-Schlüssel." })
+        .setTimestamp(new Date());
 
       await interaction.reply({
         embeds: [embed],
+        components: [buildActionRow(state)],
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
-    // Default: /profil oder /profil link
+    // ─── /profil (oder /profil link) ───────────────────────────────────
     const state = await getProfileState(user.id);
-    const statusLine = state.isPublic
-      ? "🟢  **Öffentlich** — andere können dein Profil sehen"
-      : "🔒  **Privat** — Fremde sehen nur deinen Namen und Avatar";
+
+    const statusEmoji = state.isPublic ? "🟢" : "🔒";
+    const statusLabel = state.isPublic ? "Öffentlich sichtbar" : "Privat";
+    const statusDescription = state.isPublic
+      ? "Andere können dein Profil, deine Stats und Achievements sehen."
+      : "Fremde sehen nur deinen Namen und Avatar.";
 
     const embed = new EmbedBuilder()
       .setColor(BRAND_COLOR)
-      .setAuthor({
-        name: `${user.displayName ?? user.username} — Dein Profil`,
-        iconURL: user.displayAvatarURL({ size: 128 }),
-      })
-      .setDescription(`**Sichtbarkeit**\n${statusLine}`)
+      .setAuthor({ name: memberName, iconURL: avatar })
+      .setTitle("🪪  Dein Profil")
+      .setThumbnail(avatar)
+      .setDescription(
+        `\`\`\`${statusEmoji} ${statusLabel}\`\`\`` +
+          `${statusDescription}\n​`,
+      )
       .addFields(
         {
-          name: "🌐 Öffentliche Ansicht",
-          value: `[${state.publicUrl.replace("https://", "").replace("http://", "")}](${state.publicUrl})`,
+          name: "🌐  Öffentliche Ansicht",
+          value:
+            "Diesen Link kannst du teilen — zeigt deine Profilseite mit Level, Stats und Achievements.",
           inline: false,
         },
         {
-          name: "✏️ Bearbeiten-Modus (geheim halten!)",
-          value: `[Hier klicken zum Bearbeiten](${state.editUrl})`,
+          name: "✏️  Bearbeiten-Modus",
+          value:
+            "Nur du. Hier kannst du dein Profil auf **privat** oder **öffentlich** stellen.\n" +
+            "_Bitte den Link niemals teilen!_",
+          inline: false,
+        },
+        {
+          name: "​",
+          value:
+            "💡 Bei Bedarf neuen Link erzeugen: `/profil reset`\n" +
+            "_Der alte Link wird sofort ungültig._",
           inline: false,
         },
       )
-      .setFooter({
-        text: "Mit /profil reset bekommst du einen neuen Bearbeiten-Link.",
-      });
+      .setFooter({ text: "Bot-Dashboard · Profile" })
+      .setTimestamp(new Date());
 
     await interaction.reply({
       embeds: [embed],
+      components: [buildActionRow(state)],
       flags: MessageFlags.Ephemeral,
     });
   },
