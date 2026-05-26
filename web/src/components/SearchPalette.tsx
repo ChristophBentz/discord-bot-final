@@ -35,13 +35,30 @@ export function SearchPalette({ open, onClose }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
 
   // Scrollt das aktiv markierte Ergebnis in den sichtbaren Bereich,
-  // wenn man mit ↑↓ navigiert.
+  // wenn man mit ↑↓ navigiert. Manueller scrollTop weil scrollIntoView
+  // bei verschachtelten overflow-Containern unzuverlässig ist und nicht
+  // die Group-Headers berücksichtigt.
   useEffect(() => {
-    if (!listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>(
+    const container = listRef.current;
+    if (!container) return;
+    const el = container.querySelector<HTMLElement>(
       `[data-search-idx="${selected}"]`,
     );
-    el?.scrollIntoView({ block: "nearest" });
+    if (!el) return;
+
+    const cTop = container.scrollTop;
+    const cBottom = cTop + container.clientHeight;
+    const eTop = el.offsetTop;
+    const eBottom = eTop + el.offsetHeight;
+
+    // Padding damit Group-Header oder Border nicht das Item überlappt
+    const PAD = 12;
+
+    if (eTop < cTop + PAD) {
+      container.scrollTop = Math.max(0, eTop - PAD);
+    } else if (eBottom > cBottom - PAD) {
+      container.scrollTop = eBottom - container.clientHeight + PAD;
+    }
   }, [selected]);
 
   useEffect(() => {
