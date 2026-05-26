@@ -70,11 +70,11 @@ export function PanelCard({
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border bg-bg-elevated/30 transition-colors ${
+      className={`rounded-2xl border bg-bg-elevated/30 transition-colors ${
         panel.enabled ? "border-line hover:border-line-strong" : "border-line opacity-60"
       }`}
     >
-      <div className="flex items-start gap-3 border-l-4 px-5 py-4" style={{ borderLeftColor: accent }}>
+      <div className="flex items-start gap-3 rounded-t-2xl border-l-4 px-5 py-4" style={{ borderLeftColor: accent }}>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-base font-semibold text-ink">{panel.title}</h3>
