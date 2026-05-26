@@ -23,6 +23,7 @@ interface PanelInput {
   description: string | null;
   color: number | null;
   uniqueChoice: boolean;
+  useEmbed: boolean;
   enabled: boolean;
 }
 
@@ -33,6 +34,7 @@ function parsePanelInput(formData: FormData): { ok: true; data: PanelInput } | {
   const description = String(formData.get("description") ?? "").trim() || null;
   const colorHex = String(formData.get("color") ?? "").trim();
   const uniqueChoice = formData.get("uniqueChoice") === "on";
+  const useEmbed = formData.get("useEmbed") === "on";
   const enabled = formData.get("enabled") === "on";
 
   if (!/^\d{17,20}$/.test(channelId)) return { ok: false, error: "Ungültige Channel-ID." };
@@ -50,7 +52,16 @@ function parsePanelInput(formData: FormData): { ok: true; data: PanelInput } | {
 
   return {
     ok: true,
-    data: { channelId, type: type as PanelType, title, description, color, uniqueChoice, enabled },
+    data: {
+      channelId,
+      type: type as PanelType,
+      title,
+      description,
+      color,
+      uniqueChoice,
+      useEmbed,
+      enabled,
+    },
   };
 }
 

@@ -29,6 +29,7 @@ export interface PanelDTO {
   description: string | null;
   color: number | null;
   uniqueChoice: boolean;
+  useEmbed: boolean;
   enabled: boolean;
   options: OptionDTO[];
 }

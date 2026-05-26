@@ -35,6 +35,7 @@ export function CreatePanelForm({
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#a855f7");
   const [uniqueChoice, setUniqueChoice] = useState(false);
+  const [useEmbed, setUseEmbed] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, startCreate] = useTransition();
 
@@ -43,6 +44,7 @@ export function CreatePanelForm({
     setError(null);
     const fd = new FormData(e.currentTarget);
     fd.set("enabled", "on");
+    if (useEmbed) fd.set("useEmbed", "on");
     startCreate(async () => {
       const r = await createPanel(fd);
       if (!r.ok) {
@@ -136,29 +138,74 @@ export function CreatePanelForm({
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="sp-color">
-            Embed-Farbe
+      <div>
+        <span className="mb-2 block text-sm font-medium text-ink">Darstellung</span>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label
+            className={`cursor-pointer rounded-xl border p-3 transition-colors ${
+              useEmbed
+                ? "border-brand/40 bg-brand/[0.08]"
+                : "border-line bg-bg-elevated/40 hover:border-line-strong"
+            }`}
+          >
+            <input
+              type="radio"
+              checked={useEmbed}
+              onChange={() => setUseEmbed(true)}
+              className="sr-only"
+            />
+            <div className="text-sm font-semibold text-ink">Embed-Box</div>
+            <div className="mt-0.5 text-[11px] text-ink-muted">
+              Mit Titel-Header, farbigem Streifen links, sieht prominenter aus.
+            </div>
           </label>
-          <div className="flex items-center gap-2">
+          <label
+            className={`cursor-pointer rounded-xl border p-3 transition-colors ${
+              !useEmbed
+                ? "border-brand/40 bg-brand/[0.08]"
+                : "border-line bg-bg-elevated/40 hover:border-line-strong"
+            }`}
+          >
             <input
-              id="sp-color"
-              name="color"
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-bg-elevated"
+              type="radio"
+              checked={!useEmbed}
+              onChange={() => setUseEmbed(false)}
+              className="sr-only"
             />
-            <input
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="input flex-1 font-mono text-sm"
-            />
-          </div>
+            <div className="text-sm font-semibold text-ink">Normale Nachricht</div>
+            <div className="mt-0.5 text-[11px] text-ink-muted">
+              Schlichter Text, fügt sich nahtloser in den Channel ein.
+            </div>
+          </label>
         </div>
+      </div>
 
-        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-line bg-bg-elevated/40 p-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {useEmbed && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="sp-color">
+              Embed-Farbe
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                id="sp-color"
+                name="color"
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-9 w-12 cursor-pointer rounded-lg border border-line bg-bg-elevated"
+              />
+              <input
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="input flex-1 font-mono text-sm"
+              />
+            </div>
+          </div>
+        )}
+        {!useEmbed && <input type="hidden" name="color" value={color} />}
+
+        <label className={`flex cursor-pointer items-start gap-2 rounded-xl border border-line bg-bg-elevated/40 p-3 ${useEmbed ? "" : "sm:col-span-2"}`}>
           <input
             type="checkbox"
             name="uniqueChoice"

@@ -66,6 +66,20 @@ function buildEmbed(panel: SelfRolePanel, options: SelfRoleOption[]): EmbedBuild
   return embed;
 }
 
+// Plain-Text-Version (wenn useEmbed=false)
+function buildPlainContent(panel: SelfRolePanel, options: SelfRoleOption[]): string {
+  const lines: string[] = [`**${panel.title}**`];
+  if (panel.description) lines.push(panel.description);
+  if (panel.type === "reaction" && options.length > 0) {
+    lines.push(""); // Leerzeile
+    for (const o of options) {
+      const e = o.emoji ?? "•";
+      lines.push(`${e}  <@&${o.roleId}>${o.description ? ` — ${o.description}` : ""}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 function buildComponents(panel: SelfRolePanel, options: SelfRoleOption[]) {
   if (panel.type === "button") {
     // Max 5 Buttons pro Row, max 5 Rows → max 25 Buttons total
@@ -138,8 +152,15 @@ export async function syncPanelMessage(client: Client, panelId: number): Promise
     return;
   }
 
-  const embed = buildEmbed(panel, panel.options);
   const components = buildComponents(panel, panel.options);
+  const payload: { content: string; embeds: EmbedBuilder[]; components: typeof components; allowedMentions?: { parse: [] } } = panel.useEmbed
+    ? { content: "", embeds: [buildEmbed(panel, panel.options)], components }
+    : {
+        content: buildPlainContent(panel, panel.options),
+        embeds: [],
+        components,
+        allowedMentions: { parse: [] }, // Rollen-Mentions nicht pingen
+      };
 
   let message: Message | null = null;
   if (panel.messageId) {
@@ -147,11 +168,11 @@ export async function syncPanelMessage(client: Client, panelId: number): Promise
   }
 
   if (message && message.author.id === client.user?.id) {
-    await message.edit({ embeds: [embed], components }).catch((err) => {
+    await message.edit(payload).catch((err) => {
       logger.warn({ err, panelId }, "SelfRole: Edit fehlgeschlagen, poste neu");
     });
   } else {
-    message = await channel.send({ embeds: [embed], components }).catch((err) => {
+    message = await channel.send(payload).catch((err) => {
       logger.warn({ err, panelId }, "SelfRole: Posten fehlgeschlagen");
       return null;
     });
@@ -165,16 +186,19 @@ export async function syncPanelMessage(client: Client, panelId: number): Promise
 
   // Reactions für Reaction-Panel
   if (panel.type === "reaction" && message) {
-    // Bestehende Reactions vergleichen — neue hinzufügen, fehlende lassen
     const wantedEmojis = panel.options
       .map((o) => parseEmoji(o.emoji))
       .filter((e): e is { id: string; name?: string; animated?: boolean } => Boolean(e));
     for (const e of wantedEmojis) {
-      const key = /^\d+$/.test(e.id) ? e.id : e.id;
+      // Für Custom-Emoji: nur die ID übergeben; für Unicode: das Symbol selbst
+      const key = /^\d+$/.test(e.id) && e.name ? `${e.name}:${e.id}` : e.id;
       try {
         await message.react(key);
-      } catch (err) {
-        logger.warn({ err, emoji: e }, "SelfRole: Reaction adden fehlgeschlagen");
+      } catch (err: unknown) {
+        const errObj = err as { code?: number; message?: string };
+        logger.warn(
+          `SelfRole Reaction-Add fehlgeschlagen panelId=${panelId} emoji=${JSON.stringify(e)} code=${errObj?.code} msg=${errObj?.message} — fehlt evtl. die 'Add Reactions'-Permission im Channel`,
+        );
       }
     }
   }

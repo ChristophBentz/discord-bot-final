@@ -384,6 +384,7 @@ function EditPanelOverlay({
   const [color, setColor] = useState(intToHex(panel.color));
   const [channelId, setChannelId] = useState(panel.channelId);
   const [uniqueChoice, setUniqueChoice] = useState(panel.uniqueChoice);
+  const [useEmbed, setUseEmbed] = useState(panel.useEmbed);
   const [enabled, setEnabled] = useState(panel.enabled);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, start] = useTransition();
@@ -464,6 +465,16 @@ function EditPanelOverlay({
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-bg-elevated/40 px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                name="useEmbed"
+                checked={useEmbed}
+                onChange={(e) => setUseEmbed(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Als Embed-Box posten
+            </label>
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-bg-elevated/40 px-3 py-2 text-sm">
               <input
                 type="checkbox"

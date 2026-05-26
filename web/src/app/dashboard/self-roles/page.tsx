@@ -58,6 +58,7 @@ export default async function SelfRolesPage() {
           description: p.description,
           color: p.color,
           uniqueChoice: p.uniqueChoice,
+          useEmbed: p.useEmbed,
           enabled: p.enabled,
           options: p.options.map((o) => ({
             id: o.id,

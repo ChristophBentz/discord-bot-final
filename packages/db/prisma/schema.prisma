@@ -226,6 +226,7 @@ model SelfRolePanel {
   description  String?
   color        Int? // Embed-Farbe als RGB-Integer
   uniqueChoice Boolean   @default(false) // wenn true: pro Panel max. eine Rolle (alte wird entfernt)
+  useEmbed     Boolean   @default(true) // false = nur normale Nachricht ohne Embed-Box
   enabled      Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
