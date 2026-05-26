@@ -85,16 +85,16 @@ export function SearchPalette({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm pt-[10vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm pt-[10vh]"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-bg-card shadow-2xl"
+        className="w-full max-w-xl overflow-hidden rounded-xl border border-line bg-bg-card shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Such-Input */}
-        <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-          <svg viewBox="0 0 24 24" className="h-4 w-4 text-ink-subtle" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-ink-subtle" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.5-3.5" />
           </svg>
@@ -106,13 +106,12 @@ export function SearchPalette({ open, onClose }: Props) {
             placeholder="Mitglieder, Channels oder Seiten suchen…"
             className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-subtle"
           />
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-line bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-ink-muted"
-          >
+          {isLoading && (
+            <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-ink-subtle border-t-transparent" />
+          )}
+          <kbd className="shrink-0 rounded border border-line bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] font-medium text-ink-subtle">
             Esc
-          </button>
+          </kbd>
         </div>
 
         {/* Ergebnisse */}
@@ -143,7 +142,7 @@ export function SearchPalette({ open, onClose }: Props) {
                       onClick={() => navigate(item.href)}
                       onMouseEnter={() => setSelected(flatIdx)}
                       className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
-                        isSelected ? "bg-brand/10 text-ink" : "text-ink-muted hover:bg-bg-hover"
+                        isSelected ? "bg-bg-hover text-ink" : "text-ink-muted hover:bg-bg-hover/50"
                       }`}
                     >
                       {item.type === "member" && item.avatarUrl ? (
@@ -194,15 +193,21 @@ export function SearchPalette({ open, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-line bg-bg-elevated/40 px-3 py-2 text-[10px] text-ink-subtle">
-          <span className="flex items-center gap-2">
-            <span>↑↓ Navigieren</span>
-            <span>·</span>
-            <span>↵ Öffnen</span>
-            <span>·</span>
-            <span>Esc Schließen</span>
+        <div className="flex items-center justify-between gap-3 border-t border-line bg-bg-elevated/30 px-3 py-2 text-[11px] text-ink-subtle">
+          <span className="flex items-center gap-3">
+            <span className="flex items-center gap-1">
+              <kbd className="rounded border border-line bg-bg-card px-1 py-px font-mono text-[10px]">↑</kbd>
+              <kbd className="rounded border border-line bg-bg-card px-1 py-px font-mono text-[10px]">↓</kbd>
+              Navigieren
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="rounded border border-line bg-bg-card px-1 py-px font-mono text-[10px]">↵</kbd>
+              Öffnen
+            </span>
           </span>
-          {results.length > 0 && <span>{results.length} Treffer</span>}
+          {results.length > 0 && (
+            <span className="tabular-nums">{results.length} Treffer</span>
+          )}
         </div>
       </div>
     </div>
