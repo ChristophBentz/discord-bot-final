@@ -2,6 +2,7 @@ import type { Client, Guild, VoiceChannel } from "discord.js";
 import { ChannelType, PermissionFlagsBits } from "discord.js";
 import { getConfig, prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
+import { registerScheduler, recordSchedulerRun } from "../../lib/healthBuffer.js";
 import { env } from "../../lib/env.js";
 
 export type StatType = "totalMembers" | "humanMembers" | "onlineMembers";
@@ -468,9 +469,14 @@ async function tick(client: Client): Promise<void> {
   lastTickAt = new Date();
   try {
     await ensureStatChannels(client);
-    await updateAllStats(client);
+    const r = await updateAllStats(client);
+    recordSchedulerRun("Server-Stats", {
+      ok: true,
+      details: `${r.renamed} umbenannt · ${r.unchanged} aktuell · ${r.failed} fehlgeschlagen`,
+    });
   } catch (err) {
     logger.error({ err }, "ServerStats: Tick fehlgeschlagen");
+    recordSchedulerRun("Server-Stats", { ok: false, details: String(err) });
   }
 
   const config = await getConfig().catch(() => null);
@@ -480,6 +486,7 @@ async function tick(client: Client): Promise<void> {
 
 export function startServerStatsScheduler(client: Client): void {
   if (timerId) return;
+  registerScheduler("Server-Stats", null);
   logger.info("ServerStats: Scheduler gestartet");
   // Erster Lauf nach 10s — Bot hat dann genug Zeit Member-Cache aufzubauen
   timerId = setTimeout(() => void tick(client), 10_000);

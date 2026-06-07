@@ -2,6 +2,7 @@ import type { Client, TextChannel } from "discord.js";
 import { EmbedBuilder } from "discord.js";
 import { getConfig, prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
+import { registerScheduler, recordSchedulerRun } from "../../lib/healthBuffer.js";
 
 interface Giveaway {
   id: number;
@@ -244,18 +245,23 @@ export async function checkAndPostFreeGames(client: Client): Promise<CheckResult
 let intervalId: ReturnType<typeof setInterval> | null = null;
 const INTERVAL_MS = 60 * 60 * 1000; // 1h — Dedup verhindert Doppel-Posts
 
+async function runCheck(client: Client) {
+  try {
+    const r = await checkAndPostFreeGames(client);
+    recordSchedulerRun("Free-Games", {
+      ok: true,
+      details: `${r.fetched} aktiv · ${r.posted} neu gepostet · ${r.skipped} bekannt`,
+    });
+  } catch (err) {
+    logger.error({ err }, "Free-Games-Check fehlgeschlagen");
+    recordSchedulerRun("Free-Games", { ok: false, details: String(err) });
+  }
+}
+
 export function startFreeGamesScheduler(client: Client): void {
   if (intervalId) return;
-  // Erste Prüfung nach 30s, dann stündlich.
-  setTimeout(() => {
-    void checkAndPostFreeGames(client).catch((err) =>
-      logger.error({ err }, "Free-Games-Check fehlgeschlagen"),
-    );
-  }, 30_000);
-  intervalId = setInterval(() => {
-    void checkAndPostFreeGames(client).catch((err) =>
-      logger.error({ err }, "Free-Games-Check fehlgeschlagen"),
-    );
-  }, INTERVAL_MS);
+  registerScheduler("Free-Games", INTERVAL_MS);
+  setTimeout(() => void runCheck(client), 30_000);
+  intervalId = setInterval(() => void runCheck(client), INTERVAL_MS);
   logger.info(`Free-Games-Scheduler gestartet (Check alle ${INTERVAL_MS / 60_000} Min)`);
 }

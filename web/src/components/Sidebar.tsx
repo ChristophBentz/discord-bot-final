@@ -26,6 +26,7 @@ type IconName =
   | "send"
   | "rss"
   | "stats"
+  | "pulse"
   | "plus";
 
 interface NavItem {
@@ -80,6 +81,12 @@ const SECTIONS: NavSection[] = [
       { href: "/dashboard/rss", label: "RSS-Feeds", icon: "rss" },
       { href: "/dashboard/emojis", label: "Emojis", icon: "smile" },
       { href: "/dashboard/compose", label: "Nachrichten", icon: "send" },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { href: "/dashboard/system", label: "Bot-Health", icon: "pulse" },
     ],
   },
 ];
@@ -181,6 +188,10 @@ function Icon({ name }: { name: IconName }) {
     case "stats":
       return (
         <svg className={cls} viewBox="0 0 24 24" {...stroke}><path d="M3 3v18h18" /><path d="M7 14l4-4 4 4 5-6" /></svg>
+      );
+    case "pulse":
+      return (
+        <svg className={cls} viewBox="0 0 24 24" {...stroke}><path d="M3 12h4l3-9 4 18 3-9h4" /></svg>
       );
   }
 }

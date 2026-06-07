@@ -2,6 +2,7 @@ import type { Client, Guild, GuildMember, Role } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
+import { registerScheduler, recordSchedulerRun } from "../../lib/healthBuffer.js";
 import { env } from "../../lib/env.js";
 
 function rolesCsv(member: GuildMember): string {
@@ -108,11 +109,16 @@ let syncIntervalId: ReturnType<typeof setInterval> | null = null;
 
 export function startPeriodicMemberSync(client: Client): void {
   if (syncIntervalId) return;
+  registerScheduler("Member-Sync", PERIODIC_SYNC_MS);
   syncIntervalId = setInterval(async () => {
     if (syncInProgress) return;
     syncInProgress = true;
     try {
       await bulkSync(client);
+      const count = client.guilds.cache.get(env.DISCORD_GUILD_ID)?.memberCount ?? 0;
+      recordSchedulerRun("Member-Sync", { ok: true, details: `${count} Members synchronisiert` });
+    } catch (err) {
+      recordSchedulerRun("Member-Sync", { ok: false, details: String(err) });
     } finally {
       syncInProgress = false;
     }

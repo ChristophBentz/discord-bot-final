@@ -73,6 +73,7 @@ import {
   type EditBody,
 } from "./routes/messages.js";
 import { syncAllCommands } from "../features/customCommands/register.js";
+import { handleHealth } from "./routes/health.js";
 
 async function readJson<T>(req: IncomingMessage): Promise<T | null> {
   return new Promise((resolve) => {
@@ -496,6 +497,13 @@ export function startApiServer(client: Client): void {
         const result = getMemberPresence(client, userId);
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
+        return;
+      }
+
+      // GET /api/system/health — Bot-Status für Dashboard-Healthpage
+      if (req.method === "GET" && url.pathname === "/api/system/health") {
+        const result = await handleHealth(client);
+        ok(res, result);
         return;
       }
 

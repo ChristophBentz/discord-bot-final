@@ -2,6 +2,7 @@ import type { Client, TextChannel } from "discord.js";
 import { AttachmentBuilder, EmbedBuilder } from "discord.js";
 import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
+import { registerScheduler, recordSchedulerRun } from "../../lib/healthBuffer.js";
 import { fetchAndParseFeed, type FeedItem, type ParsedFeed } from "./parser.js";
 
 const BROWSER_UA =
@@ -281,13 +282,19 @@ async function runTick(client: Client, label: string): Promise<void> {
     if (r.dueCount > 0) {
       logger.info(`RSS-Tick (${label}): ${r.checked}/${r.total} geprüft, ${r.posted} gepostet`);
     }
+    recordSchedulerRun("RSS-Feeds", {
+      ok: true,
+      details: `${r.checked}/${r.total} geprüft · ${r.posted} gepostet`,
+    });
   } catch (err) {
     logger.error({ err }, `RSS-Tick (${label}) fehlgeschlagen`);
+    recordSchedulerRun("RSS-Feeds", { ok: false, details: String(err) });
   }
 }
 
 export function startRssScheduler(client: Client): void {
   if (intervalId) return;
+  registerScheduler("RSS-Feeds", TICK_MS);
   // Erster Lauf nach 20s.
   setTimeout(() => void runTick(client, "initial"), 20_000);
   intervalId = setInterval(() => void runTick(client, "interval"), TICK_MS);

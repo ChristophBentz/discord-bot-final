@@ -141,6 +141,12 @@ const PAGES: PageEntry[] = [
     href: "/dashboard/general",
     keywords: ["bot", "avatar", "banner", "nickname", "profil", "name", "beschreibung"],
   },
+  {
+    title: "Bot-Health",
+    subtitle: "Status, Memory, Latenz, Scheduler, Errors",
+    href: "/dashboard/system",
+    keywords: ["health", "status", "uptime", "memory", "errors", "logs", "scheduler", "debug", "system"],
+  },
 ];
 
 function matchScore(haystack: string, needle: string): number {
