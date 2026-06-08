@@ -11,6 +11,7 @@ export interface AiSettings {
   aiImageChannelId: string;
   aiImagesPerUserPerDay: number;
   aiImageModel: string;
+  aiApiBaseUrl: string;
 }
 
 export async function saveAiSettings(form: AiSettings): Promise<{ ok: boolean; error?: string }> {
@@ -26,6 +27,8 @@ export async function saveAiSettings(form: AiSettings): Promise<{ ok: boolean; e
     return { ok: false, error: "API-Key wird benötigt wenn AI aktiviert ist." };
   }
 
+  const baseUrl = form.aiApiBaseUrl.trim().replace(/\/+$/, "") || "https://api.minimaxi.com";
+
   await prisma.config.update({
     where: { id: 1 },
     data: {
@@ -36,6 +39,7 @@ export async function saveAiSettings(form: AiSettings): Promise<{ ok: boolean; e
       aiImageChannelId: channelId || null,
       aiImagesPerUserPerDay: limit,
       aiImageModel: model,
+      aiApiBaseUrl: baseUrl,
     },
   });
 
@@ -86,6 +90,53 @@ export async function getAiStats(): Promise<{
       count: g._count._all,
     })),
   };
+}
+
+export async function testAiConnection(): Promise<{
+  ok: boolean;
+  error?: string;
+  imageUrl?: string;
+}> {
+  const cfg = await getConfig();
+  if (!cfg.aiApiKey) {
+    return { ok: false, error: "Bitte erst API-Key speichern." };
+  }
+
+  // Direkt MiniMax pingen — verwendet die gespeicherten Settings.
+  const endpoint = `${cfg.aiApiBaseUrl.replace(/\/+$/, "")}/v1/image_generation`;
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfg.aiApiKey.trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: cfg.aiImageModel,
+        prompt: "a small red circle on white background",
+        aspect_ratio: "1:1",
+        response_format: "url",
+        n: 1,
+      }),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: `HTTP ${res.status} — ${text.slice(0, 300)}` };
+    }
+    const json = JSON.parse(text) as {
+      base_resp?: { status_code: number; status_msg: string };
+      data?: { image_urls?: string[] };
+    };
+    if (json.base_resp && json.base_resp.status_code !== 0) {
+      return {
+        ok: false,
+        error: `${json.base_resp.status_msg} (Code ${json.base_resp.status_code})`,
+      };
+    }
+    return { ok: true, imageUrl: json.data?.image_urls?.[0] };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Netzwerk-Fehler" };
+  }
 }
 
 export { getConfig };

@@ -114,6 +114,7 @@ model Config {
   aiImageChannelId       String? // einziger Channel in dem /image erlaubt ist (sonst Hinweis-Reply)
   aiImagesPerUserPerDay  Int     @default(5)
   aiImageModel           String  @default("image-01")
+  aiApiBaseUrl           String  @default("https://api.minimaxi.com") // oder https://api.minimax.chat
 
   // Free Games — postet aktuelle Gratis-Aktionen via GamerPower
   freeGamesEnabled      Boolean @default(false)

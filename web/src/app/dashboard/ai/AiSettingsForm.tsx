@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { saveAiSettings, type AiSettings } from "./actions";
+import { saveAiSettings, testAiConnection, type AiSettings } from "./actions";
 
 interface Channel {
   channelId: string;
@@ -20,6 +20,22 @@ export function AiSettingsForm({ initial, channels }: Props) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; imageUrl?: string } | null>(null);
+
+  function runTest() {
+    setTestResult(null);
+    setTesting(true);
+    testAiConnection()
+      .then((r) => {
+        if (r.ok) {
+          setTestResult({ ok: true, msg: "✓ Verbindung OK — Test-Bild generiert", imageUrl: r.imageUrl });
+        } else {
+          setTestResult({ ok: false, msg: r.error ?? "Fehler" });
+        }
+      })
+      .finally(() => setTesting(false));
+  }
 
   const update = <K extends keyof AiSettings>(key: K, value: AiSettings[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -64,7 +80,19 @@ export function AiSettingsForm({ initial, channels }: Props) {
             </select>
           </Field>
 
-          <Field label="API-Key" hint="Aus dem MiniMax Developer-Portal. Wird verschlüsselt auf dem Server gespeichert.">
+          <Field label="API-Region" hint="Wenn dein Key auf einer Region nicht funktioniert, probier die andere.">
+            <select
+              value={form.aiApiBaseUrl}
+              onChange={(e) => update("aiApiBaseUrl", e.target.value)}
+              className="input w-full"
+            >
+              <option value="https://api.minimaxi.com">International (api.minimaxi.com)</option>
+              <option value="https://api.minimax.chat">Mainland China (api.minimax.chat)</option>
+              <option value="https://api.minimax.io">Legacy (api.minimax.io)</option>
+            </select>
+          </Field>
+
+          <Field label="API-Key" hint="Aus dem MiniMax Developer-Portal. Wird beim Speichern getrimmt.">
             <div className="flex items-center gap-2">
               <input
                 type={showKey ? "text" : "password"}
@@ -146,19 +174,46 @@ export function AiSettingsForm({ initial, channels }: Props) {
         </Section>
       </Card>
 
+      {/* Test-Connection-Box */}
+      {testResult && (
+        <div
+          className={`rounded-md border p-3 text-xs ${
+            testResult.ok
+              ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-200"
+              : "border-rose-500/30 bg-rose-500/5 text-rose-200"
+          }`}
+        >
+          <div className="font-medium">{testResult.msg}</div>
+          {testResult.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={testResult.imageUrl} alt="" className="mt-2 max-h-32 rounded" />
+          )}
+        </div>
+      )}
+
       {/* Sticky Save Bar */}
       <div className="sticky bottom-0 -mx-6 border-t border-line bg-bg-base/95 px-6 py-3 backdrop-blur">
-        <div className="flex items-center justify-end gap-3">
-          {error && <span className="text-xs text-rose-400">{error}</span>}
-          {savedAt && <span className="text-xs text-emerald-400">✓ Gespeichert</span>}
+        <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={submit}
-            disabled={pending}
-            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-bg-base hover:bg-white disabled:opacity-50"
+            onClick={runTest}
+            disabled={testing || !form.aiApiKey}
+            className="rounded-md border border-line bg-bg-elevated px-3 py-2 text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
           >
-            {pending ? "Speichere…" : "Speichern"}
+            {testing ? "Teste…" : "Verbindung testen"}
           </button>
+          <div className="flex items-center gap-3">
+            {error && <span className="text-xs text-rose-400">{error}</span>}
+            {savedAt && <span className="text-xs text-emerald-400">✓ Gespeichert</span>}
+            <button
+              type="button"
+              onClick={submit}
+              disabled={pending}
+              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-bg-base hover:bg-white disabled:opacity-50"
+            >
+              {pending ? "Speichere…" : "Speichern"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -59,6 +59,7 @@ export async function runImageJob(
   if (config.aiProvider === "minimax") {
     result = await minimaxGenerate({
       apiKey: config.aiApiKey,
+      baseUrl: config.aiApiBaseUrl,
       model: config.aiImageModel,
       prompt: job.prompt,
       aspectRatio: job.aspectRatio,

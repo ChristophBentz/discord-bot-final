@@ -40,6 +40,7 @@ export default async function AiPage() {
           aiImageChannelId: config.aiImageChannelId ?? "",
           aiImagesPerUserPerDay: config.aiImagesPerUserPerDay,
           aiImageModel: config.aiImageModel,
+          aiApiBaseUrl: config.aiApiBaseUrl,
         }}
         channels={channels.map((c) => ({
           channelId: c.channelId,
