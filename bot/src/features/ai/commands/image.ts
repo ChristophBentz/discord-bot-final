@@ -95,7 +95,7 @@ const command: SlashCommand = {
       })
       .setTitle(prompt.slice(0, 256))
       .setFooter({
-        text: `${aspect} · ${quota.used}/${quota.limit} heute · MiniMax`,
+        text: `${aspect} · ${quota.used}/${quota.limit} heute`,
       })
       .setTimestamp(new Date());
 

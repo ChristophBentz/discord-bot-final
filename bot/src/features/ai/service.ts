@@ -63,6 +63,7 @@ export async function runImageJob(
       model: config.aiImageModel,
       prompt: job.prompt,
       aspectRatio: job.aspectRatio,
+      groupId: config.aiGroupId ?? undefined,
     });
   } else {
     return {

@@ -103,7 +103,10 @@ export async function testAiConnection(): Promise<{
   }
 
   // Direkt MiniMax pingen — verwendet die gespeicherten Settings.
-  const endpoint = `${cfg.aiApiBaseUrl.replace(/\/+$/, "")}/v1/image_generation`;
+  const groupQuery = cfg.aiGroupId?.trim()
+    ? `?GroupId=${encodeURIComponent(cfg.aiGroupId.trim())}`
+    : "";
+  const endpoint = `${cfg.aiApiBaseUrl.replace(/\/+$/, "")}/v1/image_generation${groupQuery}`;
   try {
     const res = await fetch(endpoint, {
       method: "POST",

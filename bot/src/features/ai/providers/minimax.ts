@@ -10,6 +10,7 @@ export interface MinimaxImageRequest {
   model: string;
   prompt: string;
   aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "3:2" | "2:3";
+  groupId?: string; // wird als ?GroupId=... an die URL angehängt wenn gesetzt
 }
 
 export interface MinimaxImageResult {
@@ -30,7 +31,8 @@ export interface MinimaxImageError {
 export async function generateImage(
   req: MinimaxImageRequest,
 ): Promise<MinimaxImageResult | MinimaxImageError> {
-  const endpoint = `${req.baseUrl.replace(/\/+$/, "")}/v1/image_generation`;
+  const groupQuery = req.groupId?.trim() ? `?GroupId=${encodeURIComponent(req.groupId.trim())}` : "";
+  const endpoint = `${req.baseUrl.replace(/\/+$/, "")}/v1/image_generation${groupQuery}`;
   const apiKey = req.apiKey.trim();
 
   if (!apiKey) {
