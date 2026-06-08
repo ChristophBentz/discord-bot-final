@@ -14,6 +14,14 @@ interface Props {
   channels: Channel[];
 }
 
+const TTS_VOICES = [
+  { label: "Deutsch (M, freundlich)", value: "German_PlayfulMan" },
+  { label: "Deutsch (F, ruhig)", value: "German_SweetLady" },
+  { label: "Englisch (M, US)", value: "English_FriendlyMan" },
+  { label: "Englisch (F, US)", value: "English_GraceLady" },
+  { label: "Chinesisch (M)", value: "Chinese_Mandarin_Man" },
+];
+
 export function AiSettingsForm({ initial, channels }: Props) {
   const [form, setForm] = useState<AiSettings>(initial);
   const [pending, startTransition] = useTransition();
@@ -22,20 +30,6 @@ export function AiSettingsForm({ initial, channels }: Props) {
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; imageUrl?: string } | null>(null);
-
-  function runTest() {
-    setTestResult(null);
-    setTesting(true);
-    testAiConnection()
-      .then((r) => {
-        if (r.ok) {
-          setTestResult({ ok: true, msg: "✓ Verbindung OK — Test-Bild generiert", imageUrl: r.imageUrl });
-        } else {
-          setTestResult({ ok: false, msg: r.error ?? "Fehler" });
-        }
-      })
-      .finally(() => setTesting(false));
-  }
 
   const update = <K extends keyof AiSettings>(key: K, value: AiSettings[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -53,23 +47,34 @@ export function AiSettingsForm({ initial, channels }: Props) {
     });
   }
 
-  // Text-Channels filtern (Discord-Type 0)
+  function runTest() {
+    setTestResult(null);
+    setTesting(true);
+    testAiConnection()
+      .then((r) => {
+        if (r.ok) {
+          setTestResult({ ok: true, msg: "✓ Verbindung OK", imageUrl: r.imageUrl });
+        } else {
+          setTestResult({ ok: false, msg: r.error ?? "Fehler" });
+        }
+      })
+      .finally(() => setTesting(false));
+  }
+
   const textChannels = channels.filter((c) => c.type === 0);
 
   return (
     <div className="space-y-6">
-      {/* Master-Toggle */}
+      {/* Provider Card */}
       <Card>
-        <SwitchRow
-          label="AI-Features aktivieren"
-          sub="Aktiviert den /image-Slash-Command im Discord."
-          checked={form.aiEnabled}
-          onChange={(v) => update("aiEnabled", v)}
-        />
-      </Card>
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
+          Provider
+        </h3>
+        <p className="mt-1 text-xs text-ink-muted">
+          Geteilt zwischen allen AI-Features (Bild, Chat, TTS, Music, Video).
+        </p>
 
-      <Card>
-        <Section title="Provider" hint="Aktuell nur MiniMax verfügbar — weitere kommen.">
+        <div className="mt-4 space-y-4">
           <Field label="Anbieter">
             <select
               value={form.aiProvider}
@@ -80,7 +85,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
             </select>
           </Field>
 
-          <Field label="API-Region" hint="Wenn dein Key auf einer Region nicht funktioniert, probier die andere.">
+          <Field label="API-Region">
             <select
               value={form.aiApiBaseUrl}
               onChange={(e) => update("aiApiBaseUrl", e.target.value)}
@@ -92,7 +97,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
             </select>
           </Field>
 
-          <Field label="API-Key" hint="Aus dem MiniMax Developer-Portal. Wird beim Speichern getrimmt.">
+          <Field label="API-Key">
             <div className="flex items-center gap-2">
               <input
                 type={showKey ? "text" : "password"}
@@ -111,70 +116,173 @@ export function AiSettingsForm({ initial, channels }: Props) {
             </div>
           </Field>
 
-          <Field label="Group-ID (optional)" hint="MiniMax-spezifisch. Nur nötig wenn dein Account das verlangt.">
+          <Field label="Group-ID" hint="MiniMax Account → Basic Information.">
             <input
               type="text"
               value={form.aiGroupId}
               onChange={(e) => update("aiGroupId", e.target.value)}
-              placeholder="(leer lassen wenn unbekannt)"
+              placeholder="(leer wenn nicht benötigt)"
               className="input w-full font-mono text-xs"
             />
           </Field>
-
-          <Field label="Modell">
-            <input
-              type="text"
-              value={form.aiImageModel}
-              onChange={(e) => update("aiImageModel", e.target.value)}
-              placeholder="image-01"
-              className="input w-full font-mono text-xs"
-            />
-          </Field>
-        </Section>
+        </div>
       </Card>
 
-      <Card>
-        <Section
-          title="Channel"
-          hint="In welchem Channel ist /image erlaubt? Leer = alle Channels."
-        >
-          <Field label="Erlaubter Channel">
-            <select
-              value={form.aiImageChannelId}
-              onChange={(e) => update("aiImageChannelId", e.target.value)}
-              className="input w-full"
-            >
-              <option value="">— Alle Channels —</option>
-              {textChannels.map((c) => (
-                <option key={c.channelId} value={c.channelId}>
-                  #{c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </Section>
-      </Card>
+      {/* Image */}
+      <FeatureSection
+        title="Bild-Generierung"
+        slashCmd="/image"
+        icon="🖼️"
+        enabled={form.aiEnabled}
+        onToggle={(v) => update("aiEnabled", v)}
+      >
+        <Field label="Modell">
+          <input
+            type="text"
+            value={form.aiImageModel}
+            onChange={(e) => update("aiImageModel", e.target.value)}
+            className="input w-full font-mono text-xs"
+          />
+        </Field>
+        <ChannelField
+          label="Erlaubter Channel"
+          value={form.aiImageChannelId}
+          onChange={(v) => update("aiImageChannelId", v)}
+          channels={textChannels}
+        />
+        <LimitField
+          value={form.aiImagesPerUserPerDay}
+          onChange={(v) => update("aiImagesPerUserPerDay", v)}
+        />
+      </FeatureSection>
 
-      <Card>
-        <Section title="Limits" hint="Schutz gegen Cost-Runaway.">
-          <Field label="Bilder pro User pro 24h">
-            <input
-              type="number"
-              min={0}
-              max={1000}
-              value={form.aiImagesPerUserPerDay}
-              onChange={(e) => update("aiImagesPerUserPerDay", parseInt(e.target.value) || 0)}
-              className="input w-32 text-sm tabular-nums"
-            />
-          </Field>
-          <p className="text-xs text-ink-subtle">
-            Tipp: Bei MiniMax kosten Bilder ~$0.01–0.02. Bei 5/User/Tag und 20 aktiven
-            Usern = ~$30–60/Monat.
-          </p>
-        </Section>
-      </Card>
+      {/* Chat */}
+      <FeatureSection
+        title="Chat / LLM"
+        slashCmd="/chat"
+        icon="💬"
+        enabled={form.aiChatEnabled}
+        onToggle={(v) => update("aiChatEnabled", v)}
+      >
+        <Field label="Modell">
+          <input
+            type="text"
+            value={form.aiChatModel}
+            onChange={(e) => update("aiChatModel", e.target.value)}
+            className="input w-full font-mono text-xs"
+          />
+        </Field>
+        <ChannelField
+          label="Erlaubter Channel"
+          value={form.aiChatChannelId}
+          onChange={(v) => update("aiChatChannelId", v)}
+          channels={textChannels}
+        />
+        <LimitField
+          value={form.aiChatPerUserPerDay}
+          onChange={(v) => update("aiChatPerUserPerDay", v)}
+        />
+      </FeatureSection>
 
-      {/* Test-Connection-Box */}
+      {/* TTS */}
+      <FeatureSection
+        title="Text-to-Speech"
+        slashCmd="/tts"
+        icon="🎙️"
+        enabled={form.aiTtsEnabled}
+        onToggle={(v) => update("aiTtsEnabled", v)}
+      >
+        <Field label="Modell">
+          <input
+            type="text"
+            value={form.aiTtsModel}
+            onChange={(e) => update("aiTtsModel", e.target.value)}
+            className="input w-full font-mono text-xs"
+          />
+        </Field>
+        <Field label="Standard-Stimme">
+          <select
+            value={form.aiTtsVoiceId}
+            onChange={(e) => update("aiTtsVoiceId", e.target.value)}
+            className="input w-full"
+          >
+            {TTS_VOICES.map((v) => (
+              <option key={v.value} value={v.value}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <ChannelField
+          label="Erlaubter Channel"
+          value={form.aiTtsChannelId}
+          onChange={(v) => update("aiTtsChannelId", v)}
+          channels={textChannels}
+        />
+        <LimitField
+          value={form.aiTtsPerUserPerDay}
+          onChange={(v) => update("aiTtsPerUserPerDay", v)}
+        />
+      </FeatureSection>
+
+      {/* Music */}
+      <FeatureSection
+        title="Musik"
+        slashCmd="/music"
+        icon="🎵"
+        enabled={form.aiMusicEnabled}
+        onToggle={(v) => update("aiMusicEnabled", v)}
+      >
+        <Field label="Modell">
+          <input
+            type="text"
+            value={form.aiMusicModel}
+            onChange={(e) => update("aiMusicModel", e.target.value)}
+            className="input w-full font-mono text-xs"
+          />
+        </Field>
+        <ChannelField
+          label="Erlaubter Channel"
+          value={form.aiMusicChannelId}
+          onChange={(v) => update("aiMusicChannelId", v)}
+          channels={textChannels}
+        />
+        <LimitField
+          value={form.aiMusicPerUserPerDay}
+          onChange={(v) => update("aiMusicPerUserPerDay", v)}
+        />
+      </FeatureSection>
+
+      {/* Video */}
+      <FeatureSection
+        title="Video"
+        slashCmd="/video"
+        icon="🎬"
+        enabled={form.aiVideoEnabled}
+        onToggle={(v) => update("aiVideoEnabled", v)}
+        hint="Async — 1-3 Min Wartezeit, ~$0.50/Video. Setze Limit niedrig."
+      >
+        <Field label="Modell">
+          <input
+            type="text"
+            value={form.aiVideoModel}
+            onChange={(e) => update("aiVideoModel", e.target.value)}
+            className="input w-full font-mono text-xs"
+          />
+        </Field>
+        <ChannelField
+          label="Erlaubter Channel"
+          value={form.aiVideoChannelId}
+          onChange={(v) => update("aiVideoChannelId", v)}
+          channels={textChannels}
+        />
+        <LimitField
+          value={form.aiVideoPerUserPerDay}
+          onChange={(v) => update("aiVideoPerUserPerDay", v)}
+        />
+      </FeatureSection>
+
+      {/* Test Result */}
       {testResult && (
         <div
           className={`rounded-md border p-3 text-xs ${
@@ -220,31 +328,55 @@ export function AiSettingsForm({ initial, channels }: Props) {
   );
 }
 
-// ─── Bausteine ─────────────────────────────────────────────────────────────
+// ─── Sub-Components ────────────────────────────────────────────────────────
 
 function Card({ children }: { children: React.ReactNode }) {
   return <section className="rounded-lg border border-line bg-bg-card p-5">{children}</section>;
 }
 
-function Section({
+function FeatureSection({
   title,
+  slashCmd,
+  icon,
+  enabled,
+  onToggle,
   hint,
   children,
 }: {
   title: string;
+  slashCmd: string;
+  icon: string;
+  enabled: boolean;
+  onToggle: (v: boolean) => void;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <div className="mb-3 flex items-baseline justify-between">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-          {title}
-        </h3>
+    <section
+      className={`overflow-hidden rounded-lg border bg-bg-card transition-colors ${
+        enabled ? "border-line" : "border-line/40"
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 py-4">
+        <span className="text-xl">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-sm font-semibold text-ink">{title}</h3>
+            <code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px] text-ink-muted">
+              {slashCmd}
+            </code>
+          </div>
+          {hint && <p className="mt-0.5 text-[11px] text-ink-subtle">{hint}</p>}
+        </div>
+        <Switch checked={enabled} onChange={onToggle} />
       </div>
-      {hint && <p className="mb-4 text-xs text-ink-muted">{hint}</p>}
-      <div className="space-y-4">{children}</div>
-    </div>
+
+      {/* Body — nur sichtbar wenn enabled */}
+      {enabled && (
+        <div className="space-y-4 border-t border-line px-5 py-4">{children}</div>
+      )}
+    </section>
   );
 }
 
@@ -266,14 +398,60 @@ function Field({
   );
 }
 
-function SwitchRow({
+function ChannelField({
   label,
-  sub,
+  value,
+  onChange,
+  channels,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  channels: Channel[];
+}) {
+  return (
+    <Field label={label} hint="Leer = alle Channels erlaubt.">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="input w-full"
+      >
+        <option value="">— Alle Channels —</option>
+        {channels.map((c) => (
+          <option key={c.channelId} value={c.channelId}>
+            #{c.name}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+function LimitField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <Field label="Limit pro User pro 24h">
+      <input
+        type="number"
+        min={0}
+        max={1000}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+        className="input w-32 text-sm tabular-nums"
+      />
+    </Field>
+  );
+}
+
+function Switch({
   checked,
   onChange,
 }: {
-  label: string;
-  sub?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
@@ -281,23 +459,15 @@ function SwitchRow({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-3 text-left"
+      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+        checked ? "bg-emerald-500" : "bg-bg-elevated"
+      }`}
     >
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-ink">{label}</div>
-        {sub && <div className="mt-0.5 text-xs text-ink-subtle">{sub}</div>}
-      </div>
       <span
-        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-          checked ? "bg-emerald-500" : "bg-bg-elevated"
+        className={`absolute top-0.5 inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0.5"
         }`}
-      >
-        <span
-          className={`absolute top-0.5 inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-            checked ? "translate-x-4" : "translate-x-0.5"
-          }`}
-        />
-      </span>
+      />
     </button>
   );
 }

@@ -116,6 +116,31 @@ model Config {
   aiImageModel           String  @default("image-01")
   aiApiBaseUrl           String  @default("https://api.minimaxi.com") // oder https://api.minimax.chat
 
+  // Chat (/chat) — LLM-Text-Antworten
+  aiChatEnabled        Boolean @default(false)
+  aiChatChannelId      String?
+  aiChatPerUserPerDay  Int     @default(20)
+  aiChatModel          String  @default("MiniMax-Text-01")
+
+  // Text-to-Speech (/tts) — Audio generieren
+  aiTtsEnabled         Boolean @default(false)
+  aiTtsChannelId       String?
+  aiTtsPerUserPerDay   Int     @default(10)
+  aiTtsModel           String  @default("speech-02-hd")
+  aiTtsVoiceId         String  @default("German_PlayfulMan")
+
+  // Music (/music) — Musik aus Prompt
+  aiMusicEnabled       Boolean @default(false)
+  aiMusicChannelId     String?
+  aiMusicPerUserPerDay Int     @default(3)
+  aiMusicModel         String  @default("music-1.5")
+
+  // Video (/video) — Text-to-Video, async (Polling)
+  aiVideoEnabled       Boolean @default(false)
+  aiVideoChannelId     String?
+  aiVideoPerUserPerDay Int     @default(2)
+  aiVideoModel         String  @default("T2V-01")
+
   // Free Games — postet aktuelle Gratis-Aktionen via GamerPower
   freeGamesEnabled      Boolean @default(false)
   freeGamesChannelId    String?

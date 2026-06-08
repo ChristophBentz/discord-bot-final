@@ -1,12 +1,12 @@
 import {
   AttachmentBuilder,
   EmbedBuilder,
-  MessageFlags,
   SlashCommandBuilder,
 } from "discord.js";
-import { getConfig } from "@repo/db";
 
 import { runImageJob, getRemainingQuota } from "../service.js";
+
+// Channel-Check + Quota macht jetzt der Service via gate()
 import type { SlashCommand } from "../../../lib/types.js";
 
 const ASPECT_CHOICES = [
@@ -37,28 +37,6 @@ const command: SlashCommand = {
     ),
 
   async execute(interaction) {
-    const config = await getConfig();
-
-    if (!config.aiEnabled) {
-      await interaction.reply({
-        content: "🚫 AI-Features sind aktuell deaktiviert.",
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    // Channel-Restriction
-    if (
-      config.aiImageChannelId &&
-      interaction.channelId !== config.aiImageChannelId
-    ) {
-      await interaction.reply({
-        content: `🚫 Bitte nutze \`/image\` nur in <#${config.aiImageChannelId}>.`,
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
     const prompt = interaction.options.getString("prompt", true);
     const aspect =
       (interaction.options.getString("aspect") as
@@ -69,11 +47,11 @@ const command: SlashCommand = {
         | "3:4"
         | null) ?? "1:1";
 
-    // Defer — Bildgenerierung dauert
     await interaction.deferReply();
 
     const result = await runImageJob({
       userId: interaction.user.id,
+      channelId: interaction.channelId,
       prompt,
       aspectRatio: aspect,
     });
@@ -85,7 +63,7 @@ const command: SlashCommand = {
       return;
     }
 
-    const quota = await getRemainingQuota(interaction.user.id);
+    const quota = await getRemainingQuota("image", interaction.user.id);
 
     const embed = new EmbedBuilder()
       .setColor(0xa855f7)
