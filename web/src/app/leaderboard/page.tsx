@@ -1,5 +1,6 @@
 import { getConfig, prisma } from "@repo/db";
 import Link from "next/link";
+import { PublicFooter } from "@/components/PublicFooter";
 import { progressFromXp, type Curve } from "../u/[userId]/levelCurve";
 
 export const dynamic = "force-dynamic";
@@ -140,14 +141,7 @@ export default async function LeaderboardPage() {
             <code className="rounded bg-bg-elevated px-1 py-0.5">/profil</code>.
           </p>
           <p>
-            <a
-              href="https://moser-dev.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-ink-muted hover:underline"
-            >
-              moser-dev.com
-            </a>
+            <PublicFooter />
           </p>
         </footer>
       </div>

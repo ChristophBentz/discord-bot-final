@@ -1,5 +1,6 @@
 import { getConfig, prisma } from "@repo/db";
 import { notFound } from "next/navigation";
+import { PublicFooter } from "@/components/PublicFooter";
 import { verifyProfileToken } from "@/lib/profileToken";
 import { progressFromXp, type Curve } from "./levelCurve";
 import { OwnerPanel } from "./OwnerPanel";
@@ -76,15 +77,7 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
             🔒 Dieses Profil ist privat — der User hat die öffentliche Ansicht deaktiviert.
           </p>
           <footer className="mt-12 text-xs text-ink-subtle">
-            Powered by{" "}
-            <a
-              href="https://moser-dev.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand hover:underline"
-            >
-              moser-dev.com
-            </a>
+            <PublicFooter />
           </footer>
         </div>
       </main>
@@ -315,15 +308,7 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
         </section>
 
         <footer className="pt-2 text-center text-xs text-ink-subtle">
-          Powered by{" "}
-          <a
-            href="https://moser-dev.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-brand hover:underline"
-          >
-            moser-dev.com
-          </a>
+          <PublicFooter />
           {" · "}Tippe <code className="rounded bg-bg-elevated px-1 py-0.5 text-[11px]">/profil</code>{" "}
           in Discord für deinen Bearbeiten-Link
         </footer>

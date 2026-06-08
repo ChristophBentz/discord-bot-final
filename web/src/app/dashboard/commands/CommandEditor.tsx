@@ -497,7 +497,7 @@ function PreviewBox({
     s
       .replace(/\{user\}/g, exampleUser)
       .replace(/\{user\.mention\}/g, `@${exampleUser}`)
-      .replace(/\{server\}/g, "Jumpy's Server")
+      .replace(/\{server\}/g, "Dein Server")
       .replace(/\{channel\}/g, "#allgemein")
       .replace(/\{random:([^}]+)\}/g, (_, opts: string) => opts.split("|")[0]?.trim() ?? "");
 
