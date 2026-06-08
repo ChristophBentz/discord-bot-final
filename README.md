@@ -186,23 +186,40 @@ einstellbar — keine Code- oder Config-Datei-Anpassungen nötig.
 
 ## Updates
 
+### Aus dem Dashboard (Native only)
+
+Dashboard → **System → Bot-Health**. Wenn ein Update verfügbar ist, erscheint
+ein „Update installieren"-Button. Ein Klick macht:
+
+1. DB sichern (`.bak`)
+2. `git pull`
+3. `npm ci`
+4. `prisma migrate deploy`
+5. `npm run build`
+6. Slash-Commands re-registrieren
+7. `pm2 restart all`
+
+Bei Fehler in 4–6 wird automatisch auf den vorigen Git-Stand + DB-Backup
+zurückgesetzt. Bot ist ~30–90s offline während des Restarts.
+
+Voraussetzung: `jq` installiert (`apt install jq`), PM2 läuft, Repo ist
+git-clone (kein Tarball).
+
 ### Docker
+Container können sich nicht selbst updaten. Auf dem Host:
 ```bash
 git pull
 docker compose build
 docker compose up -d
 ```
+Oder für **vollautomatisch:** [Watchtower](https://github.com/containrrr/watchtower)
+in die `docker-compose.yml` aufnehmen — checkt periodisch auf neue Images.
 
-### Native (mit `setup.sh` oder manuell)
+### Native manuell (falls Dashboard nicht erreichbar)
 ```bash
-git pull
-npm ci
-npm run build:db
-cd packages/db && npx prisma migrate deploy && cd ../..
-npm run build
-npm --workspace bot run register   # nur bei neuen Slash-Commands nötig
-pm2 restart all
+bash scripts/update.sh
 ```
+Selbes Skript wie der Dashboard-Button, mit allen Sicherheits-Steps.
 
 ---
 

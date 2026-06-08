@@ -1,5 +1,6 @@
 import { callBot } from "@/lib/botApi";
 import { HealthClient, type HealthData } from "./HealthClient";
+import { UpdateCard } from "./UpdateCard";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,12 @@ export default async function SystemPage() {
         </div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Bot-Health</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Live-Status des Bots, Memory, Discord-Latenz, Scheduler-Runs und
-          Errors seit letztem Restart. Refresh alle 5s.
+          Live-Status des Bots, Memory, Discord-Latenz, Scheduler-Runs,
+          Updates und Errors seit letztem Restart.
         </p>
       </header>
 
+      <UpdateCard />
       <HealthClient initial={initial} />
     </div>
   );

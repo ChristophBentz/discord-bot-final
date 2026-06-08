@@ -33,9 +33,9 @@ FROM node:22-slim AS runtime
 
 WORKDIR /app
 
-# Runtime-Deps: ffmpeg + yt-dlp für Musik-Feature, openssl für Prisma
+# Runtime-Deps: ffmpeg + yt-dlp für Musik-Feature, openssl für Prisma, jq für Update-Skript
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg python3-pip openssl ca-certificates \
+    ffmpeg python3-pip openssl ca-certificates jq \
     && pip3 install --break-system-packages --no-cache-dir yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 

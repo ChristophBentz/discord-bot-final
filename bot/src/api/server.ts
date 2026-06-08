@@ -74,6 +74,11 @@ import {
 } from "./routes/messages.js";
 import { syncAllCommands } from "../features/customCommands/register.js";
 import { handleHealth } from "./routes/health.js";
+import {
+  handleGetVersion,
+  handleTriggerUpdate,
+  handleUpdateStatus,
+} from "./routes/update.js";
 
 async function readJson<T>(req: IncomingMessage): Promise<T | null> {
   return new Promise((resolve) => {
@@ -504,6 +509,27 @@ export function startApiServer(client: Client): void {
       if (req.method === "GET" && url.pathname === "/api/system/health") {
         const result = await handleHealth(client);
         ok(res, result);
+        return;
+      }
+
+      // GET /api/system/version — current SHA + GitHub-latest
+      if (req.method === "GET" && url.pathname === "/api/system/version") {
+        const result = await handleGetVersion();
+        ok(res, result);
+        return;
+      }
+
+      // POST /api/system/update — Update auslösen (Native only)
+      if (req.method === "POST" && url.pathname === "/api/system/update") {
+        const result = handleTriggerUpdate();
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error ?? "Unbekannter Fehler");
+        return;
+      }
+
+      // GET /api/system/update/status — Update-Progress pollen
+      if (req.method === "GET" && url.pathname === "/api/system/update/status") {
+        ok(res, handleUpdateStatus());
         return;
       }
 
