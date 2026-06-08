@@ -74,40 +74,32 @@ export function AiSettingsForm({ initial, channels }: Props) {
 
         <div className="mt-4 space-y-4">
           <Field label="Anbieter">
-            <select
-              value={form.aiProvider}
-              onChange={(e) => update("aiProvider", e.target.value)}
-              className="input w-full"
-            >
+            <Select value={form.aiProvider} onChange={(v) => update("aiProvider", v)}>
               <option value="minimax">MiniMax</option>
-            </select>
+            </Select>
           </Field>
 
           <Field label="API-Region">
-            <select
-              value={form.aiApiBaseUrl}
-              onChange={(e) => update("aiApiBaseUrl", e.target.value)}
-              className="input w-full"
-            >
+            <Select value={form.aiApiBaseUrl} onChange={(v) => update("aiApiBaseUrl", v)}>
               <option value="https://api.minimaxi.com">International (api.minimaxi.com)</option>
               <option value="https://api.minimax.chat">Mainland China (api.minimax.chat)</option>
               <option value="https://api.minimax.io">Legacy (api.minimax.io)</option>
-            </select>
+            </Select>
           </Field>
 
           <Field label="API-Key">
-            <div className="flex items-center gap-2">
-              <input
+            <div className="flex items-stretch gap-2">
+              <TextInput
                 type={showKey ? "text" : "password"}
                 value={form.aiApiKey}
-                onChange={(e) => update("aiApiKey", e.target.value)}
+                onChange={(v) => update("aiApiKey", v)}
                 placeholder="sk-api-…"
-                className="input flex-1 font-mono text-xs"
+                mono
               />
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
-                className="rounded-md border border-line bg-bg-elevated px-3 py-2 text-xs text-ink-muted hover:text-ink"
+                className="rounded-md border border-line bg-bg-elevated px-3 text-xs text-ink-muted hover:bg-bg-hover hover:text-ink"
               >
                 {showKey ? "Hide" : "Show"}
               </button>
@@ -115,12 +107,11 @@ export function AiSettingsForm({ initial, channels }: Props) {
           </Field>
 
           <Field label="Group-ID" hint="MiniMax Account → Basic Information.">
-            <input
-              type="text"
+            <TextInput
               value={form.aiGroupId}
-              onChange={(e) => update("aiGroupId", e.target.value)}
+              onChange={(v) => update("aiGroupId", v)}
               placeholder="(leer wenn nicht benötigt)"
-              className="input w-full font-mono text-xs"
+              mono
             />
           </Field>
         </div>
@@ -135,12 +126,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
         onToggle={(v) => update("aiEnabled", v)}
       >
         <Field label="Modell">
-          <input
-            type="text"
-            value={form.aiImageModel}
-            onChange={(e) => update("aiImageModel", e.target.value)}
-            className="input w-full font-mono text-xs"
-          />
+          <TextInput value={form.aiImageModel} onChange={(v) => update("aiImageModel", v)} mono />
         </Field>
         <ChannelField
           label="Erlaubter Channel"
@@ -163,12 +149,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
         onToggle={(v) => update("aiChatEnabled", v)}
       >
         <Field label="Modell">
-          <input
-            type="text"
-            value={form.aiChatModel}
-            onChange={(e) => update("aiChatModel", e.target.value)}
-            className="input w-full font-mono text-xs"
-          />
+          <TextInput value={form.aiChatModel} onChange={(v) => update("aiChatModel", v)} mono />
         </Field>
         <ChannelField
           label="Erlaubter Channel"
@@ -191,25 +172,16 @@ export function AiSettingsForm({ initial, channels }: Props) {
         onToggle={(v) => update("aiTtsEnabled", v)}
       >
         <Field label="Modell">
-          <input
-            type="text"
-            value={form.aiTtsModel}
-            onChange={(e) => update("aiTtsModel", e.target.value)}
-            className="input w-full font-mono text-xs"
-          />
+          <TextInput value={form.aiTtsModel} onChange={(v) => update("aiTtsModel", v)} mono />
         </Field>
         <Field label="Standard-Stimme">
-          <select
-            value={form.aiTtsVoiceId}
-            onChange={(e) => update("aiTtsVoiceId", e.target.value)}
-            className="input w-full"
-          >
+          <Select value={form.aiTtsVoiceId} onChange={(v) => update("aiTtsVoiceId", v)}>
             {TTS_VOICES.map((v) => (
               <option key={v.value} value={v.value}>
                 {v.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <ChannelField
           label="Erlaubter Channel"
@@ -232,12 +204,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
         onToggle={(v) => update("aiMusicEnabled", v)}
       >
         <Field label="Modell">
-          <input
-            type="text"
-            value={form.aiMusicModel}
-            onChange={(e) => update("aiMusicModel", e.target.value)}
-            className="input w-full font-mono text-xs"
-          />
+          <TextInput value={form.aiMusicModel} onChange={(v) => update("aiMusicModel", v)} mono />
         </Field>
         <ChannelField
           label="Erlaubter Channel"
@@ -261,12 +228,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
         hint="Async — 1-3 Min Wartezeit, ~$0.50/Video. Setze Limit niedrig."
       >
         <Field label="Modell">
-          <input
-            type="text"
-            value={form.aiVideoModel}
-            onChange={(e) => update("aiVideoModel", e.target.value)}
-            className="input w-full font-mono text-xs"
-          />
+          <TextInput value={form.aiVideoModel} onChange={(v) => update("aiVideoModel", v)} mono />
         </Field>
         <ChannelField
           label="Erlaubter Channel"
@@ -462,18 +424,14 @@ function ChannelField({
 }) {
   return (
     <Field label={label} hint="Leer = alle Channels erlaubt.">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input w-full"
-      >
+      <Select value={value} onChange={onChange}>
         <option value="">— Alle Channels —</option>
         {channels.map((c) => (
           <option key={c.channelId} value={c.channelId}>
             #{c.name}
           </option>
         ))}
-      </select>
+      </Select>
     </Field>
   );
 }
@@ -487,15 +445,76 @@ function LimitField({
 }) {
   return (
     <Field label="Limit pro User pro 24h">
-      <input
-        type="number"
-        min={0}
-        max={1000}
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        className="input w-32 text-sm tabular-nums"
-      />
+      <div className="w-32">
+        <TextInput
+          type="number"
+          value={String(value)}
+          onChange={(v) => onChange(parseInt(v) || 0)}
+        />
+      </div>
     </Field>
+  );
+}
+
+// ─── Form-Controls (eigene saubere Styles, ersetzt globales .input) ────────
+
+const fieldBase =
+  "w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm text-ink placeholder:text-ink-subtle/60 transition-colors focus:border-ink/30 focus:outline-none";
+
+function TextInput({
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  mono,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  mono?: boolean;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`${fieldBase} ${mono ? "font-mono text-xs" : ""}`}
+    />
+  );
+}
+
+function Select({
+  value,
+  onChange,
+  children,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${fieldBase} appearance-none pr-8`}
+      >
+        {children}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-subtle"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
   );
 }
 
@@ -506,18 +525,21 @@ function Switch({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  // h-5 w-9 mit border-1 → Inner 18×34. Thumb h-3.5 w-3.5 (14px) mit
+  // 2px Padding all sides = symmetric: translate-x-0 für OFF, translate-x-4
+  // für ON (16px Bewegung). top-[2px] zentriert vertikal.
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
       aria-pressed={checked}
-      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-ink" : "bg-bg-elevated"
+      className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors ${
+        checked ? "border-ink bg-ink" : "border-line bg-bg-elevated hover:bg-bg-hover"
       }`}
     >
       <span
-        className={`absolute top-0.5 inline-block h-4 w-4 rounded-full transition-transform ${
-          checked ? "translate-x-4 bg-bg-base" : "translate-x-0.5 bg-ink-muted"
+        className={`absolute left-0.5 top-[2px] inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0"
         }`}
       />
     </button>
