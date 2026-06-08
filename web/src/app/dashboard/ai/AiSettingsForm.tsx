@@ -67,12 +67,10 @@ export function AiSettingsForm({ initial, channels }: Props) {
     <div className="space-y-6">
       {/* Provider Card */}
       <Card>
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
-          Provider
-        </h3>
-        <p className="mt-1 text-xs text-ink-muted">
-          Geteilt zwischen allen AI-Features (Bild, Chat, TTS, Music, Video).
-        </p>
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="text-sm font-medium text-ink">Provider</h3>
+          <span className="text-[11px] text-ink-subtle">geteilt zwischen allen Features</span>
+        </div>
 
         <div className="mt-4 space-y-4">
           <Field label="Anbieter">
@@ -132,7 +130,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
       <FeatureSection
         title="Bild-Generierung"
         slashCmd="/image"
-        icon="🖼️"
+        icon={<ImageIcon />}
         enabled={form.aiEnabled}
         onToggle={(v) => update("aiEnabled", v)}
       >
@@ -160,7 +158,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
       <FeatureSection
         title="Chat / LLM"
         slashCmd="/chat"
-        icon="💬"
+        icon={<ChatIcon />}
         enabled={form.aiChatEnabled}
         onToggle={(v) => update("aiChatEnabled", v)}
       >
@@ -188,7 +186,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
       <FeatureSection
         title="Text-to-Speech"
         slashCmd="/tts"
-        icon="🎙️"
+        icon={<MicIcon />}
         enabled={form.aiTtsEnabled}
         onToggle={(v) => update("aiTtsEnabled", v)}
       >
@@ -229,7 +227,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
       <FeatureSection
         title="Musik"
         slashCmd="/music"
-        icon="🎵"
+        icon={<MusicIcon />}
         enabled={form.aiMusicEnabled}
         onToggle={(v) => update("aiMusicEnabled", v)}
       >
@@ -257,7 +255,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
       <FeatureSection
         title="Video"
         slashCmd="/video"
-        icon="🎬"
+        icon={<VideoIcon />}
         enabled={form.aiVideoEnabled}
         onToggle={(v) => update("aiVideoEnabled", v)}
         hint="Async — 1-3 Min Wartezeit, ~$0.50/Video. Setze Limit niedrig."
@@ -345,27 +343,27 @@ function FeatureSection({
 }: {
   title: string;
   slashCmd: string;
-  icon: string;
+  icon: React.ReactNode;
   enabled: boolean;
   onToggle: (v: boolean) => void;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section
-      className={`overflow-hidden rounded-lg border bg-bg-card transition-colors ${
-        enabled ? "border-line" : "border-line/40"
-      }`}
-    >
+    <section className="overflow-hidden rounded-lg border border-line bg-bg-card">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4">
-        <span className="text-xl">{icon}</span>
+        <span
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border border-line bg-bg-elevated/60 ${
+            enabled ? "text-ink" : "text-ink-subtle"
+          }`}
+        >
+          {icon}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h3 className="text-sm font-semibold text-ink">{title}</h3>
-            <code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-[11px] text-ink-muted">
-              {slashCmd}
-            </code>
+            <h3 className="text-sm font-medium text-ink">{title}</h3>
+            <code className="font-mono text-[11px] text-ink-subtle">{slashCmd}</code>
           </div>
           {hint && <p className="mt-0.5 text-[11px] text-ink-subtle">{hint}</p>}
         </div>
@@ -377,6 +375,59 @@ function FeatureSection({
         <div className="space-y-4 border-t border-line px-5 py-4">{children}</div>
       )}
     </section>
+  );
+}
+
+// ─── Line-SVG Icons (Lucide-style) ─────────────────────────────────────────
+
+const iconCls = "h-4 w-4";
+const iconProps = {
+  fill: "none" as const,
+  stroke: "currentColor",
+  strokeWidth: 1.75,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+function ImageIcon() {
+  return (
+    <svg className={iconCls} viewBox="0 0 24 24" {...iconProps}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-5-5L5 21" />
+    </svg>
+  );
+}
+function ChatIcon() {
+  return (
+    <svg className={iconCls} viewBox="0 0 24 24" {...iconProps}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+function MicIcon() {
+  return (
+    <svg className={iconCls} viewBox="0 0 24 24" {...iconProps}>
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8" />
+    </svg>
+  );
+}
+function MusicIcon() {
+  return (
+    <svg className={iconCls} viewBox="0 0 24 24" {...iconProps}>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </svg>
+  );
+}
+function VideoIcon() {
+  return (
+    <svg className={iconCls} viewBox="0 0 24 24" {...iconProps}>
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+      <path d="m22 8-6 4 6 4z" />
+    </svg>
   );
 }
 
@@ -459,13 +510,14 @@ function Switch({
     <button
       type="button"
       onClick={() => onChange(!checked)}
+      aria-pressed={checked}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-emerald-500" : "bg-bg-elevated"
+        checked ? "bg-ink" : "bg-bg-elevated"
       }`}
     >
       <span
-        className={`absolute top-0.5 inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-          checked ? "translate-x-4" : "translate-x-0.5"
+        className={`absolute top-0.5 inline-block h-4 w-4 rounded-full transition-transform ${
+          checked ? "translate-x-4 bg-bg-base" : "translate-x-0.5 bg-ink-muted"
         }`}
       />
     </button>

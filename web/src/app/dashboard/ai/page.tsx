@@ -9,21 +9,20 @@ export default async function AiPage() {
     getAiStats(),
   ]);
 
-  const ICONS: Record<string, string> = {
-    image: "🖼️",
-    chat: "💬",
-    tts: "🎙️",
-    music: "🎵",
-    video: "🎬",
-  };
-  const LABELS: Record<string, string> = {
-    image: "Bild",
-    chat: "Chat",
-    tts: "TTS",
-    music: "Musik",
-    video: "Video",
-  };
-  const COMMANDS = ["image", "chat", "tts", "music", "video"] as const;
+  const enabled = [
+    config.aiEnabled && "image",
+    config.aiChatEnabled && "chat",
+    config.aiTtsEnabled && "tts",
+    config.aiMusicEnabled && "music",
+    config.aiVideoEnabled && "video",
+  ].filter(Boolean) as string[];
+
+  const totalToday =
+    (stats.last24h.image ?? 0) +
+    (stats.last24h.chat ?? 0) +
+    (stats.last24h.tts ?? 0) +
+    (stats.last24h.music ?? 0) +
+    (stats.last24h.video ?? 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -33,25 +32,27 @@ export default async function AiPage() {
         </div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">AI</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          KI-Features: Bilder, Chat, TTS, Musik, Video. Jedes einzeln
-          aktivierbar — eigener Channel, eigene Limits.
+          KI-Features für Discord — jedes einzeln aktivierbar, eigener Channel, eigene Limits.
         </p>
       </header>
 
-      {/* Usage-Übersicht */}
-      <div className="grid grid-cols-5 gap-2 sm:gap-3">
-        {COMMANDS.map((c) => (
-          <div key={c} className="rounded-lg border border-line bg-bg-card p-3 text-center">
-            <div className="text-lg">{ICONS[c]}</div>
-            <div className="mt-1 text-[10px] uppercase tracking-wider text-ink-subtle">
-              {LABELS[c]}
-            </div>
-            <div className="mt-0.5 text-base font-semibold tabular-nums text-ink">
-              {stats.last24h[c] ?? 0}
-            </div>
-            <div className="text-[10px] text-ink-subtle">heute</div>
-          </div>
-        ))}
+      {/* Inline-Stats — kein Card-Grid */}
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-y border-line py-3 text-sm">
+        <span className="text-ink-muted">
+          <span className="font-medium text-ink tabular-nums">{enabled.length}</span> von 5 aktiv
+        </span>
+        <span className="text-ink-muted">
+          <span className="font-medium text-ink tabular-nums">{totalToday}</span> heute
+        </span>
+        <span className="text-ink-muted">
+          <span className="font-medium text-ink tabular-nums">{stats.last24h.image ?? 0}</span> Bilder
+        </span>
+        <span className="text-ink-muted">
+          <span className="font-medium text-ink tabular-nums">{stats.last24h.chat ?? 0}</span> Chats
+        </span>
+        <span className="text-ink-muted">
+          <span className="font-medium text-ink tabular-nums">{stats.last24h.tts ?? 0}</span> TTS
+        </span>
       </div>
 
       <AiSettingsForm
