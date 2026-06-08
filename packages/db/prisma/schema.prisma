@@ -106,6 +106,15 @@ model Config {
   // Music — DJ-Rollen in MusicRole
   musicEnabled Boolean @default(false)
 
+  // AI-Features — Bild-/Text-Generierung via externen Provider (MiniMax, OpenAI, …).
+  aiEnabled              Boolean @default(false)
+  aiProvider             String  @default("minimax") // "minimax" | "openai" | "stability" (future)
+  aiApiKey               String? // wird auf dem Server gespeichert, nicht ins Web-Bundle exposed
+  aiGroupId              String? // MiniMax-spezifisch (Group-ID aus dem Developer-Portal)
+  aiImageChannelId       String? // einziger Channel in dem /image erlaubt ist (sonst Hinweis-Reply)
+  aiImagesPerUserPerDay  Int     @default(5)
+  aiImageModel           String  @default("image-01")
+
   // Free Games — postet aktuelle Gratis-Aktionen via GamerPower
   freeGamesEnabled      Boolean @default(false)
   freeGamesChannelId    String?
@@ -399,6 +408,22 @@ model CustomCommand {
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// AI-Generierungen pro User — für Rate-Limit + Dashboard-Stats.
+model AiUsage {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  command   String   // "image" | "chat" | "video" (für Zukunft)
+  provider  String   // "minimax" | "openai" …
+  prompt    String   // gespeichert für Stats/Audit, max 1000 chars
+  imageUrl  String?  // Discord-Attachment-URL falls Bild
+  success   Boolean  @default(true)
+  errorMsg  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 // Synchronisiert vom Bot — alle bekannten Server-Mitglieder.

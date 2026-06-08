@@ -147,6 +147,12 @@ const PAGES: PageEntry[] = [
     href: "/dashboard/system",
     keywords: ["health", "status", "uptime", "memory", "errors", "logs", "scheduler", "debug", "system"],
   },
+  {
+    title: "AI",
+    subtitle: "Bild-Generierung via /image (MiniMax)",
+    href: "/dashboard/ai",
+    keywords: ["ai", "ki", "image", "bild", "generate", "minimax", "openai", "dalle", "stable diffusion"],
+  },
 ];
 
 function matchScore(haystack: string, needle: string): number {
