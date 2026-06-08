@@ -2,10 +2,8 @@ import { callMinimax, type MinimaxClient } from "./client.js";
 
 export interface MusicRequest extends MinimaxClient {
   model: string;
-  /** Lyrics ODER ein Style-Prompt — MiniMax akzeptiert beides via "lyrics"-Feld */
+  /** Songtext — wird automatisch mit Section-Markern versehen wenn keine vorhanden sind */
   lyrics: string;
-  /** Referenz-Stil als Text-Beschreibung */
-  refer_voice?: string;
 }
 
 export interface MusicResult {
@@ -14,15 +12,34 @@ export interface MusicResult {
   error?: string;
 }
 
+// MiniMax-Music erwartet Lyrics mit Section-Markern à la [Verse 1], [Chorus].
+// Wenn der User keine angibt, packen wir den Text in ein einfaches Format
+// damit der API-Validator zufrieden ist.
+function ensureSectionMarkers(input: string): string {
+  const trimmed = input.trim();
+  if (/\[(verse|chorus|bridge|intro|outro|hook|pre[- ]?chorus)/i.test(trimmed)) {
+    return trimmed;
+  }
+  // Erste 1-3 Zeilen als Verse, Rest als Chorus
+  const lines = trimmed.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length <= 2) {
+    return `[Verse]\n${lines.join("\n")}\n[Chorus]\n${lines.join("\n")}`;
+  }
+  const mid = Math.ceil(lines.length / 2);
+  return `[Verse]\n${lines.slice(0, mid).join("\n")}\n[Chorus]\n${lines.slice(mid).join("\n")}`;
+}
+
 export async function generateMusic(req: MusicRequest): Promise<MusicResult> {
+  const lyrics = ensureSectionMarkers(req.lyrics);
+
   const res = await callMinimax<{
-    data?: { audio?: string }; // hex-encoded mp3
+    data?: { audio?: string };
   }>(
     req,
     "/v1/music_generation",
     {
       model: req.model,
-      lyrics: req.lyrics,
+      lyrics,
       audio_setting: {
         sample_rate: 44100,
         bitrate: 256000,
