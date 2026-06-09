@@ -249,8 +249,8 @@ function Switch({
       }`}
     >
       <span
-        className={`absolute left-0.5 top-[2px] inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-4" : "translate-x-0"
+        className={`absolute left-0.5 top-[2px] inline-block h-3.5 w-3.5 rounded-full shadow transition-transform ${
+          checked ? "translate-x-4 bg-bg-base" : "translate-x-0 bg-white"
         }`}
       />
     </button>
