@@ -4,95 +4,41 @@ import { getConfig, prisma } from "@repo/db";
 import { revalidatePath } from "next/cache";
 
 export interface AiSettings {
-  // Provider (shared)
+  aiEnabled: boolean;
   aiProvider: string;
   aiApiKey: string;
   aiGroupId: string;
   aiApiBaseUrl: string;
-
-  // Image
-  aiEnabled: boolean;
   aiImageChannelId: string;
   aiImagesPerUserPerDay: number;
   aiImageModel: string;
-
-  // Chat
-  aiChatEnabled: boolean;
-  aiChatChannelId: string;
-  aiChatPerUserPerDay: number;
-  aiChatModel: string;
-
-  // TTS
-  aiTtsEnabled: boolean;
-  aiTtsChannelId: string;
-  aiTtsPerUserPerDay: number;
-  aiTtsModel: string;
-  aiTtsVoiceId: string;
-
-  // Music
-  aiMusicEnabled: boolean;
-  aiMusicChannelId: string;
-  aiMusicPerUserPerDay: number;
-  aiMusicModel: string;
-
-  // Video
-  aiVideoEnabled: boolean;
-  aiVideoChannelId: string;
-  aiVideoPerUserPerDay: number;
-  aiVideoModel: string;
 }
 
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, Math.floor(n) || 0));
 
-export async function saveAiSettings(form: AiSettings): Promise<{ ok: boolean; error?: string }> {
+export async function saveAiSettings(
+  form: AiSettings,
+): Promise<{ ok: boolean; error?: string }> {
   const apiKey = form.aiApiKey.trim();
-  const baseUrl = form.aiApiBaseUrl.trim().replace(/\/+$/, "") || "https://api.minimaxi.com";
+  const baseUrl =
+    form.aiApiBaseUrl.trim().replace(/\/+$/, "") || "https://api.minimaxi.com";
 
-  const anyEnabled =
-    form.aiEnabled ||
-    form.aiChatEnabled ||
-    form.aiTtsEnabled ||
-    form.aiMusicEnabled ||
-    form.aiVideoEnabled;
-
-  if (anyEnabled && !apiKey) {
-    return { ok: false, error: "API-Key wird benötigt wenn mindestens ein Feature aktiv ist." };
+  if (form.aiEnabled && !apiKey) {
+    return { ok: false, error: "API-Key wird benötigt wenn AI aktiviert ist." };
   }
 
   await prisma.config.update({
     where: { id: 1 },
     data: {
+      aiEnabled: !!form.aiEnabled,
       aiProvider: "minimax",
       aiApiKey: apiKey || null,
       aiGroupId: form.aiGroupId.trim() || null,
       aiApiBaseUrl: baseUrl,
-
-      aiEnabled: !!form.aiEnabled,
       aiImageChannelId: form.aiImageChannelId.trim() || null,
       aiImagesPerUserPerDay: clamp(form.aiImagesPerUserPerDay, 0, 1000),
       aiImageModel: form.aiImageModel.trim() || "image-01",
-
-      aiChatEnabled: !!form.aiChatEnabled,
-      aiChatChannelId: form.aiChatChannelId.trim() || null,
-      aiChatPerUserPerDay: clamp(form.aiChatPerUserPerDay, 0, 1000),
-      aiChatModel: form.aiChatModel.trim() || "MiniMax-Text-01",
-
-      aiTtsEnabled: !!form.aiTtsEnabled,
-      aiTtsChannelId: form.aiTtsChannelId.trim() || null,
-      aiTtsPerUserPerDay: clamp(form.aiTtsPerUserPerDay, 0, 1000),
-      aiTtsModel: form.aiTtsModel.trim() || "speech-02-hd",
-      aiTtsVoiceId: form.aiTtsVoiceId.trim() || "German_PlayfulMan",
-
-      aiMusicEnabled: !!form.aiMusicEnabled,
-      aiMusicChannelId: form.aiMusicChannelId.trim() || null,
-      aiMusicPerUserPerDay: clamp(form.aiMusicPerUserPerDay, 0, 1000),
-      aiMusicModel: form.aiMusicModel.trim() || "music-1.5",
-
-      aiVideoEnabled: !!form.aiVideoEnabled,
-      aiVideoChannelId: form.aiVideoChannelId.trim() || null,
-      aiVideoPerUserPerDay: clamp(form.aiVideoPerUserPerDay, 0, 100),
-      aiVideoModel: form.aiVideoModel.trim() || "T2V-01",
     },
   });
 
@@ -147,32 +93,46 @@ export async function testAiConnection(): Promise<{
 
 export async function getAiStats(): Promise<{
   totalImages: number;
-  totals: Record<string, number>;
-  last24h: Record<string, number>;
+  imagesLast24h: number;
+  imagesLast30d: number;
+  topUsers: { userId: string; displayName: string | null; count: number }[];
 }> {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const grouped = await prisma.aiUsage.groupBy({
-    by: ["command"],
-    where: { success: true },
-    _count: { _all: true },
+  const [totalImages, imagesLast24h, imagesLast30d, grouped] = await Promise.all([
+    prisma.aiUsage.count({ where: { command: "image", success: true } }),
+    prisma.aiUsage.count({
+      where: { command: "image", success: true, createdAt: { gte: since24h } },
+    }),
+    prisma.aiUsage.count({
+      where: { command: "image", success: true, createdAt: { gte: since30d } },
+    }),
+    prisma.aiUsage.groupBy({
+      by: ["userId"],
+      where: { command: "image", success: true, createdAt: { gte: since30d } },
+      _count: { _all: true },
+      orderBy: { _count: { userId: "desc" } },
+      take: 5,
+    }),
+  ]);
+
+  const userIds = grouped.map((g) => g.userId);
+  const members = await prisma.member.findMany({
+    where: { userId: { in: userIds } },
+    select: { userId: true, displayName: true },
   });
-
-  const grouped24h = await prisma.aiUsage.groupBy({
-    by: ["command"],
-    where: { success: true, createdAt: { gte: since24h } },
-    _count: { _all: true },
-  });
-
-  const totals: Record<string, number> = {};
-  for (const g of grouped) totals[g.command] = g._count._all;
-  const last24h: Record<string, number> = {};
-  for (const g of grouped24h) last24h[g.command] = g._count._all;
+  const memberMap = new Map(members.map((m) => [m.userId, m.displayName]));
 
   return {
-    totalImages: totals.image ?? 0,
-    totals,
-    last24h,
+    totalImages,
+    imagesLast24h,
+    imagesLast30d,
+    topUsers: grouped.map((g) => ({
+      userId: g.userId,
+      displayName: memberMap.get(g.userId) ?? null,
+      count: g._count._all,
+    })),
   };
 }
 

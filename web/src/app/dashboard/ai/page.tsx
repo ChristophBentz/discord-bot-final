@@ -9,21 +9,6 @@ export default async function AiPage() {
     getAiStats(),
   ]);
 
-  const enabled = [
-    config.aiEnabled && "image",
-    config.aiChatEnabled && "chat",
-    config.aiTtsEnabled && "tts",
-    config.aiMusicEnabled && "music",
-    config.aiVideoEnabled && "video",
-  ].filter(Boolean) as string[];
-
-  const totalToday =
-    (stats.last24h.image ?? 0) +
-    (stats.last24h.chat ?? 0) +
-    (stats.last24h.tts ?? 0) +
-    (stats.last24h.music ?? 0) +
-    (stats.last24h.video ?? 0);
-
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
@@ -32,61 +17,39 @@ export default async function AiPage() {
         </div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">AI</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          KI-Features für Discord — jedes einzeln aktivierbar, eigener Channel, eigene Limits.
+          Bilder im Discord via{" "}
+          <code className="rounded bg-bg-elevated px-1 py-0.5 text-[12px]">/image</code>
+          {" "}generieren. API-Key, Channel und Limits hier einstellen.
         </p>
       </header>
 
-      {/* Inline-Stats — kein Card-Grid */}
-      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-y border-line py-3 text-sm">
-        <span className="text-ink-muted">
-          <span className="font-medium text-ink tabular-nums">{enabled.length}</span> von 5 aktiv
-        </span>
-        <span className="text-ink-muted">
-          <span className="font-medium text-ink tabular-nums">{totalToday}</span> heute
-        </span>
-        <span className="text-ink-muted">
-          <span className="font-medium text-ink tabular-nums">{stats.last24h.image ?? 0}</span> Bilder
-        </span>
-        <span className="text-ink-muted">
-          <span className="font-medium text-ink tabular-nums">{stats.last24h.chat ?? 0}</span> Chats
-        </span>
-        <span className="text-ink-muted">
-          <span className="font-medium text-ink tabular-nums">{stats.last24h.tts ?? 0}</span> TTS
-        </span>
-      </div>
+      {/* Inline-Stats */}
+      {stats.totalImages > 0 && (
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-y border-line py-3 text-sm">
+          <span className="text-ink-muted">
+            <span className="font-medium text-ink tabular-nums">{stats.imagesLast24h}</span> heute
+          </span>
+          <span className="text-ink-muted">
+            <span className="font-medium text-ink tabular-nums">{stats.imagesLast30d}</span>{" "}
+            letzte 30 Tage
+          </span>
+          <span className="text-ink-muted">
+            <span className="font-medium text-ink tabular-nums">{stats.totalImages}</span>{" "}
+            insgesamt
+          </span>
+        </div>
+      )}
 
       <AiSettingsForm
         initial={{
+          aiEnabled: config.aiEnabled,
           aiProvider: config.aiProvider,
           aiApiKey: config.aiApiKey ?? "",
           aiGroupId: config.aiGroupId ?? "",
           aiApiBaseUrl: config.aiApiBaseUrl,
-
-          aiEnabled: config.aiEnabled,
           aiImageChannelId: config.aiImageChannelId ?? "",
           aiImagesPerUserPerDay: config.aiImagesPerUserPerDay,
           aiImageModel: config.aiImageModel,
-
-          aiChatEnabled: config.aiChatEnabled,
-          aiChatChannelId: config.aiChatChannelId ?? "",
-          aiChatPerUserPerDay: config.aiChatPerUserPerDay,
-          aiChatModel: config.aiChatModel,
-
-          aiTtsEnabled: config.aiTtsEnabled,
-          aiTtsChannelId: config.aiTtsChannelId ?? "",
-          aiTtsPerUserPerDay: config.aiTtsPerUserPerDay,
-          aiTtsModel: config.aiTtsModel,
-          aiTtsVoiceId: config.aiTtsVoiceId,
-
-          aiMusicEnabled: config.aiMusicEnabled,
-          aiMusicChannelId: config.aiMusicChannelId ?? "",
-          aiMusicPerUserPerDay: config.aiMusicPerUserPerDay,
-          aiMusicModel: config.aiMusicModel,
-
-          aiVideoEnabled: config.aiVideoEnabled,
-          aiVideoChannelId: config.aiVideoChannelId ?? "",
-          aiVideoPerUserPerDay: config.aiVideoPerUserPerDay,
-          aiVideoModel: config.aiVideoModel,
         }}
         channels={channels.map((c) => ({
           channelId: c.channelId,
@@ -94,6 +57,28 @@ export default async function AiPage() {
           type: c.type,
         }))}
       />
+
+      {stats.topUsers.length > 0 && (
+        <section className="rounded-lg border border-line bg-bg-card p-5">
+          <h3 className="text-sm font-medium text-ink">Top User (30 Tage)</h3>
+          <ul className="mt-3 divide-y divide-line">
+            {stats.topUsers.map((u, i) => (
+              <li
+                key={u.userId}
+                className="flex items-center justify-between py-2 text-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-6 text-right text-ink-subtle tabular-nums">
+                    #{i + 1}
+                  </span>
+                  <span className="text-ink">{u.displayName ?? u.userId}</span>
+                </div>
+                <span className="text-ink-muted tabular-nums">{u.count} Bilder</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
