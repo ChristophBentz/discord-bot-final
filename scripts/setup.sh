@@ -126,14 +126,19 @@ step "Hosting"
 echo
 echo "  Wo läuft das Dashboard?"
 echo "    [1] ${C_BLUE}Lokal${C_RESET} — nur http://localhost:3000 (Development)"
-echo "    [2] ${C_BLUE}Online${C_RESET} — eigene Domain mit HTTPS (Production)"
+echo "    [2] ${C_BLUE}Online mit Domain${C_RESET} — eigene Domain + HTTPS"
+echo "    [3] ${C_BLUE}Online ohne Domain${C_RESET} — nur Server-IP, kein DNS"
 echo
-read -r -p "  Auswahl [1/2, Default 1]: " HOSTING_CHOICE
+read -r -p "  Auswahl [1/2/3, Default 1]: " HOSTING_CHOICE
 HOSTING_CHOICE="${HOSTING_CHOICE:-1}"
 
 PRODUCTION=false
 DOMAIN=""
+IP_HTTP_ONLY=false
+IP_HTTP_PORT="3000"
+
 if [[ "$HOSTING_CHOICE" == "2" ]]; then
+  # ─── Variante 2: Eigene Domain ──────────────────────────────────────────
   PRODUCTION=true
   echo
   while [[ -z "$DOMAIN" ]]; do
@@ -158,6 +163,75 @@ if [[ "$HOSTING_CHOICE" == "2" ]]; then
   echo "  https://discord.com/developers/applications/$DISCORD_CLIENT_ID/oauth2"
   echo
   read -r -p "  Bestätige mit Enter, sobald die URL dort eingetragen ist…"
+
+elif [[ "$HOSTING_CHOICE" == "3" ]]; then
+  # ─── Variante 3: Server-IP ohne Domain ──────────────────────────────────
+  PRODUCTION=true
+  echo
+  echo "  ${C_YELLOW}Discord-OAuth verlangt HTTPS${C_RESET} — sonst funktioniert der Login nicht."
+  echo "  Du hast zwei Optionen:"
+  echo
+  echo "    [a] ${C_BLUE}HTTPS via sslip.io${C_RESET} (empfohlen)"
+  echo "        → URL wie https://1.2.3.4.sslip.io — automatisches Let's-Encrypt-Cert"
+  echo "        → Discord-OAuth funktioniert, Caddy wird automatisch eingerichtet"
+  echo
+  echo "    [b] ${C_BLUE}HTTP nur${C_RESET} (kein Reverse-Proxy)"
+  echo "        → URL wie http://1.2.3.4:3000"
+  echo "        → ${C_YELLOW}Discord-OAuth funktioniert NICHT extern${C_RESET}"
+  echo "        → Nur für lokales Testen oder via SSH-Tunnel sinnvoll"
+  echo
+  read -r -p "  Auswahl [a/b, Default a]: " IP_MODE
+  IP_MODE="${IP_MODE:-a}"
+
+  # Auto-detect Public IP
+  echo
+  echo "  Ermittle öffentliche Server-IP…"
+  DETECTED_IP=$(curl -fsS -m 5 https://api.ipify.org 2>/dev/null || curl -fsS -m 5 https://ifconfig.me 2>/dev/null || echo "")
+  if [[ -n "$DETECTED_IP" ]]; then
+    ok "Erkannt: $DETECTED_IP"
+  fi
+  read -r -p "  Server-IP [${DETECTED_IP}]: " SERVER_IP
+  SERVER_IP="${SERVER_IP:-$DETECTED_IP}"
+  if [[ -z "$SERVER_IP" || ! "$SERVER_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    err "Ungültige IP-Adresse"
+    exit 1
+  fi
+
+  if [[ "$IP_MODE" == "a" || "$IP_MODE" == "A" ]]; then
+    # sslip.io-Trick: <ip>.sslip.io resolved zu <ip>, akzeptiert von Let's Encrypt
+    DOMAIN="${SERVER_IP}.sslip.io"
+    NEXTAUTH_URL="https://$DOMAIN"
+    echo
+    ok "Public-URL:  $NEXTAUTH_URL"
+    echo "    ${C_DIM}sslip.io resolved $DOMAIN automatisch zu $SERVER_IP${C_RESET}"
+    echo
+    echo "  ${C_YELLOW}WICHTIG:${C_RESET} Im Discord Developer Portal eintragen:"
+    echo
+    echo "    ${C_GREEN}$NEXTAUTH_URL/api/auth/callback/discord${C_RESET}"
+    echo
+    echo "  https://discord.com/developers/applications/$DISCORD_CLIENT_ID/oauth2"
+    echo
+    read -r -p "  Bestätige mit Enter, sobald die URL dort eingetragen ist…"
+  else
+    # HTTP nur
+    IP_HTTP_ONLY=true
+    read -r -p "  Port [${IP_HTTP_PORT}]: " IP_HTTP_PORT_INPUT
+    IP_HTTP_PORT="${IP_HTTP_PORT_INPUT:-$IP_HTTP_PORT}"
+    NEXTAUTH_URL="http://${SERVER_IP}:${IP_HTTP_PORT}"
+    echo
+    ok "Public-URL:  $NEXTAUTH_URL"
+    echo
+    warn "Discord-OAuth wird NICHT funktionieren für externe User."
+    warn "Login nur möglich via SSH-Tunnel:"
+    echo "    ${C_DIM}ssh -L 3000:localhost:$IP_HTTP_PORT user@$SERVER_IP${C_RESET}"
+    echo "    ${C_DIM}→ dann http://localhost:3000 im Browser${C_RESET}"
+    echo
+    read -r -p "  Trotzdem fortfahren? [y/N] " confirm
+    if [[ "${confirm,,}" != "y" && "${confirm,,}" != "yes" ]]; then
+      echo "Abgebrochen."
+      exit 0
+    fi
+  fi
 else
   NEXTAUTH_URL="http://localhost:3000"
 fi
@@ -249,6 +323,10 @@ OWNER_DISCORD_ID=$OWNER_DISCORD_ID
 BOT_API_SECRET=$BOT_API_SECRET
 BOT_API_URL=http://localhost:$BOT_API_PORT
 EOF
+  if [[ "$IP_HTTP_ONLY" == "true" && -n "$IP_HTTP_PORT" && "$IP_HTTP_PORT" != "3000" ]]; then
+    # Next.js liest PORT aus Env zur Laufzeit (next start). Standard ist 3000.
+    echo "PORT=$IP_HTTP_PORT" >> web/.env.local
+  fi
   ok "web/.env.local geschrieben"
 else
   warn "web/.env.local unverändert gelassen"
@@ -335,16 +413,35 @@ if [[ "$PRODUCTION" == "true" ]]; then
     ok "Alle Packages kompiliert"
   fi
 
-  # 2) Reverse-Proxy für HTTPS — Cloudflare Tunnel ODER Caddy
-  if [[ "$SKIP_PRIV" != "true" ]]; then
+  # 2) Reverse-Proxy für HTTPS — wird bei HTTP-IP-Mode komplett geskipped
+  if [[ "$IP_HTTP_ONLY" == "true" ]]; then
+    # HTTP-IP-Mode: kein Reverse-Proxy, direkter Port-Forward via Firewall
     echo
-    echo "  Wie soll HTTPS bereitgestellt werden?"
-    echo "    [1] ${C_BLUE}Cloudflare Tunnel${C_RESET}  (Recommended — keine Ports nötig, automatisches HTTPS)"
-    echo "    [2] ${C_BLUE}Caddy${C_RESET}              (Reverse-Proxy + Let's Encrypt, braucht freie Ports 80+443)"
-    echo "    [3] ${C_BLUE}Überspringen${C_RESET}      (machst du selbst)"
+    echo "  ${C_DIM}HTTP-Mode → kein Reverse-Proxy nötig.${C_RESET}"
+    if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "Status: active"; then
+      sudo ufw allow "$IP_HTTP_PORT/tcp" >/dev/null 2>&1 || true
+      ok "Firewall: Port $IP_HTTP_PORT freigegeben"
+    fi
+    echo "  Web wird auf 0.0.0.0:$IP_HTTP_PORT lauschen — extern erreichbar."
+    PROXY_CHOICE="3" # skip reverse proxy section unten
+  elif [[ "$SKIP_PRIV" != "true" ]]; then
     echo
-    read -r -p "  Auswahl [1/2/3, Default 1]: " PROXY_CHOICE
-    PROXY_CHOICE="${PROXY_CHOICE:-1}"
+    if [[ "$DOMAIN" == *.sslip.io ]]; then
+      # sslip.io geht NUR mit Caddy (Cloudflare Tunnel braucht eigene Domain)
+      echo "  ${C_DIM}sslip.io → Caddy für Let's-Encrypt-Cert.${C_RESET}"
+      PROXY_CHOICE="2"
+    else
+      echo "  Wie soll HTTPS bereitgestellt werden?"
+      echo "    [1] ${C_BLUE}Cloudflare Tunnel${C_RESET}  (Recommended — keine Ports nötig, automatisches HTTPS)"
+      echo "    [2] ${C_BLUE}Caddy${C_RESET}              (Reverse-Proxy + Let's Encrypt, braucht freie Ports 80+443)"
+      echo "    [3] ${C_BLUE}Überspringen${C_RESET}      (machst du selbst)"
+      echo
+      read -r -p "  Auswahl [1/2/3, Default 1]: " PROXY_CHOICE
+      PROXY_CHOICE="${PROXY_CHOICE:-1}"
+    fi
+  fi
+
+  if [[ "$SKIP_PRIV" != "true" && "$PROXY_CHOICE" != "3" ]]; then
 
     # ─── Cloudflare Tunnel ───────────────────────────────────────────────────
     if [[ "$PROXY_CHOICE" == "1" ]]; then
@@ -531,10 +628,26 @@ Bot + Web laufen via pm2 — nützliche Commands:
   pm2 logs discord-bot             # nur Bot
   pm2 restart all                  # beide neu starten
 
+EOF
+
+  if [[ "$IP_HTTP_ONLY" == "true" ]]; then
+    cat <<EOF
+${C_YELLOW}HTTP-Mode aktiv:${C_RESET} Discord-OAuth funktioniert nur via SSH-Tunnel.
+
+  Auf deinem lokalen Rechner ausführen:
+    ${C_GREEN}ssh -L 3000:localhost:$IP_HTTP_PORT $(whoami)@$SERVER_IP${C_RESET}
+
+  Dann im Browser:
+    ${C_GREEN}http://localhost:3000${C_RESET}
+
+EOF
+  fi
+
+  cat <<EOF
 ${C_DIM}Updates pushen:
   git pull
   npm ci
-  cd packages/db && npx prisma db push && cd ../..
+  cd packages/db && npx prisma migrate deploy && cd ../..
   npm run build                       # baut db + bot + web in der richtigen Reihenfolge
   npm --workspace bot run register    # nur bei neuen Slash-Commands
   pm2 restart all${C_RESET}

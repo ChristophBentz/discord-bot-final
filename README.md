@@ -102,6 +102,13 @@ Wenn du keinen Docker nutzen willst: das Skript installiert Dependencies,
 DB, registriert Slash-Commands, kann optional Caddy oder Cloudflare Tunnel
 einrichten und PM2 starten.
 
+**Drei Hosting-Varianten** werden im Skript abgefragt:
+1. **Lokal** — nur `http://localhost:3000` für Development
+2. **Online mit Domain** — eigene Domain (z.B. `bot.example.com`), HTTPS via Cloudflare Tunnel oder Caddy
+3. **Online ohne Domain** — nur Server-IP:
+   - **a) HTTPS via sslip.io** (empfohlen) — URL wird `https://1.2.3.4.sslip.io`, Caddy holt automatisches Let's-Encrypt-Cert, Discord-OAuth funktioniert
+   - **b) HTTP nur** (`http://1.2.3.4:3000`) — Discord-OAuth funktioniert NICHT extern, nur via SSH-Tunnel sinnvoll
+
 ```bash
 git clone <repo-url> discord-bot-final
 cd discord-bot-final
