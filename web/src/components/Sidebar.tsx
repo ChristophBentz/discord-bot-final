@@ -266,6 +266,7 @@ export function Sidebar({ serverName, memberCount, serverIconUrl }: SidebarProps
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={true}
                     className={`group flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
                       active
                         ? "bg-brand-subtle text-ink"

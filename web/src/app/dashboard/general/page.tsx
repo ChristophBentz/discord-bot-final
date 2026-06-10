@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import { getConfig } from "@repo/db";
 import { BotStatusForm } from "./BotStatusForm";
 import { BotIdentityForm } from "./BotIdentityForm";
 import { loadBotDescription } from "./actions";
 
 export default async function GeneralPage() {
-  const [config, description] = await Promise.all([getConfig(), loadBotDescription()]);
+  const config = await getConfig();
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -25,12 +26,13 @@ export default async function GeneralPage() {
             Avatar, Name und Beschreibung — so erscheint der Bot in Discord.
           </p>
         </div>
-        <BotIdentityForm
-          initialName={config.botName}
-          initialAvatarUrl={config.botAvatarUrl}
-          initialBannerUrl={config.botBannerUrl}
-          initialDescription={description}
-        />
+        <Suspense fallback={<IdentitySkeleton />}>
+          <IdentitySection
+            initialName={config.botName}
+            initialAvatarUrl={config.botAvatarUrl}
+            initialBannerUrl={config.botBannerUrl}
+          />
+        </Suspense>
       </section>
 
       <section className="card p-6">
@@ -42,6 +44,37 @@ export default async function GeneralPage() {
         </div>
         <BotStatusForm initial={config.botStatusText} />
       </section>
+    </div>
+  );
+}
+
+// Die Beschreibung kommt vom Bot via Discord-REST — streamen, statt die Navigation zu blockieren.
+async function IdentitySection({
+  initialName,
+  initialAvatarUrl,
+  initialBannerUrl,
+}: {
+  initialName: string | null;
+  initialAvatarUrl: string | null;
+  initialBannerUrl: string | null;
+}) {
+  const description = await loadBotDescription();
+  return (
+    <BotIdentityForm
+      initialName={initialName}
+      initialAvatarUrl={initialAvatarUrl}
+      initialBannerUrl={initialBannerUrl}
+      initialDescription={description}
+    />
+  );
+}
+
+function IdentitySkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-24 w-24 rounded-full bg-bg-elevated" />
+      <div className="h-10 rounded-xl bg-bg-elevated" />
+      <div className="h-24 rounded-xl bg-bg-elevated" />
     </div>
   );
 }

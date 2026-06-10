@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { prisma } from "@repo/db";
 import { callBot } from "@/lib/botApi";
 import {
@@ -13,7 +14,26 @@ interface BotState {
   bans: BanEntry[];
 }
 
-export default async function ModerationPage() {
+export default function ModerationPage() {
+  return (
+    <div className="mx-auto max-w-5xl space-y-8">
+      <header>
+        <div className="text-xs font-semibold uppercase tracking-wider text-brand">Server</div>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Moderation</h1>
+        <p className="mt-2 max-w-xl text-sm text-ink-muted">
+          Aktive Timeouts, Bans und Verwarnungen. Aufheben/Löschen mit einem Klick — wird im
+          Log-Channel gepostet.
+        </p>
+      </header>
+      <Suspense fallback={<ModerationSkeleton />}>
+        <ModerationData />
+      </Suspense>
+    </div>
+  );
+}
+
+// Bans/Timeouts kommen vom Bot (Discord-REST) — streamen, statt die Navigation zu blockieren.
+async function ModerationData() {
   const [botRes, warnings] = await Promise.all([
     callBot<BotState>("/api/moderation/state", { method: "GET" }),
     prisma.warning.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
@@ -49,16 +69,7 @@ export default async function ModerationPage() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      <header>
-        <div className="text-xs font-semibold uppercase tracking-wider text-brand">Server</div>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Moderation</h1>
-        <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Aktive Timeouts, Bans und Verwarnungen. Aufheben/Löschen mit einem Klick — wird im
-          Log-Channel gepostet.
-        </p>
-      </header>
-
+    <>
       {error && (
         <div className="flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
           <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -137,7 +148,28 @@ export default async function ModerationPage() {
       >
         <WarningsList items={warningEntries} />
       </SectionCard>
-    </div>
+    </>
+  );
+}
+
+function ModerationSkeleton() {
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="h-[74px] animate-pulse rounded-2xl border border-line bg-bg-elevated/40"
+          />
+        ))}
+      </div>
+      {[0, 1, 2].map((i) => (
+        <section key={i} className="card animate-pulse p-6">
+          <div className="h-5 w-40 rounded bg-bg-elevated" />
+          <div className="mt-4 h-24 rounded-xl bg-bg-elevated/60" />
+        </section>
+      ))}
+    </>
   );
 }
 

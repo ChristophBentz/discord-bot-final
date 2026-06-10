@@ -8,6 +8,11 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "16mb",
     },
+    // Client-Router-Cache: besuchte/geprefetchte Seiten 30s wiederverwenden —
+    // Navigation rendert sofort, Server Actions invalidieren via revalidatePath.
+    staleTimes: {
+      dynamic: 30,
+    },
   },
 };
 
