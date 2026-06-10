@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -234,6 +235,32 @@ export function Sidebar({ serverName, memberCount, serverIconUrl }: SidebarProps
   const userName = session?.user?.name ?? "User";
   const userInitial = userName[0]?.toUpperCase() ?? "U";
 
+  const navRef = useRef<HTMLElement>(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+
+  // Fade nur zeigen solange unten Einträge abgeschnitten sind.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const update = () =>
+      setMoreBelow(nav.scrollTop + nav.clientHeight < nav.scrollHeight - 8);
+    update();
+    nav.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    return () => {
+      nav.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Aktiven Eintrag in den sichtbaren Bereich holen (z.B. nach Reload auf einer unteren Seite).
+  useEffect(() => {
+    navRef.current
+      ?.querySelector('[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [pathname]);
+
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-line bg-bg-raised/60 backdrop-blur-xl">
       {/* Server-Card */}
@@ -250,7 +277,8 @@ export function Sidebar({ serverName, memberCount, serverIconUrl }: SidebarProps
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <div className="relative min-h-0 flex-1">
+        <nav ref={navRef} className="nav-scroll h-full overflow-y-auto px-3 py-4">
         {SECTIONS.map((section) => (
           <div key={section.title} className="mb-5">
             <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-ink-subtle">
@@ -267,6 +295,7 @@ export function Sidebar({ serverName, memberCount, serverIconUrl }: SidebarProps
                     key={item.href}
                     href={item.href}
                     prefetch={true}
+                    aria-current={active ? "page" : undefined}
                     className={`group flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
                       active
                         ? "bg-brand-subtle text-ink"
@@ -295,7 +324,11 @@ export function Sidebar({ serverName, memberCount, serverIconUrl }: SidebarProps
             </div>
           </div>
         ))}
-      </nav>
+        </nav>
+        {moreBelow && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-bg-raised to-transparent" />
+        )}
+      </div>
 
       {/* User-Profil */}
       <div className="border-t border-line p-3">
