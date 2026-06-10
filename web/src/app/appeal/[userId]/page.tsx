@@ -2,6 +2,7 @@ import { prisma, getConfig } from "@repo/db";
 import { notFound } from "next/navigation";
 import { PublicFooter } from "@/components/PublicFooter";
 import { verifyAppealToken } from "@/lib/appealToken";
+import { callBot } from "@/lib/botApi";
 import { AppealForm } from "./AppealForm";
 
 export const dynamic = "force-dynamic";
@@ -52,15 +53,24 @@ export default async function AppealPage({ params, searchParams }: PageProps) {
     );
   }
 
-  const [config, appeal, member] = await Promise.all([
+  const [config, appeal, member, botRes] = await Promise.all([
     getConfig(),
     prisma.banAppeal.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } }),
     prisma.member.findUnique({ where: { userId } }),
+    callBot<{ bans: { userId: string }[] }>("/api/moderation/state", { method: "GET" }),
   ]);
 
-  // Angenommener Antrag + erneuter Ban → neuer Antrag möglich; sonst Status zeigen.
-  const showStatus = appeal && appeal.status !== "approved" ? appeal : null;
-  const approvedAppeal = appeal?.status === "approved" ? appeal : null;
+  // true/false wenn der Bot erreichbar ist, sonst null (= unbekannt).
+  const banned = botRes.ok ? botRes.data.bans.some((b) => b.userId === userId) : null;
+
+  // Was zeigen wir? Der echte Ban-Status entscheidet — eine alte „angenommen"-Karte
+  // wäre Quatsch, wenn der User inzwischen erneut gebannt wurde.
+  let view: "pending" | "denied" | "approved" | "notBanned" | "form";
+  if (appeal?.status === "pending") view = "pending";
+  else if (appeal?.status === "denied") view = "denied";
+  else if (appeal?.status === "approved" && banned !== true) view = "approved";
+  else if (!appeal && banned === false) view = "notBanned";
+  else view = "form"; // gebannt (oder Status unbekannt) ohne offenen/abgelehnten Antrag
 
   return (
     <Shell serverName={config.guildName}>
@@ -78,32 +88,35 @@ export default async function AppealPage({ params, searchParams }: PageProps) {
         )}
       </header>
 
-      {showStatus ? (
+      {(view === "pending" || view === "denied" || view === "approved") && appeal && (
         <StatusCard
-          status={showStatus.status as keyof typeof STATUS_VIEW}
-          note={showStatus.decisionNote}
-          createdAt={showStatus.createdAt}
-          inviteUrl={showStatus.inviteUrl}
+          status={view}
+          note={appeal.decisionNote}
+          createdAt={appeal.createdAt}
+          inviteUrl={appeal.inviteUrl}
         />
-      ) : (
-        <>
-          {approvedAppeal && (
-            <StatusCard
-              status="approved"
-              note={approvedAppeal.decisionNote}
-              createdAt={approvedAppeal.createdAt}
-              inviteUrl={approvedAppeal.inviteUrl}
-            />
-          )}
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold text-ink">Warum sollten wir dich entbannen?</h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              Erkläre, was passiert ist und warum du eine zweite Chance verdienst.
-              Du kannst genau einen Antrag stellen — nimm dir Zeit.
-            </p>
-            <AppealForm userId={userId} appealKey={key ?? ""} />
-          </div>
-        </>
+      )}
+
+      {view === "notBanned" && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-6 text-center">
+          <div className="text-3xl">👍</div>
+          <h2 className="mt-3 text-lg font-semibold text-ink">Du bist nicht gebannt</h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            Für diesen Account liegt aktuell kein Ban vor — du kannst dem Server ganz
+            normal beitreten.
+          </p>
+        </div>
+      )}
+
+      {view === "form" && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-ink">Warum sollten wir dich entbannen?</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Erkläre, was passiert ist und warum du eine zweite Chance verdienst.
+            Du kannst genau einen Antrag stellen — nimm dir Zeit.
+          </p>
+          <AppealForm userId={userId} appealKey={key ?? ""} />
+        </div>
       )}
     </Shell>
   );
