@@ -555,6 +555,7 @@ model BanAppeal {
   decidedBy    String? // Moderator-Name
   decidedAt    DateTime?
   decisionNote String? // optionale Begründung der Entscheidung (auf der Appeal-Seite sichtbar)
+  inviteUrl    String? // Einmal-Invite nach angenommenem Antrag — auf der Appeal-Seite sichtbar
   createdAt    DateTime  @default(now())
 
   @@index([userId])

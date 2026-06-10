@@ -12,6 +12,7 @@ import {
   handleUnban,
   handleRemoveTimeout,
   getModerationState,
+  handleCreateRejoinInvite,
   type TimeoutBody,
   type ModBody,
   type BanBody,
@@ -225,6 +226,14 @@ export function startApiServer(client: Client): void {
       if (req.method === "GET" && url.pathname === "/api/moderation/state") {
         const state = await getModerationState(client);
         ok(res, { ok: true, ...state });
+        return;
+      }
+
+      // POST /api/moderation/rejoin-invite — Einmal-Invite nach angenommenem Appeal
+      if (req.method === "POST" && url.pathname === "/api/moderation/rejoin-invite") {
+        const result = await handleCreateRejoinInvite(client);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
         return;
       }
 

@@ -83,11 +83,17 @@ export default async function AppealPage({ params, searchParams }: PageProps) {
           status={showStatus.status as keyof typeof STATUS_VIEW}
           note={showStatus.decisionNote}
           createdAt={showStatus.createdAt}
+          inviteUrl={showStatus.inviteUrl}
         />
       ) : (
         <>
           {approvedAppeal && (
-            <StatusCard status="approved" note={approvedAppeal.decisionNote} createdAt={approvedAppeal.createdAt} />
+            <StatusCard
+              status="approved"
+              note={approvedAppeal.decisionNote}
+              createdAt={approvedAppeal.createdAt}
+              inviteUrl={approvedAppeal.inviteUrl}
+            />
           )}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-ink">Warum sollten wir dich entbannen?</h2>
@@ -107,10 +113,12 @@ function StatusCard({
   status,
   note,
   createdAt,
+  inviteUrl,
 }: {
   status: keyof typeof STATUS_VIEW;
   note: string | null;
   createdAt: Date;
+  inviteUrl?: string | null;
 }) {
   const view = STATUS_VIEW[status];
   return (
@@ -118,6 +126,14 @@ function StatusCard({
       <div className="text-3xl">{view.icon}</div>
       <h2 className="mt-3 text-lg font-semibold text-ink">{view.title}</h2>
       <p className="mt-2 text-sm text-ink-muted">{view.text}</p>
+      {status === "approved" && inviteUrl && (
+        <a
+          href={inviteUrl}
+          className="mt-4 inline-block rounded-xl bg-brand-gradient px-6 py-3 text-sm font-semibold text-white shadow-glow"
+        >
+          Server wieder beitreten →
+        </a>
+      )}
       {note && (
         <p className="mt-3 rounded-xl bg-bg-elevated/50 p-3 text-sm text-ink">
           <span className="font-semibold">Anmerkung des Teams:</span> {note}

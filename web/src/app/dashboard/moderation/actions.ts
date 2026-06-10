@@ -73,6 +73,12 @@ export async function approveAppeal(id: number, note: string): Promise<Result> {
   // "nicht gebannt" = wurde schon manuell entbannt — Antrag trotzdem annehmen.
   if (!res.ok && !res.error.includes("nicht gebannt")) return res;
 
+  // Einmal-Invite für die Appeal-Seite — per DM ist der User nicht mehr erreichbar.
+  // Wenn das fehlschlägt, wird der Antrag trotzdem angenommen (Link ist Komfort).
+  const inviteRes = await callBot<{ url: string }>("/api/moderation/rejoin-invite", {
+    method: "POST",
+  });
+
   await prisma.banAppeal.update({
     where: { id },
     data: {
@@ -81,6 +87,7 @@ export async function approveAppeal(id: number, note: string): Promise<Result> {
       decidedBy: mod.name,
       decidedAt: new Date(),
       decisionNote: note.trim() || null,
+      inviteUrl: inviteRes.ok ? inviteRes.data.url : null,
     },
   });
   revalidatePath("/dashboard/moderation");

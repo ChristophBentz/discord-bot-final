@@ -13,6 +13,7 @@ export interface AppealEntry {
   status: string; // pending | approved | denied
   decidedBy: string | null;
   decisionNote: string | null;
+  inviteUrl: string | null;
   createdAt: string;
 }
 
@@ -109,6 +110,19 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
               <p className="mt-2 text-xs text-ink-subtle">
                 Entschieden von {a.decidedBy ?? "—"}
                 {a.decisionNote ? ` · „${a.decisionNote}"` : ""}
+                {a.inviteUrl && (
+                  <>
+                    {" · "}
+                    <a
+                      href={a.inviteUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand hover:underline"
+                    >
+                      Rejoin-Invite
+                    </a>
+                  </>
+                )}
               </p>
             )}
 

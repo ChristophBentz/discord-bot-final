@@ -68,6 +68,7 @@ async function ModerationData() {
     status: a.status,
     decidedBy: a.decidedBy,
     decisionNote: a.decisionNote,
+    inviteUrl: a.inviteUrl,
     createdAt: a.createdAt.toISOString(),
   }));
   const pendingAppeals = appealEntries.filter((a) => a.status === "pending").length;

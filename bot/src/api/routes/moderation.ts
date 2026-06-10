@@ -1,4 +1,11 @@
-import { EmbedBuilder, type Client, type TextChannel, type GuildMember } from "discord.js";
+import {
+  ChannelType,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  type Client,
+  type TextChannel,
+  type GuildMember,
+} from "discord.js";
 import { prisma } from "@repo/db";
 import { env } from "../../lib/env.js";
 import { appealUrl } from "../../lib/appealToken.js";
@@ -497,4 +504,44 @@ function formatDuration(seconds: number): string {
   if (hours < 24) return `${hours} Stunden`;
   const days = Math.floor(hours / 24);
   return `${days} Tage`;
+}
+
+// ─── EINLADUNG NACH ENTBANNUNG ───────────────────────────────────────────────
+// Einmal-Invite (7 Tage gültig) für die Appeal-Seite — nach dem Unban kann der
+// Bot den User nicht mehr per DM erreichen.
+export async function handleCreateRejoinInvite(
+  client: Client,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+  if (!guild) return { ok: false, error: "Guild nicht im Cache" };
+  const me = guild.members.me;
+  if (!me) return { ok: false, error: "Bot-Member nicht im Cache" };
+
+  const canInvite = (c: TextChannel) =>
+    c.permissionsFor(me).has(PermissionFlagsBits.CreateInstantInvite);
+
+  const system = guild.systemChannel && canInvite(guild.systemChannel) ? guild.systemChannel : null;
+  const channel =
+    system ??
+    guild.channels.cache
+      .filter((c): c is TextChannel => c.type === ChannelType.GuildText && canInvite(c))
+      .sort((a, b) => a.rawPosition - b.rawPosition)
+      .first();
+  if (!channel) {
+    return { ok: false, error: "Kein Channel mit 'Einladung erstellen'-Berechtigung gefunden." };
+  }
+
+  try {
+    const invite = await guild.invites.create(channel, {
+      maxAge: 7 * 24 * 60 * 60,
+      maxUses: 1,
+      unique: true,
+      reason: "Entbannungsantrag angenommen",
+    });
+    return { ok: true, url: invite.url };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ err }, "Rejoin-Invite konnte nicht erstellt werden");
+    return { ok: false, error: msg };
+  }
 }
