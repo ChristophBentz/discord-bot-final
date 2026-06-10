@@ -23,12 +23,31 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   denied: { label: "Abgelehnt", cls: "bg-rose-500/15 text-rose-300" },
 };
 
+interface UserGroup {
+  userId: string;
+  appeals: AppealEntry[]; // neuester zuerst
+}
+
 export function AppealsList({ items }: { items: AppealEntry[] }) {
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [noteFor, setNoteFor] = useState<{ id: number; mode: "approve" | "deny" } | null>(null);
   const [note, setNote] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+
+  // Eine Karte pro User — items kommen bereits nach Datum absteigend sortiert.
+  const groups: UserGroup[] = [];
+  const byUser = new Map<string, UserGroup>();
+  for (const a of items) {
+    let group = byUser.get(a.userId);
+    if (!group) {
+      group = { userId: a.userId, appeals: [] };
+      byUser.set(a.userId, group);
+      groups.push(group);
+    }
+    group.appeals.push(a);
+  }
 
   const decide = (id: number, mode: "approve" | "deny", decisionNote: string) => {
     setError(null);
@@ -43,8 +62,8 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
     });
   };
 
-  const remove = (id: number) => {
-    if (!confirm("Antrag löschen? Der User kann danach einen neuen Antrag stellen.")) return;
+  const remove = (id: number, hint: string) => {
+    if (!confirm(hint)) return;
     setError(null);
     setPendingId(id);
     startTransition(async () => {
@@ -54,7 +73,16 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
     });
   };
 
-  if (items.length === 0) {
+  const toggleHistory = (userId: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  if (groups.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-line bg-bg-elevated/30 px-4 py-8 text-center text-sm text-ink-muted">
         Keine Entbannungsanträge.
@@ -69,56 +97,63 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
           {error}
         </div>
       )}
-      {items.map((a) => {
-        const badge = STATUS_BADGE[a.status] ?? STATUS_BADGE.pending!;
+      {groups.map((group) => {
+        const latest = group.appeals[0]!;
+        const older = group.appeals.slice(1);
+        const badge = STATUS_BADGE[latest.status] ?? STATUS_BADGE.pending!;
+        const isOpen = expanded.has(group.userId);
         return (
           <div
-            key={a.id}
-            className={`rounded-xl border border-line bg-bg-elevated/40 p-4 transition-opacity ${pendingId === a.id ? "opacity-40" : ""}`}
+            key={group.userId}
+            className={`rounded-xl border border-line bg-bg-elevated/40 p-4 transition-opacity ${pendingId === latest.id ? "opacity-40" : ""}`}
           >
+            {/* Kopf: User + Status des neuesten Antrags */}
             <div className="flex items-center gap-3">
-              {a.avatarUrl ? (
+              {latest.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg ring-1 ring-line" />
+                <img src={latest.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg ring-1 ring-line" />
               ) : (
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-gradient text-sm font-semibold text-white">
-                  {a.username[0]?.toUpperCase() ?? "?"}
+                  {latest.username[0]?.toUpperCase() ?? "?"}
                 </span>
               )}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{a.username}</div>
-                <div className="truncate font-mono text-[11px] text-ink-subtle">{a.userId}</div>
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium">{latest.username}</span>
+                  {group.appeals.length > 1 && (
+                    <span className="rounded-md bg-bg-card px-1.5 py-0.5 text-[10px] font-semibold text-ink-subtle">
+                      {group.appeals.length}. Antrag
+                    </span>
+                  )}
+                </div>
+                <div className="truncate font-mono text-[11px] text-ink-subtle">{latest.userId}</div>
               </div>
               <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badge.cls}`}>
                 {badge.label}
               </span>
               <span className="hidden text-xs text-ink-subtle sm:block">
-                {new Date(a.createdAt).toLocaleDateString("de-DE")}
+                {new Date(latest.createdAt).toLocaleDateString("de-DE")}
               </span>
             </div>
 
-            {a.banReason && (
+            {/* Neuester Antrag */}
+            {latest.banReason && (
               <p className="mt-3 text-xs text-ink-subtle">
-                <span className="font-semibold text-ink-muted">Ban-Grund:</span> {a.banReason}
+                <span className="font-semibold text-ink-muted">Ban-Grund:</span> {latest.banReason}
               </p>
             )}
             <p className="mt-2 whitespace-pre-wrap rounded-lg bg-bg-card/60 p-3 text-sm text-ink">
-              {a.text}
+              {latest.text}
             </p>
 
-            {a.status !== "pending" && (
+            {latest.status !== "pending" && (
               <p className="mt-2 text-xs text-ink-subtle">
-                Entschieden von {a.decidedBy ?? "—"}
-                {a.decisionNote ? ` · „${a.decisionNote}"` : ""}
-                {a.inviteUrl && (
+                Entschieden von {latest.decidedBy ?? "—"}
+                {latest.decisionNote ? ` · „${latest.decisionNote}"` : ""}
+                {latest.inviteUrl && (
                   <>
                     {" · "}
-                    <a
-                      href={a.inviteUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-brand hover:underline"
-                    >
+                    <a href={latest.inviteUrl} target="_blank" rel="noreferrer" className="text-brand hover:underline">
                       Rejoin-Invite
                     </a>
                   </>
@@ -126,12 +161,13 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
               </p>
             )}
 
+            {/* Aktionen für den neuesten Antrag */}
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {a.status === "pending" && noteFor?.id !== a.id && (
+              {latest.status === "pending" && noteFor?.id !== latest.id && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setNoteFor({ id: a.id, mode: "approve" })}
+                    onClick={() => setNoteFor({ id: latest.id, mode: "approve" })}
                     disabled={isPending}
                     className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
                   >
@@ -139,7 +175,7 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setNoteFor({ id: a.id, mode: "deny" })}
+                    onClick={() => setNoteFor({ id: latest.id, mode: "deny" })}
                     disabled={isPending}
                     className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-300 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
                   >
@@ -149,15 +185,29 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
               )}
               <button
                 type="button"
-                onClick={() => remove(a.id)}
+                onClick={() =>
+                  remove(latest.id, "Antrag löschen? Der User kann danach einen neuen Antrag stellen.")
+                }
                 disabled={isPending}
                 className="rounded-lg border border-line bg-bg-card px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:text-rose-400 disabled:opacity-50"
               >
                 Löschen
               </button>
+              {older.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => toggleHistory(group.userId)}
+                  className="ml-auto rounded-lg px-3 py-1.5 text-xs font-medium text-ink-subtle transition-colors hover:text-ink"
+                >
+                  {isOpen
+                    ? "Frühere Anträge ausblenden"
+                    : `Frühere Anträge anzeigen (${older.length})`}
+                </button>
+              )}
             </div>
 
-            {noteFor?.id === a.id && (
+            {/* Notiz-Eingabe für Entscheidung */}
+            {noteFor?.id === latest.id && (
               <div className="mt-3 space-y-2 rounded-lg border border-line bg-bg-card/60 p-3">
                 <input
                   value={note}
@@ -169,7 +219,7 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => decide(a.id, noteFor.mode, note)}
+                    onClick={() => decide(latest.id, noteFor.mode, note)}
                     disabled={isPending}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
                       noteFor.mode === "approve"
@@ -191,6 +241,43 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
                     Abbrechen
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Frühere Anträge — kompakt */}
+            {isOpen && older.length > 0 && (
+              <div className="mt-3 space-y-1.5 border-t border-line pt-3">
+                {older.map((a) => {
+                  const b = STATUS_BADGE[a.status] ?? STATUS_BADGE.pending!;
+                  return (
+                    <div
+                      key={a.id}
+                      className={`rounded-lg bg-bg-card/40 p-3 transition-opacity ${pendingId === a.id ? "opacity-40" : ""}`}
+                    >
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className={`rounded-full px-2 py-0.5 font-semibold ${b.cls}`}>{b.label}</span>
+                        <span className="text-ink-subtle">
+                          {new Date(a.createdAt).toLocaleDateString("de-DE")}
+                        </span>
+                        {a.decidedBy && <span className="text-ink-subtle">· von {a.decidedBy}</span>}
+                        <button
+                          type="button"
+                          onClick={() => remove(a.id, "Diesen früheren Antrag endgültig löschen?")}
+                          disabled={isPending}
+                          className="ml-auto text-ink-subtle transition-colors hover:text-rose-400 disabled:opacity-50"
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                      <p className="mt-1.5 line-clamp-2 whitespace-pre-wrap text-xs text-ink-muted">
+                        {a.text}
+                      </p>
+                      {a.decisionNote && (
+                        <p className="mt-1 text-[11px] text-ink-subtle">Anmerkung: „{a.decisionNote}"</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
