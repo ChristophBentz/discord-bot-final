@@ -67,6 +67,7 @@ export default async function AnalyticsPage({
     topUsers,
     channelInfo,
     recentWarnings,
+    inviterAgg,
   ] = await Promise.all([
     prisma.member.count({ where: { inServer: true } }),
     prisma.levelUser.count({ where: { lastMessage: { gte: sevenDaysAgo } } }),
@@ -104,7 +105,18 @@ export default async function AnalyticsPage({
     prisma.levelUser.findMany({ orderBy: { xp: "desc" }, take: 5 }),
     prisma.guildChannel.findMany({ select: { channelId: true, name: true } }),
     prisma.warning.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
+    prisma.inviteUse.groupBy({
+      by: ["inviterId"],
+      where: { inviterId: { not: null }, joinedAt: { gte: new Date(rangeStartStr) } },
+      _count: { _all: true },
+      orderBy: { _count: { inviterId: "desc" } },
+      take: 5,
+    }),
   ]);
+
+  const topInviters = inviterAgg
+    .filter((i) => i.inviterId !== null)
+    .map((i) => ({ inviterId: i.inviterId as string, invites: i._count._all }));
 
   const cells: ActivityCell[] = hourlyAgg.map((h) => ({
     date: h.date,
@@ -131,6 +143,7 @@ export default async function AnalyticsPage({
     ...topUsers.map((u) => u.userId),
     ...recentWarnings.map((w) => w.userId),
     ...recentWarnings.map((w) => w.moderatorId),
+    ...topInviters.map((i) => i.inviterId),
   ];
   const members = await prisma.member.findMany({
     where: { userId: { in: allMemberIds } },
@@ -315,6 +328,58 @@ export default async function AnalyticsPage({
                       <div className="shrink-0 text-right text-xs tabular-nums">
                         <div className="font-medium text-ink">{n(u.xp)}</div>
                         <div className="text-[10px] text-ink-subtle">XP</div>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {/* Top Inviter — klickbar */}
+        <section className="card p-6">
+          <h2 className="mb-1 text-lg font-semibold">Top Inviter</h2>
+          <p className="mb-4 text-xs text-ink-subtle">
+            Wer die meisten neuen Mitglieder eingeladen hat (im gewählten Zeitraum)
+          </p>
+          {topInviters.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-line bg-bg-elevated/30 px-4 py-8 text-center text-sm text-ink-muted">
+              Noch keine Invite-Daten — Joins werden ab jetzt erfasst.
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {topInviters.map((inv, i) => {
+                const m = memberById.get(inv.inviterId);
+                const name = m?.displayName ?? `User ${inv.inviterId.slice(-4)}`;
+                const medal = ["🥇", "🥈", "🥉"][i] ?? `${i + 1}.`;
+                return (
+                  <li key={inv.inviterId}>
+                    <Link
+                      href={`/dashboard/members/${inv.inviterId}`}
+                      className="flex items-center gap-3 rounded-lg border border-line bg-bg-elevated/40 px-3 py-2 transition-colors hover:bg-bg-hover/60"
+                    >
+                      <span className="text-sm font-medium tabular-nums w-6 text-center">
+                        {medal}
+                      </span>
+                      {m?.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={m.avatarUrl}
+                          alt=""
+                          className="h-8 w-8 rounded-full ring-1 ring-line"
+                        />
+                      ) : (
+                        <span className="grid h-8 w-8 place-items-center rounded-full bg-bg-elevated text-xs">
+                          {name[0]?.toUpperCase() ?? "?"}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1 truncate text-sm font-medium">{name}</div>
+                      <div className="shrink-0 text-right text-xs tabular-nums">
+                        <div className="font-medium text-ink">{inv.invites}</div>
+                        <div className="text-[10px] text-ink-subtle">
+                          {inv.invites === 1 ? "Invite" : "Invites"}
+                        </div>
                       </div>
                     </Link>
                   </li>

@@ -12,6 +12,10 @@ Dashboard konfigurierbar, kein Code-Editing nötig.
 
 ### Moderation & Sicherheit
 - **Moderation** — Warns, Timeouts, Kicks, Bans aus dem Dashboard mit Verlauf pro User
+- **Ban-Appeals** — Gebannte bekommen per DM einen signierten Link zu einer öffentlichen
+  Antrags-Seite (ohne Login), Mods entscheiden im Dashboard — Annehmen entbannt direkt
+- **Invite-Tracking** — wer hat wen eingeladen: Anzeige im Member-Profil + Top-Inviter in Analytics
+  (Bot braucht die „Server verwalten"-Berechtigung)
 - **AutoMod** — Anti-Spam, Mass-Mention-Filter, Invite-Filter, Whitelist-Channels und Bypass-Rollen
 - **Audit Logs** — Konfigurierbare Server-Event-Logs (Delete/Edit/Join/Leave/Voice/Bans/Rollen…)
 

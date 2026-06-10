@@ -1,6 +1,7 @@
 import { EmbedBuilder, type Client, type TextChannel, type GuildMember } from "discord.js";
 import { prisma } from "@repo/db";
 import { env } from "../../lib/env.js";
+import { appealUrl } from "../../lib/appealToken.js";
 import { logger } from "../../lib/logger.js";
 import { isMemberProtected } from "../../features/members/service.js";
 
@@ -286,6 +287,10 @@ export async function handleBan(
     reason,
     moderatorName,
     color: 0x992d22,
+    extraField: {
+      name: "Einspruch einlegen",
+      value: `Du kannst [hier einen Entbannungsantrag stellen](${appealUrl(userId)}). Heb dir den Link auf — darüber siehst du auch den Status deines Antrags.`,
+    },
   });
 
   try {

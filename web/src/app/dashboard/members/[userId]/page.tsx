@@ -92,7 +92,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
   since.setDate(since.getDate() - 29);
   const sinceKey = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, "0")}-${String(since.getDate()).padStart(2, "0")}`;
 
-  const [member, allRoles, levelUser, warnings, notes, activity] = await Promise.all([
+  const [member, allRoles, levelUser, warnings, notes, activity, inviteUse] = await Promise.all([
     prisma.member.findUnique({ where: { userId } }),
     prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
     prisma.levelUser.findUnique({ where: { userId } }),
@@ -102,7 +102,16 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
       where: { userId, date: { gte: sinceKey } },
       orderBy: [{ date: "asc" }, { hour: "asc" }],
     }),
+    prisma.inviteUse.findFirst({ where: { userId }, orderBy: { joinedAt: "desc" } }),
   ]);
+
+  const inviter = inviteUse?.inviterId
+    ? await prisma.member.findUnique({
+        where: { userId: inviteUse.inviterId },
+        select: { displayName: true },
+      })
+    : null;
+  const inviterLabel = inviter?.displayName ?? (inviteUse?.inviterId ? `User ${inviteUse.inviterId.slice(-4)}` : null);
 
   // Lieblings-Channels: letzte 7 Tage, gruppiert.
   const sinceWeek = new Date();
@@ -251,7 +260,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     {
       label: "Beitritt",
       value: joined.value,
-      sub: joined.sub,
+      sub: inviterLabel ? `eingeladen von ${inviterLabel}` : joined.sub,
       icon: <svg viewBox="0 0 24 24" className="h-4 w-4" {...stroke}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18" /></svg>,
       tone: "green" as const,
     },

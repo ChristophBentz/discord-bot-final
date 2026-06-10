@@ -52,3 +52,72 @@ export async function deleteWarning(id: number): Promise<Result> {
   revalidatePath(`/dashboard/members/${warning.userId}`);
   return { ok: true };
 }
+
+// ─── Ban-Appeals ─────────────────────────────────────────────────────────────
+
+export async function approveAppeal(id: number, note: string): Promise<Result> {
+  const mod = await getMod();
+  if (!mod) return { ok: false, error: "Nicht eingeloggt." };
+  const appeal = await prisma.banAppeal.findUnique({ where: { id } });
+  if (!appeal) return { ok: false, error: "Antrag nicht gefunden." };
+  if (appeal.status !== "pending") return { ok: false, error: "Antrag ist bereits entschieden." };
+
+  const res = await callBot(`/api/members/${appeal.userId}/ban`, {
+    method: "DELETE",
+    body: {
+      reason: "Entbannungsantrag angenommen",
+      moderatorId: mod.id,
+      moderatorName: mod.name,
+    },
+  });
+  // "nicht gebannt" = wurde schon manuell entbannt — Antrag trotzdem annehmen.
+  if (!res.ok && !res.error.includes("nicht gebannt")) return res;
+
+  await prisma.banAppeal.update({
+    where: { id },
+    data: {
+      status: "approved",
+      decidedById: mod.id,
+      decidedBy: mod.name,
+      decidedAt: new Date(),
+      decisionNote: note.trim() || null,
+    },
+  });
+  revalidatePath("/dashboard/moderation");
+  revalidatePath(`/appeal/${appeal.userId}`);
+  return { ok: true };
+}
+
+export async function denyAppeal(id: number, note: string): Promise<Result> {
+  const mod = await getMod();
+  if (!mod) return { ok: false, error: "Nicht eingeloggt." };
+  const appeal = await prisma.banAppeal.findUnique({ where: { id } });
+  if (!appeal) return { ok: false, error: "Antrag nicht gefunden." };
+  if (appeal.status !== "pending") return { ok: false, error: "Antrag ist bereits entschieden." };
+
+  await prisma.banAppeal.update({
+    where: { id },
+    data: {
+      status: "denied",
+      decidedById: mod.id,
+      decidedBy: mod.name,
+      decidedAt: new Date(),
+      decisionNote: note.trim() || null,
+    },
+  });
+  revalidatePath("/dashboard/moderation");
+  revalidatePath(`/appeal/${appeal.userId}`);
+  return { ok: true };
+}
+
+// Löschen erlaubt dem User, erneut einen Antrag zu stellen (Eskalations-Ventil).
+export async function deleteAppeal(id: number): Promise<Result> {
+  const mod = await getMod();
+  if (!mod) return { ok: false, error: "Nicht eingeloggt." };
+  const appeal = await prisma.banAppeal.findUnique({ where: { id } });
+  if (!appeal) return { ok: false, error: "Antrag nicht gefunden." };
+  await prisma.banAppeal.delete({ where: { id } });
+  revalidatePath("/dashboard/moderation");
+  revalidatePath(`/appeal/${appeal.userId}`);
+  return { ok: true };
+}

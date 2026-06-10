@@ -541,3 +541,34 @@ model MemberNote {
 
   @@index([userId])
 }
+
+// Ban-Appeal: gebannter User reicht über die öffentliche Appeal-Seite eine Begründung ein.
+model BanAppeal {
+  id           Int       @id @default(autoincrement())
+  userId       String
+  username     String // Snapshot — User ist nach dem Ban evtl. nicht mehr im Member-Sync
+  banReason    String?
+  text         String // Begründung des Users
+  // "pending" | "approved" | "denied"
+  status       String    @default("pending")
+  decidedById  String?
+  decidedBy    String? // Moderator-Name
+  decidedAt    DateTime?
+  decisionNote String? // optionale Begründung der Entscheidung (auf der Appeal-Seite sichtbar)
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Invite-Tracking: über welchen Invite ein Member gejoint ist.
+model InviteUse {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  inviterId  String? // null = nicht zuordenbar (Vanity-URL, abgelaufener Invite, …)
+  inviteCode String?
+  joinedAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([inviterId])
+}

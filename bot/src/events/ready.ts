@@ -21,6 +21,7 @@ import { initMusicPlayer } from "../features/music/player.js";
 import { startFreeGamesScheduler } from "../features/freeGames/service.js";
 import { startRssScheduler } from "../features/rss/service.js";
 import { startServerStatsScheduler } from "../features/serverStats/service.js";
+import { syncInviteCache } from "../features/invites/service.js";
 import { startApiServer } from "../api/server.js";
 
 const event: BotEvent<Events.ClientReady> = {
@@ -40,6 +41,7 @@ const event: BotEvent<Events.ClientReady> = {
     // Stats-Scheduler braucht den Members-Cache (humanMembers/online), deshalb erst hier.
     startServerStatsScheduler(client);
     await bulkSyncChannels(client);
+    await syncInviteCache(client);
     await cleanupOrphanedTempChannels(client);
     startTempChannelSweeper(client);
     await ensureTicketPanel(client);
