@@ -283,13 +283,12 @@ export default async function DashboardOverview() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl grid gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="space-y-8">
         {/* Page Header */}
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-brand">Server</div>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Übersicht</h1>
+            <h1 className="text-4xl font-semibold tracking-tight">Übersicht</h1>
             <p className="mt-2 text-sm text-ink-muted">
               Hier ist was sich auf <span className="font-semibold text-ink">{config.guildName ?? "deinem Server"}</span> tut · {date}
             </p>
