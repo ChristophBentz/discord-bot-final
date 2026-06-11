@@ -3,6 +3,7 @@ import { CreateAchievementForm } from "./CreateAchievementForm";
 import { AchievementCard, type AchievementItem } from "./AchievementCard";
 import { NotifySettingsForm } from "./NotifySettingsForm";
 import { FeatureHero } from "@/components/FeatureHero";
+import { DashboardTabs } from "@/components/DashboardTabs";
 
 export default async function AchievementsPage() {
   const [config, achievements, channels, totalAwards, uniqueRecipients] = await Promise.all([
@@ -70,59 +71,81 @@ export default async function AchievementsPage() {
         ]}
       />
 
-      <section className="card p-6">
-        <h2 className="mb-1 text-lg font-semibold">
-          Benachrichtigungen
-          {notifyActive && (
-            <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-400">
-              Aktiv
-            </span>
-          )}
-        </h2>
-        <p className="mb-5 text-sm text-ink-muted">
-          Wohin der Bot Achievements ankündigt. Beide Optionen können gleichzeitig aktiv sein.
-        </p>
-        <NotifySettingsForm
-          initial={{
-            achievementNotifyDM: config.achievementNotifyDM,
-            achievementNotifyChannel: config.achievementNotifyChannel,
-            achievementChannelId: config.achievementChannelId,
-          }}
-          channels={channels.map((c) => ({
-            channelId: c.channelId,
-            name: c.name,
-            type: c.type,
-            parentId: c.parentId,
-            position: c.position,
-          }))}
-        />
-      </section>
-
-      <section className="card p-6">
-        <h2 className="mb-1 text-lg font-semibold">Neues Achievement</h2>
-        <p className="mb-5 text-sm text-ink-muted">
-          Bild ist optional, wird im Embed als Thumbnail angezeigt.
-        </p>
-        <CreateAchievementForm />
-      </section>
-
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Bestehende Achievements</h2>
-          <span className="badge">{items.length}</span>
-        </div>
-        {items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-line bg-bg-card/50 px-5 py-10 text-center text-sm text-ink-muted">
-            Noch keine Achievements angelegt.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {items.map((a) => (
-              <AchievementCard key={a.id} a={a} />
-            ))}
-          </div>
-        )}
-      </section>
+      <DashboardTabs
+        defaultTab="list"
+        items={[
+          {
+            key: "list",
+            label: "Achievements",
+            count: items.length,
+            content: (
+              <section>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Bestehende Achievements</h2>
+                  <span className="badge">{items.length}</span>
+                </div>
+                {items.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-line bg-bg-card/50 px-5 py-10 text-center text-sm text-ink-muted">
+                    Noch keine Achievements angelegt.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {items.map((a) => (
+                      <AchievementCard key={a.id} a={a} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ),
+          },
+          {
+            key: "create",
+            label: "Neu erstellen",
+            content: (
+              <section className="card p-6">
+                <h2 className="mb-1 text-lg font-semibold">Neues Achievement</h2>
+                <p className="mb-5 text-sm text-ink-muted">
+                  Bild ist optional, wird im Embed als Thumbnail angezeigt.
+                </p>
+                <CreateAchievementForm />
+              </section>
+            ),
+          },
+          {
+            key: "notify",
+            label: "Benachrichtigungen",
+            content: (
+              <section className="card p-6">
+                <h2 className="mb-1 text-lg font-semibold">
+                  Benachrichtigungen
+                  {notifyActive && (
+                    <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-400">
+                      Aktiv
+                    </span>
+                  )}
+                </h2>
+                <p className="mb-5 text-sm text-ink-muted">
+                  Wohin der Bot Achievements ankündigt. Beide Optionen können gleichzeitig aktiv sein.
+                </p>
+                <NotifySettingsForm
+                  initial={{
+                    achievementNotifyDM: config.achievementNotifyDM,
+                    achievementNotifyChannel: config.achievementNotifyChannel,
+                    achievementChannelId: config.achievementChannelId,
+                  }}
+                  channels={channels.map((c) => ({
+                    channelId: c.channelId,
+                    name: c.name,
+                    type: c.type,
+                    parentId: c.parentId,
+                    position: c.position,
+                  }))}
+                />
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

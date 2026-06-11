@@ -1,4 +1,5 @@
 import { getConfig, prisma } from "@repo/db";
+import { DashboardTabs } from "@/components/DashboardTabs";
 import { ComposeForm } from "./ComposeForm";
 import { MessageHistory, type MessageRow } from "./MessageHistory";
 
@@ -40,31 +41,48 @@ export default async function ComposePage() {
         </p>
       </header>
 
-      <section className="card p-6">
-        <ComposeForm
-          channels={channels.map((c) => ({
-            channelId: c.channelId,
-            name: c.name,
-            type: c.type,
-            parentId: c.parentId,
-            position: c.position,
-          }))}
-          bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
-          roles={roles.map((r) => ({
-            roleId: r.roleId,
-            name: r.name,
-            color: r.color,
-          }))}
-        />
-      </section>
-
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Verlauf</h2>
-          <span className="badge">{rows.length}</span>
-        </div>
-        <MessageHistory messages={rows} guildId={guildId} />
-      </section>
+      <DashboardTabs
+        defaultTab="compose"
+        items={[
+          {
+            key: "compose",
+            label: "Nachricht senden",
+            content: (
+              <section className="card p-6">
+                <ComposeForm
+                  channels={channels.map((c) => ({
+                    channelId: c.channelId,
+                    name: c.name,
+                    type: c.type,
+                    parentId: c.parentId,
+                    position: c.position,
+                  }))}
+                  bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
+                  roles={roles.map((r) => ({
+                    roleId: r.roleId,
+                    name: r.name,
+                    color: r.color,
+                  }))}
+                />
+              </section>
+            ),
+          },
+          {
+            key: "history",
+            label: "Verlauf",
+            count: rows.length,
+            content: (
+              <section>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Verlauf</h2>
+                  <span className="badge">{rows.length}</span>
+                </div>
+                <MessageHistory messages={rows} guildId={guildId} />
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

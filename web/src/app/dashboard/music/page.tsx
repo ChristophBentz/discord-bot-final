@@ -2,6 +2,7 @@ import { getConfig, prisma } from "@repo/db";
 import { MusicForm } from "./MusicForm";
 import { DjRoleEditor, type DjRoleOption } from "./DjRoleEditor";
 import { PlayerPanel } from "./PlayerPanel";
+import { DashboardTabs } from "@/components/DashboardTabs";
 
 export default async function MusicPage() {
   const [config, djRows, allRoles] = await Promise.all([
@@ -32,22 +33,41 @@ export default async function MusicPage() {
         </p>
       </header>
 
-      <section className="card p-6">
-        <h2 className="mb-1 text-lg font-semibold">Einstellungen</h2>
-        <p className="mb-5 text-sm text-ink-muted">Hauptschalter für das Music-Feature.</p>
-        <MusicForm initial={{ musicEnabled: config.musicEnabled }} />
-      </section>
-
-      <section className="card p-6">
-        <h2 className="mb-1 text-lg font-semibold">DJ-Rollen</h2>
-        <p className="mb-5 text-sm text-ink-muted">
-          Nur User mit einer dieser Rollen dürfen Musik abspielen oder steuern. Leere Liste = niemand
-          darf steuern.
-        </p>
-        <DjRoleEditor current={djRoles} available={availableRoles} />
-      </section>
-
-      <PlayerPanel enabled={config.musicEnabled} />
+      <DashboardTabs
+        defaultTab="player"
+        items={[
+          {
+            key: "player",
+            label: "Player",
+            content: <PlayerPanel enabled={config.musicEnabled} />,
+          },
+          {
+            key: "settings",
+            label: "Einstellungen",
+            content: (
+              <section className="card p-6">
+                <h2 className="mb-1 text-lg font-semibold">Einstellungen</h2>
+                <p className="mb-5 text-sm text-ink-muted">Hauptschalter für das Music-Feature.</p>
+                <MusicForm initial={{ musicEnabled: config.musicEnabled }} />
+              </section>
+            ),
+          },
+          {
+            key: "dj",
+            label: "DJ-Rollen",
+            content: (
+              <section className="card p-6">
+                <h2 className="mb-1 text-lg font-semibold">DJ-Rollen</h2>
+                <p className="mb-5 text-sm text-ink-muted">
+                  Nur User mit einer dieser Rollen dürfen Musik abspielen oder steuern. Leere Liste =
+                  niemand darf steuern.
+                </p>
+                <DjRoleEditor current={djRoles} available={availableRoles} />
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

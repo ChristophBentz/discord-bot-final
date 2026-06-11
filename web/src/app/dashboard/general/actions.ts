@@ -73,7 +73,8 @@ export async function saveBotDescription(formData: FormData): Promise<SaveDescri
 
 export async function loadBotDescription(): Promise<string> {
   const r = await callBot<{ description: string }>("/api/bot/description", { method: "GET" });
-  return r.ok ? r.data.description : "";
+  // ?? "" — auch gegen unerwartete Antwort-Shapes robust bleiben.
+  return r.ok ? (r.data.description ?? "") : "";
 }
 
 export type SaveAvatarResult =

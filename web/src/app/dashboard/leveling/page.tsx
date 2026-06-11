@@ -1,6 +1,7 @@
 import { getConfig, prisma } from "@repo/db";
 import { LevelingForm } from "./LevelingForm";
 import { FeatureHero } from "@/components/FeatureHero";
+import { DashboardTabs } from "@/components/DashboardTabs";
 
 interface Curve { base: number; mult: number }
 
@@ -89,29 +90,42 @@ export default async function LevelingPage() {
         ]}
       />
 
-      <LevelingForm
-          initial={{
-            levelingEnabled: c.levelingEnabled,
-            levelUpChannelId: c.levelUpChannelId,
-            xpPerMessageMin: c.xpPerMessageMin,
-            xpPerMessageMax: c.xpPerMessageMax,
-            xpCooldownSeconds: c.xpCooldownSeconds,
-            xpPerMinuteVoice: c.xpPerMinuteVoice,
-            xpLevelBase: c.xpLevelBase,
-            xpLevelMultiplier: c.xpLevelMultiplier,
-            levelUpMessage: c.levelUpMessage,
-          }}
-          bot={{ name: c.botName ?? "Bot", avatarUrl: c.botAvatarUrl }}
-          channels={channels.map((ch) => ({
-            channelId: ch.channelId,
-            name: ch.name,
-            type: ch.type,
-            parentId: ch.parentId,
-            position: ch.position,
-          }))}
-        />
-
-      <section className="card overflow-hidden p-0">
+      <DashboardTabs
+        defaultTab="settings"
+        items={[
+          {
+            key: "settings",
+            label: "Einstellungen",
+            content: (
+              <LevelingForm
+                initial={{
+                  levelingEnabled: c.levelingEnabled,
+                  levelUpChannelId: c.levelUpChannelId,
+                  xpPerMessageMin: c.xpPerMessageMin,
+                  xpPerMessageMax: c.xpPerMessageMax,
+                  xpCooldownSeconds: c.xpCooldownSeconds,
+                  xpPerMinuteVoice: c.xpPerMinuteVoice,
+                  xpLevelBase: c.xpLevelBase,
+                  xpLevelMultiplier: c.xpLevelMultiplier,
+                  levelUpMessage: c.levelUpMessage,
+                }}
+                bot={{ name: c.botName ?? "Bot", avatarUrl: c.botAvatarUrl }}
+                channels={channels.map((ch) => ({
+                  channelId: ch.channelId,
+                  name: ch.name,
+                  type: ch.type,
+                  parentId: ch.parentId,
+                  position: ch.position,
+                }))}
+              />
+            ),
+          },
+          {
+            key: "leaderboard",
+            label: "Leaderboard",
+            count: top.length,
+            content: (
+              <section className="card overflow-hidden p-0">
         <div className="px-6 pt-6 pb-4">
           <h2 className="text-lg font-semibold">Leaderboard</h2>
           <p className="mt-1 text-sm text-ink-muted">
@@ -177,7 +191,11 @@ export default async function LevelingPage() {
             </table>
           </div>
         )}
-      </section>
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

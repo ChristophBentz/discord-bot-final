@@ -2,6 +2,7 @@ import { getConfig, prisma } from "@repo/db";
 import { FreeGamesForm } from "./FreeGamesForm";
 import { PostHistory } from "./PostHistory";
 import { FeatureHero } from "@/components/FeatureHero";
+import { DashboardTabs } from "@/components/DashboardTabs";
 
 export default async function FreeGamesPage() {
   const [config, channels, roles, recentPosts, totalPosts] = await Promise.all([
@@ -71,54 +72,71 @@ export default async function FreeGamesPage() {
         ]}
       />
 
-      <FreeGamesForm
-          initial={{
-            freeGamesEnabled: config.freeGamesEnabled,
-            freeGamesChannelId: config.freeGamesChannelId,
-            freeGamesEpic: config.freeGamesEpic,
-            freeGamesSteam: config.freeGamesSteam,
-            freeGamesGog: config.freeGamesGog,
-            freeGamesConsole: config.freeGamesConsole,
-            freeGamesIncludeGames: config.freeGamesIncludeGames,
-            freeGamesIncludeDlc: config.freeGamesIncludeDlc,
-            freeGamesIncludeLoot: config.freeGamesIncludeLoot,
-            freeGamesMessage: config.freeGamesMessage,
-            freeGamesPingRoleId: config.freeGamesPingRoleId,
-            freeGamesFooterText: config.freeGamesFooterText,
-            freeGamesLastCheck: config.freeGamesLastCheck,
-          }}
-          channels={channels.map((c) => ({
-            channelId: c.channelId,
-            name: c.name,
-            type: c.type,
-            parentId: c.parentId,
-            position: c.position,
-          }))}
-          roles={roles.map((r) => ({ roleId: r.roleId, name: r.name, color: r.color }))}
-          bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
-        />
-
-      <section className="card p-6">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Zuletzt gepostet</h2>
-            <p className="mt-0.5 text-xs text-ink-subtle">
-              Die letzten {recentPosts.length} Free-Games-Posts vom Bot.
-            </p>
-          </div>
-          <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-300">
-            {recentPosts.length}
-          </span>
-        </div>
-        <PostHistory
-          posts={recentPosts.map((p) => ({
-            giveawayId: p.giveawayId,
-            title: p.title,
-            platform: p.platform,
-            postedAt: p.postedAt.toISOString(),
-          }))}
-        />
-      </section>
+      <DashboardTabs
+        defaultTab="settings"
+        items={[
+          {
+            key: "settings",
+            label: "Einstellungen",
+            content: (
+              <FreeGamesForm
+                initial={{
+                  freeGamesEnabled: config.freeGamesEnabled,
+                  freeGamesChannelId: config.freeGamesChannelId,
+                  freeGamesEpic: config.freeGamesEpic,
+                  freeGamesSteam: config.freeGamesSteam,
+                  freeGamesGog: config.freeGamesGog,
+                  freeGamesConsole: config.freeGamesConsole,
+                  freeGamesIncludeGames: config.freeGamesIncludeGames,
+                  freeGamesIncludeDlc: config.freeGamesIncludeDlc,
+                  freeGamesIncludeLoot: config.freeGamesIncludeLoot,
+                  freeGamesMessage: config.freeGamesMessage,
+                  freeGamesPingRoleId: config.freeGamesPingRoleId,
+                  freeGamesFooterText: config.freeGamesFooterText,
+                  freeGamesLastCheck: config.freeGamesLastCheck,
+                }}
+                channels={channels.map((c) => ({
+                  channelId: c.channelId,
+                  name: c.name,
+                  type: c.type,
+                  parentId: c.parentId,
+                  position: c.position,
+                }))}
+                roles={roles.map((r) => ({ roleId: r.roleId, name: r.name, color: r.color }))}
+                bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
+              />
+            ),
+          },
+          {
+            key: "history",
+            label: "Zuletzt gepostet",
+            count: recentPosts.length,
+            content: (
+              <section className="card p-6">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">Zuletzt gepostet</h2>
+                    <p className="mt-0.5 text-xs text-ink-subtle">
+                      Die letzten {recentPosts.length} Free-Games-Posts vom Bot.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-300">
+                    {recentPosts.length}
+                  </span>
+                </div>
+                <PostHistory
+                  posts={recentPosts.map((p) => ({
+                    giveawayId: p.giveawayId,
+                    title: p.title,
+                    platform: p.platform,
+                    postedAt: p.postedAt.toISOString(),
+                  }))}
+                />
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getConfig } from "@repo/db";
+import { DashboardTabs } from "@/components/DashboardTabs";
 import { BotStatusForm } from "./BotStatusForm";
 import { BotIdentityForm } from "./BotIdentityForm";
 import { loadBotDescription } from "./actions";
@@ -8,7 +9,7 @@ export default async function GeneralPage() {
   const config = await getConfig();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-6">
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">
           Einstellungen
@@ -19,31 +20,46 @@ export default async function GeneralPage() {
         </p>
       </header>
 
-      <section className="card p-6">
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold">Bot-Profil</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Avatar, Name und Beschreibung — so erscheint der Bot in Discord.
-          </p>
-        </div>
-        <Suspense fallback={<IdentitySkeleton />}>
-          <IdentitySection
-            initialName={config.botName}
-            initialAvatarUrl={config.botAvatarUrl}
-            initialBannerUrl={config.botBannerUrl}
-          />
-        </Suspense>
-      </section>
-
-      <section className="card p-6">
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold">Status</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Custom-Status unter dem Bot-Namen in der Member-Liste.
-          </p>
-        </div>
-        <BotStatusForm initial={config.botStatusText} />
-      </section>
+      <DashboardTabs
+        items={[
+          {
+            key: "profile",
+            label: "Bot-Profil",
+            content: (
+              <section className="card p-6">
+                <div className="mb-5">
+                  <h2 className="text-lg font-semibold">Bot-Profil</h2>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    Avatar, Name und Beschreibung — so erscheint der Bot in Discord.
+                  </p>
+                </div>
+                <Suspense fallback={<IdentitySkeleton />}>
+                  <IdentitySection
+                    initialName={config.botName}
+                    initialAvatarUrl={config.botAvatarUrl}
+                    initialBannerUrl={config.botBannerUrl}
+                  />
+                </Suspense>
+              </section>
+            ),
+          },
+          {
+            key: "status",
+            label: "Status",
+            content: (
+              <section className="card p-6">
+                <div className="mb-5">
+                  <h2 className="text-lg font-semibold">Status</h2>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    Custom-Status unter dem Bot-Namen in der Member-Liste.
+                  </p>
+                </div>
+                <BotStatusForm initial={config.botStatusText} />
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
