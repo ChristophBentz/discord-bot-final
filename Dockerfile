@@ -15,6 +15,9 @@ COPY package.json package-lock.json* ./
 COPY bot/package.json ./bot/
 COPY web/package.json ./web/
 COPY packages/db/package.json ./packages/db/
+# Prisma-Schema vor npm ci kopieren — das postinstall von @repo/db ruft
+# `prisma generate` auf und braucht das Schema bereits beim Install.
+COPY packages/db/prisma ./packages/db/prisma
 
 RUN npm ci
 
