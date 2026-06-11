@@ -9,10 +9,10 @@ export default async function GeneralPage() {
   const config = await getConfig();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-8">
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">
-          Einstellungen
+          Server
         </div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Allgemein</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">

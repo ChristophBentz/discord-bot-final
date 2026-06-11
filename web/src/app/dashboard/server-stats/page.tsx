@@ -16,7 +16,7 @@ export default async function ServerStatsPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
-        <div className="text-xs font-semibold uppercase tracking-wider text-brand">Info</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-brand">Engagement</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Server-Stats</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
           Locked-Voice-Channels mit Live-Zählerständen oben in der Channel-Liste. Bot legt sie

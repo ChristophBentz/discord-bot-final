@@ -283,7 +283,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       {/* Banner + Identity Card */}
       <section className="card overflow-hidden p-0">
         {/* Banner — User-Banner falls Nitro, sonst Accent-Color-Gradient, sonst Default */}

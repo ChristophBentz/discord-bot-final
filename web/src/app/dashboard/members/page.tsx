@@ -63,7 +63,7 @@ export default async function MembersPage() {
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">Server</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Mitglieder</h1>
-        <p className="mt-2 text-sm text-ink-muted">
+        <p className="mt-2 max-w-xl text-sm text-ink-muted">
           Alle Mitglieder deines Servers — klick auf einen Eintrag für Details.
         </p>
       </header>

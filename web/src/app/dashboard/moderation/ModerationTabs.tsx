@@ -210,7 +210,7 @@ export function ModerationTabs({ error, timeouts, bans, appeals, warnings }: Pro
       <section role="tabpanel" className="card p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold">{panel.title}</h2>
-          <p className="mt-0.5 text-xs text-ink-subtle">{panel.description}</p>
+          <p className="mt-1 text-sm text-ink-muted">{panel.description}</p>
         </div>
         {panel.body}
       </section>

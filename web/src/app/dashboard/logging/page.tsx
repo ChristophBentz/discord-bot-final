@@ -10,7 +10,7 @@ export default async function LoggingPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
-        <div className="text-xs font-semibold uppercase tracking-wider text-brand">Audit</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-brand">Moderation</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Logging</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
           Wähle einen Channel, in den der Bot Ereignisse loggt — und entscheide pro Kategorie, was protokolliert wird.

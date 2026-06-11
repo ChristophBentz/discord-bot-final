@@ -48,7 +48,7 @@ export default async function LevelingPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
-        <div className="text-xs font-semibold uppercase tracking-wider text-brand">XP-System</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-brand">Engagement</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Leveling</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
           Members sammeln XP durch Nachrichten und Zeit in Voice-Channeln.
@@ -134,7 +134,7 @@ export default async function LevelingPage() {
         </div>
 
         {top.length === 0 ? (
-          <div className="m-6 rounded-xl border border-dashed border-line px-5 py-10 text-center text-sm text-ink-muted">
+          <div className="m-6 rounded-xl border border-dashed border-line bg-bg-elevated/30 px-4 py-8 text-center text-sm text-ink-muted">
             Noch keine XP gesammelt.
           </div>
         ) : (

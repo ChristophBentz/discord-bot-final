@@ -101,7 +101,7 @@ export default async function TempChannelsPage() {
                   </span>
                 </div>
                 {active.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line bg-bg-elevated/30 px-4 py-10 text-center text-sm text-ink-muted">
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line bg-bg-elevated/30 px-4 py-8 text-center text-sm text-ink-muted">
                     <svg viewBox="0 0 24 24" className="h-6 w-6 text-ink-subtle" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M11 5 6 9H2v6h4l5 4V5z" />
                       <path d="M23 9l-6 6M17 9l6 6" />

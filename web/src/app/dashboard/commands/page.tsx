@@ -26,7 +26,7 @@ export default async function CommandsPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-8">
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">
           Engagement

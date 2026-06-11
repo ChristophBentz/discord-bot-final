@@ -161,7 +161,7 @@ export default async function AnalyticsPage({
     <div className="mx-auto max-w-5xl space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-brand">Insights</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-brand">Server</div>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Analytics</h1>
           <p className="mt-2 max-w-xl text-sm text-ink-muted">
             Übersicht über die Aktivität auf deinem Server. Klick auf Karten und Listen für Details.
@@ -222,7 +222,7 @@ export default async function AnalyticsPage({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold">Nachrichten + Voice — Trend</h2>
-            <p className="text-xs text-ink-subtle">
+            <p className="text-sm text-ink-muted">
               Tägliche Aktivität, letzte {range} Tage
             </p>
           </div>
@@ -234,7 +234,7 @@ export default async function AnalyticsPage({
       <section className="card p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold">Aktivitäts-Heatmap (Server)</h2>
-          <p className="text-xs text-ink-subtle">
+          <p className="text-sm text-ink-muted">
             Wann auf dem Server am aktivsten gechattet/gespeacht wird
           </p>
         </div>
@@ -245,7 +245,7 @@ export default async function AnalyticsPage({
         {/* Top Channels — klickbar */}
         <section className="card p-6">
           <h2 className="mb-1 text-lg font-semibold">Top Channels</h2>
-          <p className="mb-4 text-xs text-ink-subtle">
+          <p className="mb-4 text-sm text-ink-muted">
             Klick für Channel-Details · letzte {range} Tage
           </p>
           {channelAgg.length === 0 ? (
@@ -287,7 +287,7 @@ export default async function AnalyticsPage({
         {/* Top User — klickbar */}
         <section className="card p-6">
           <h2 className="mb-1 text-lg font-semibold">Top XP-Sammler</h2>
-          <p className="mb-4 text-xs text-ink-subtle">Klick für Profil-Details</p>
+          <p className="mb-4 text-sm text-ink-muted">Klick für Profil-Details</p>
           {topUsers.length === 0 ? (
             <div className="rounded-xl border border-dashed border-line bg-bg-elevated/30 px-4 py-8 text-center text-sm text-ink-muted">
               Noch keine Daten.
@@ -340,7 +340,7 @@ export default async function AnalyticsPage({
         {/* Top Inviter — klickbar */}
         <section className="card p-6">
           <h2 className="mb-1 text-lg font-semibold">Top Inviter</h2>
-          <p className="mb-4 text-xs text-ink-subtle">
+          <p className="mb-4 text-sm text-ink-muted">
             Wer die meisten neuen Mitglieder eingeladen hat (im gewählten Zeitraum)
           </p>
           {topInviters.length === 0 ? (
@@ -396,7 +396,7 @@ export default async function AnalyticsPage({
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Letzte Verwarnungen</h2>
-              <p className="text-xs text-ink-subtle">Klick für User-Profil</p>
+              <p className="text-sm text-ink-muted">Klick für User-Profil</p>
             </div>
             <Link
               href="/dashboard/moderation"
