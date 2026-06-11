@@ -3,7 +3,7 @@
 import { prisma } from "@repo/db";
 
 export interface SearchResult {
-  type: "member" | "channel" | "page" | "command" | "achievement";
+  type: "member" | "channel" | "page" | "command" | "achievement" | "ticket" | "appeal" | "feed" | "panel";
   id: string;
   title: string;
   subtitle?: string;
@@ -37,13 +37,13 @@ const PAGES: PageEntry[] = [
     title: "Analytics",
     subtitle: "Statistiken & Charts",
     href: "/dashboard/analytics",
-    keywords: ["stats", "statistiken", "diagramm", "graph", "charts"],
+    keywords: ["stats", "statistiken", "diagramm", "graph", "charts", "invite", "inviter", "einladungen"],
   },
   {
     title: "Moderation",
     subtitle: "Warns, Mutes, Bans",
     href: "/dashboard/moderation",
-    keywords: ["mod", "warn", "verwarnung", "ban", "mute", "timeout", "kick"],
+    keywords: ["mod", "warn", "verwarnung", "ban", "mute", "timeout", "kick", "entbannung", "antrag", "appeal", "unban", "einspruch"],
   },
   {
     title: "AutoMod",
@@ -292,6 +292,102 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       subtitle: a.description,
       href: "/dashboard/achievements",
       avatarUrl: a.imageUrl,
+    });
+  }
+
+  // 6) Tickets — per Username, Topic oder "#42"/Ticket-Nummer
+  const ticketIdMatch = q.match(/^#?(\d{1,6})$/);
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      OR: [
+        { username: { contains: q } },
+        { topic: { contains: q } },
+        ...(ticketIdMatch ? [{ id: Number(ticketIdMatch[1]) }] : []),
+      ],
+    },
+    select: { id: true, username: true, topic: true, status: true },
+    orderBy: { id: "desc" },
+    take: 6,
+  });
+  for (const t of tickets) {
+    results.push({
+      type: "ticket",
+      id: String(t.id),
+      title: `Ticket #${t.id}`,
+      subtitle: [t.username, t.topic].filter(Boolean).join(" · ") || undefined,
+      href: `/dashboard/tickets/${t.id}`,
+      hint: t.status === "open" ? "offen" : "geschlossen",
+    });
+  }
+
+  // 7) Entbannungsanträge — per Username oder Antragstext
+  const appeals = await prisma.banAppeal.findMany({
+    where: {
+      OR: [
+        { username: { contains: q } },
+        { text: { contains: q } },
+      ],
+    },
+    select: { id: true, username: true, text: true, status: true },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+  const appealHint: Record<string, string> = {
+    pending: "offen",
+    approved: "angenommen",
+    denied: "abgelehnt",
+  };
+  for (const a of appeals) {
+    results.push({
+      type: "appeal",
+      id: String(a.id),
+      title: `Antrag von ${a.username}`,
+      subtitle: a.text.length > 80 ? `${a.text.slice(0, 80)}…` : a.text,
+      href: "/dashboard/moderation",
+      hint: appealHint[a.status],
+    });
+  }
+
+  // 8) RSS-Feeds — per Name oder URL
+  const feeds = await prisma.rssFeed.findMany({
+    where: {
+      OR: [
+        { name: { contains: q } },
+        { url: { contains: q } },
+      ],
+    },
+    select: { id: true, name: true, url: true, enabled: true },
+    take: 5,
+  });
+  for (const f of feeds) {
+    results.push({
+      type: "feed",
+      id: String(f.id),
+      title: f.name,
+      subtitle: f.url,
+      href: "/dashboard/rss",
+      hint: f.enabled ? undefined : "pausiert",
+    });
+  }
+
+  // 9) Self-Role-Panels — per Titel oder Beschreibung
+  const panels = await prisma.selfRolePanel.findMany({
+    where: {
+      OR: [
+        { title: { contains: q } },
+        { description: { contains: q } },
+      ],
+    },
+    select: { id: true, title: true, type: true },
+    take: 5,
+  });
+  for (const p of panels) {
+    results.push({
+      type: "panel",
+      id: String(p.id),
+      title: p.title,
+      subtitle: `Self-Role-Panel (${p.type})`,
+      href: "/dashboard/self-roles",
     });
   }
 

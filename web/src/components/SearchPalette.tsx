@@ -10,6 +10,10 @@ const TYPE_LABEL: Record<SearchResult["type"], string> = {
   member: "Mitglieder",
   channel: "Channels",
   achievement: "Achievements",
+  ticket: "Tickets",
+  appeal: "Entbannungsanträge",
+  feed: "RSS-Feeds",
+  panel: "Self-Roles",
 };
 
 const TYPE_ORDER: SearchResult["type"][] = [
@@ -17,7 +21,11 @@ const TYPE_ORDER: SearchResult["type"][] = [
   "command",
   "member",
   "channel",
+  "ticket",
+  "appeal",
   "achievement",
+  "feed",
+  "panel",
 ];
 
 interface Props {
@@ -307,6 +315,29 @@ function ResultIcon({ item }: { item: SearchResult }) {
         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="8" r="6" />
           <path d="m9 13.5-2 8 5-3 5 3-2-8" />
+        </svg>
+      )}
+      {item.type === "ticket" && (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-6Z" />
+          <path d="M13 5v2M13 17v2M13 11v2" />
+        </svg>
+      )}
+      {item.type === "appeal" && (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3v18M3 7h4l2 5H5l2-5h14l-2 5h-4l2-5" />
+          <path d="M5 12a3 3 0 0 0 6 0M13 12a3 3 0 0 0 6 0" />
+        </svg>
+      )}
+      {item.type === "feed" && (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" />
+          <circle cx="5" cy="19" r="1" fill="currentColor" />
+        </svg>
+      )}
+      {item.type === "panel" && (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3Z" />
         </svg>
       )}
     </span>
