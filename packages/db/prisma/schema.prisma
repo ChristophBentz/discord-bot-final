@@ -47,6 +47,10 @@ model Config {
   logInvites        Boolean @default(false) // Invites erstellt/gelöscht
   logEmojis         Boolean @default(false) // Emojis & Sticker
 
+  // Mod-Aktionen zusätzlich in den Dashboard-Verlauf (ModEvent) schreiben —
+  // unabhängig vom Log-Channel.
+  recordModEvents Boolean @default(true)
+
   // Welcome / Leave
   welcomeEnabled   Boolean @default(false)
   welcomeChannelId String?

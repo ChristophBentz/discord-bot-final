@@ -34,6 +34,7 @@ export async function saveLoggingSettings(formData: FormData): Promise<SaveLoggi
     logServer: toggle("logServer"),
     logInvites: toggle("logInvites"),
     logEmojis: toggle("logEmojis"),
+    recordModEvents: toggle("recordModEvents"),
   };
 
   await prisma.config.upsert({

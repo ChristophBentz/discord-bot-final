@@ -21,9 +21,10 @@ interface Initial {
   logServer: boolean;
   logInvites: boolean;
   logEmojis: boolean;
+  recordModEvents: boolean;
 }
 
-type Key = keyof Omit<Initial, "logChannelId">;
+type Key = keyof Omit<Initial, "logChannelId" | "recordModEvents">;
 
 interface Category {
   key: Key;
@@ -241,6 +242,7 @@ export function LoggingForm({
   channels: ChannelOption[];
 }) {
   const [channelId, setChannelId] = useState(initial.logChannelId ?? "");
+  const [recordModEvents, setRecordModEvents] = useState(initial.recordModEvents);
   const [states, setStates] = useState<Record<Key, boolean>>(() => {
     const o = {} as Record<Key, boolean>;
     for (const k of ALL_KEYS) o[k] = Boolean(initial[k]);
@@ -402,6 +404,39 @@ export function LoggingForm({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Dashboard-Verlauf — unabhängig vom Log-Channel, deshalb außerhalb
+          des deaktivierten Kategorien-Blocks */}
+      <div className="rounded-2xl border border-line bg-bg-elevated/40 p-5">
+        <label className="flex cursor-pointer items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-ink">Mod-Aktionen-Verlauf (Dashboard)</div>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              Zeichnet Kicks, Timeouts, Voice-Moves und -Disconnects für den
+              „Aktionen"-Tab auf der Moderations-Seite auf — funktioniert auch ohne
+              Log-Channel und unabhängig von den Kategorien oben.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            name="recordModEvents"
+            checked={recordModEvents}
+            onChange={(e) => setRecordModEvents(e.target.checked)}
+            className="sr-only"
+          />
+          <span
+            className={`relative mt-1 h-5 w-9 shrink-0 rounded-full transition-colors ${
+              recordModEvents ? "bg-brand-gradient" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                recordModEvents ? "translate-x-4" : ""
+              }`}
+            />
+          </span>
+        </label>
       </div>
 
       {/* Sticky Save-Bar */}

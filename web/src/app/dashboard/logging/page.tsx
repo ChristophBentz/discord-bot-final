@@ -36,6 +36,7 @@ export default async function LoggingPage() {
             logServer: c.logServer,
             logInvites: c.logInvites,
             logEmojis: c.logEmojis,
+            recordModEvents: c.recordModEvents,
           }}
           channels={channels.map((c) => ({
             channelId: c.channelId,

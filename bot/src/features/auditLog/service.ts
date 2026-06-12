@@ -95,7 +95,8 @@ export async function sendLog(
 }
 
 // Mod-Aktion für den Dashboard-Verlauf persistieren — unabhängig davon,
-// ob das Discord-Channel-Logging für die Kategorie aktiv ist.
+// ob das Discord-Channel-Logging für die Kategorie aktiv ist. Abschaltbar
+// über den 'Mod-Aktionen-Verlauf'-Toggle auf der Audit-Logs-Seite.
 export async function recordModEvent(args: {
   userId: string;
   moderatorId?: string | null;
@@ -103,6 +104,8 @@ export async function recordModEvent(args: {
   detail?: string | null;
 }): Promise<void> {
   try {
+    const config = await getCachedConfig();
+    if (config && !config.recordModEvents) return;
     await prisma.modEvent.create({
       data: {
         userId: args.userId,
