@@ -3,10 +3,11 @@ interface StatCardProps {
   value: string;
   hint?: string;
   hintTone?: "neutral" | "positive" | "negative";
-  iconColor?: "violet" | "blue" | "pink" | "green" | "amber";
+  iconColor?: "neutral" | "violet" | "blue" | "pink" | "green" | "amber";
 }
 
 const ICON_BG: Record<NonNullable<StatCardProps["iconColor"]>, string> = {
+  neutral: "bg-white/[0.06] text-ink-muted",
   violet: "bg-icon-violet-bg text-icon-violet-fg",
   blue: "bg-icon-blue-bg text-icon-blue-fg",
   pink: "bg-icon-pink-bg text-icon-pink-fg",
@@ -19,7 +20,7 @@ export function StatCard({
   value,
   hint,
   hintTone = "neutral",
-  iconColor = "violet",
+  iconColor = "neutral",
   children,
 }: StatCardProps & { children?: React.ReactNode }) {
   const toneClass = {

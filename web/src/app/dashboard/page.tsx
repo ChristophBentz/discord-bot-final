@@ -1,6 +1,6 @@
 import { getConfig, prisma } from "@repo/db";
 import { StatCard } from "@/components/StatCard";
-import { ModuleCard, type IconColor } from "@/components/ModuleCard";
+import { ModuleCard } from "@/components/ModuleCard";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { OpenTicketsCard, type OpenTicketItem } from "@/components/OpenTicketsCard";
 
@@ -70,6 +70,18 @@ const icons = {
   settings: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>
   ),
+  rss: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="M4 11a9 9 0 0 1 9 9" /><path d="M4 4a16 16 0 0 1 16 16" /><circle cx="5" cy="19" r="1" /></svg>
+  ),
+  stats: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="M3 3v18h18" /><path d="M7 14l4-4 4 4 5-6" /></svg>
+  ),
+  wand: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M15 9h0M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5" /></svg>
+  ),
+  smile: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}><circle cx="12" cy="12" r="9" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><path d="M9 9h.01M15 9h.01" /></svg>
+  ),
 };
 
 function formatVoiceTime(seconds: number): string {
@@ -82,7 +94,8 @@ function formatVoiceTime(seconds: number): string {
 
 export default async function DashboardOverview() {
   const config = await getConfig();
-  const [stats, recentUsers, openTickets] = await Promise.all([
+  const [stats, recentUsers, openTickets, selfRoleCount, commandCount, rssCount, achievementCount] =
+    await Promise.all([
     prisma.levelUser.aggregate({
       _sum: { messageCount: true, voiceSeconds: true, xp: true },
       _count: true,
@@ -104,6 +117,10 @@ export default async function DashboardOverview() {
         },
       },
     }),
+    prisma.selfRolePanel.count(),
+    prisma.customCommand.count(),
+    prisma.rssFeed.count(),
+    prisma.achievement.count(),
   ]);
 
   // Avatare aus der Member-Tabelle dazujoinen (für Activity + offene Tickets)
@@ -135,42 +152,18 @@ export default async function DashboardOverview() {
   const totalVoice = stats._sum.voiceSeconds ?? 0;
   const totalXp = stats._sum.xp ?? 0;
   const memberCount = config.guildMemberCount;
-  const date = new Date().toLocaleDateString("de-DE", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 
   const modules: Array<{
     title: string;
     description: string;
-    href?: string;
-    iconColor: IconColor;
+    href: string;
     icon: React.ReactNode;
     enabled: boolean;
-    soon?: boolean;
   }> = [
-    {
-      title: "Allgemein",
-      description: "Bot-Status und globale Einstellungen.",
-      href: "/dashboard/general",
-      iconColor: "slate",
-      icon: icons.settings,
-      enabled: Boolean(config.botStatusText),
-    },
-    {
-      title: "Audit Logs",
-      description: "Server-Events an einen Channel weiterleiten.",
-      href: "/dashboard/logging",
-      iconColor: "blue",
-      icon: icons.doc,
-      enabled: Boolean(config.logChannelId),
-    },
     {
       title: "Moderation",
       description: "Kick, Ban, Timeout und Warnungen.",
       href: "/dashboard/moderation",
-      iconColor: "red",
       icon: icons.shield,
       enabled: true,
     },
@@ -178,15 +171,20 @@ export default async function DashboardOverview() {
       title: "AutoMod",
       description: "Wortfilter, Invite-Block, Anti-Spam.",
       href: "/dashboard/automod",
-      iconColor: "red",
       icon: icons.warning,
       enabled: config.autoModEnabled,
+    },
+    {
+      title: "Audit Logs",
+      description: "Server-Events an einen Channel weiterleiten.",
+      href: "/dashboard/logging",
+      icon: icons.doc,
+      enabled: Boolean(config.logChannelId),
     },
     {
       title: "Welcome",
       description: "Begrüßung neuer Mitglieder + Auto-Rollen.",
       href: "/dashboard/welcome",
-      iconColor: "green",
       icon: icons.envelope,
       enabled: config.welcomeEnabled || config.leaveEnabled || config.autoRolesEnabled,
     },
@@ -194,23 +192,34 @@ export default async function DashboardOverview() {
       title: "Leveling",
       description: "XP, Ränge & Voice-Tracking.",
       href: "/dashboard/leveling",
-      iconColor: "amber",
       icon: icons.trophy,
       enabled: config.levelingEnabled,
     },
     {
       title: "Achievements",
-      description: "Custom-Erfolge mit Bild und Auto-Vergabe.",
+      description: "Eigene Erfolge mit Bild und Auto-Vergabe.",
       href: "/dashboard/achievements",
-      iconColor: "amber",
       icon: icons.medal,
-      enabled: true,
+      enabled: achievementCount > 0,
+    },
+    {
+      title: "Auto-Rollen",
+      description: "Self-Assign-Panels mit Reactions, Buttons, Dropdown.",
+      href: "/dashboard/self-roles",
+      icon: icons.sparkles,
+      enabled: selfRoleCount > 0,
+    },
+    {
+      title: "Custom Commands",
+      description: "Eigene Slash-Befehle definieren.",
+      href: "/dashboard/commands",
+      icon: icons.terminal,
+      enabled: commandCount > 0,
     },
     {
       title: "Tickets",
       description: "Support-Threads via Bot-Panel.",
       href: "/dashboard/tickets",
-      iconColor: "pink",
       icon: icons.ticket,
       enabled: config.ticketsEnabled,
     },
@@ -218,7 +227,6 @@ export default async function DashboardOverview() {
       title: "Temp-Channels",
       description: "Join-to-Create Voice-Channels.",
       href: "/dashboard/temp-channels",
-      iconColor: "teal",
       icon: icons.plus,
       enabled: config.tempChannelEnabled,
     },
@@ -226,7 +234,6 @@ export default async function DashboardOverview() {
       title: "Musik",
       description: "YouTube, Spotify, SoundCloud im Voice.",
       href: "/dashboard/music",
-      iconColor: "orange",
       icon: icons.music,
       enabled: config.musicEnabled,
     },
@@ -234,41 +241,43 @@ export default async function DashboardOverview() {
       title: "Free Games",
       description: "Auto-Posts: Epic, Steam, GOG, Konsolen.",
       href: "/dashboard/free-games",
-      iconColor: "violet",
       icon: icons.gift,
       enabled: config.freeGamesEnabled,
+    },
+    {
+      title: "RSS-Feeds",
+      description: "RSS/Atom-Feeds in Channels posten.",
+      href: "/dashboard/rss",
+      icon: icons.rss,
+      enabled: rssCount > 0,
+    },
+    {
+      title: "Server-Stats",
+      description: "Live-Counter in Voice-Channel-Namen.",
+      href: "/dashboard/server-stats",
+      icon: icons.stats,
+      enabled: config.serverStatsEnabled,
     },
     {
       title: "Nachrichten",
       description: "Text, Embeds, Umfragen, Dateien senden.",
       href: "/dashboard/compose",
-      iconColor: "blue",
       icon: icons.send,
       enabled: true,
     },
     {
-      title: "Reaction Rolls",
-      description: "Self-Service-Rollen über Reaktionen.",
-      iconColor: "violet",
-      icon: icons.sparkles,
-      enabled: false,
-      soon: true,
-    },
-    {
-      title: "Custom Commands",
-      description: "Eigene Slash-Befehle definieren.",
-      iconColor: "teal",
-      icon: icons.terminal,
-      enabled: false,
-      soon: true,
+      title: "AI",
+      description: "KI-Antworten im Chat.",
+      href: "/dashboard/ai",
+      icon: icons.wand,
+      enabled: config.aiEnabled,
     },
   ];
 
-  const activeCount = modules.filter((m) => m.enabled && !m.soon).length;
-  const availableCount = modules.filter((m) => !m.soon).length;
+  const activeCount = modules.filter((m) => m.enabled).length;
 
   // Aktivitäts-Feed aus den letzten aktiven Usern
-  const activity = recentUsers.map((u, i) => {
+  const activity = recentUsers.map((u) => {
     const member = memberById.get(u.userId);
     const displayName = member?.displayName ?? u.displayName ?? `User ${u.userId.slice(-4)}`;
     return {
@@ -278,7 +287,6 @@ export default async function DashboardOverview() {
       avatarUrl: member?.avatarUrl ?? null,
       text: `Level ${u.level} · ${u.messageCount.toLocaleString("de-DE")} Nachrichten · ${formatVoiceTime(u.voiceSeconds)} Voice`,
       timestamp: u.lastMessage,
-      tone: (["violet", "blue", "green", "amber", "pink"] as const)[i % 5],
     };
   });
 
@@ -286,79 +294,50 @@ export default async function DashboardOverview() {
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="space-y-8">
         {/* Page Header */}
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-semibold tracking-tight">Übersicht</h1>
-            <p className="mt-2 text-sm text-ink-muted">
-              Hier ist was sich auf <span className="font-semibold text-ink">{config.guildName ?? "deinem Server"}</span> tut · {date}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" className="btn-secondary">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" {...stroke}><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.3L3 16M3 21v-5h5" /></svg>
-              Aktualisieren
-            </button>
-          </div>
+        <header>
+          <h1 className="text-2xl font-semibold tracking-tight">Übersicht</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {config.guildName ?? "Server"} · {memberCount.toLocaleString("de-DE")} Mitglieder
+          </p>
         </header>
 
         {/* Stat Cards */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Mitglieder" value={memberCount.toLocaleString("de-DE")} iconColor="violet">
+          <StatCard label="Mitglieder" value={memberCount.toLocaleString("de-DE")}>
             {icons.users}
           </StatCard>
           <StatCard
             label="Nachrichten"
             value={totalMessages.toLocaleString("de-DE")}
             hint={`über ${stats._count} aktive User`}
-            iconColor="blue"
           >
             {icons.chat}
           </StatCard>
-          <StatCard
-            label="Voice-Zeit"
-            value={formatVoiceTime(totalVoice)}
-            hint="kumuliert"
-            iconColor="pink"
-          >
+          <StatCard label="Voice-Zeit" value={formatVoiceTime(totalVoice)} hint="kumuliert">
             {icons.voice}
           </StatCard>
-          <StatCard
-            label="XP vergeben"
-            value={totalXp.toLocaleString("de-DE")}
-            iconColor="amber"
-          >
+          <StatCard label="XP vergeben" value={totalXp.toLocaleString("de-DE")}>
             {icons.bolt}
           </StatCard>
         </section>
 
         {/* Module-Grid */}
         <section>
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Module</h2>
-              <p className="mt-1 text-sm text-ink-muted">Aktiviere und konfiguriere, was dein Server braucht.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="pill-accent">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-                {activeCount} aktiv
-              </span>
-              <span className="badge">
-                {availableCount - activeCount} inaktiv
-              </span>
-            </div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">Module</h2>
+            <span className="text-xs text-ink-muted">
+              {activeCount} von {modules.length} aktiv
+            </span>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {modules.map((m) => (
               <ModuleCard
                 key={m.title}
                 title={m.title}
                 description={m.description}
                 href={m.href}
-                iconColor={m.iconColor}
                 icon={m.icon}
                 enabled={m.enabled}
-                soon={m.soon}
               />
             ))}
           </div>
