@@ -25,9 +25,13 @@ export interface PollSpec {
 }
 
 // Baukasten-Nachricht (Components V2) — Spec muss zur Bot-Seite passen.
+export type BlockImage =
+  | { kind: "url"; url: string }
+  | { kind: "upload"; fileName: string; dataBase64: string };
+
 export type MessageBlock =
   | { type: "text"; content: string }
-  | { type: "image"; urls: string[] }
+  | { type: "image"; images: BlockImage[] }
   | { type: "separator"; large?: boolean };
 
 export interface BlocksSpec {

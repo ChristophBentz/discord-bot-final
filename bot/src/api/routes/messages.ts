@@ -30,10 +30,16 @@ export interface PollSpec {
   allowMultiselect: boolean;
 }
 
+// Ein Bild im Bild-Block: entweder eine externe URL oder eine hochgeladene
+// Datei (base64), die als Attachment mitgeschickt und per attachment:// referenziert wird.
+export type BlockImage =
+  | { kind: "url"; url: string }
+  | { kind: "upload"; fileName: string; dataBase64: string };
+
 // Baukasten-Nachricht (Discord Components V2): frei stapelbare Blöcke.
 export type MessageBlock =
   | { type: "text"; content: string }
-  | { type: "image"; urls: string[] } // 1–10 Bilder als Galerie
+  | { type: "image"; images: BlockImage[] } // 1–10 Bilder als Galerie
   | { type: "separator"; large?: boolean };
 
 export interface BlocksSpec {
@@ -96,6 +102,8 @@ function buildEmbedsFromSpec(spec: EmbedSpec): EmbedBuilder[] {
 }
 
 const HTTP_URL = /^https?:\/\/\S+$/i;
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 MB pro Datei (Standard-Discord)
+const MAX_TOTAL_UPLOAD_BYTES = 25 * 1024 * 1024; // Gesamt-Limit der Nachricht
 
 // Validiert eine BlocksSpec und liefert eine Fehlermeldung oder null.
 function validateBlocks(spec: BlocksSpec): string | null {
@@ -104,6 +112,7 @@ function validateBlocks(spec: BlocksSpec): string | null {
   if (blocks.length > 25) return "Max. 25 Blöcke pro Nachricht.";
 
   let totalText = 0;
+  let totalUploadBytes = 0;
   let hasContent = false;
   for (const b of blocks) {
     if (b.type === "text") {
@@ -112,29 +121,58 @@ function validateBlocks(spec: BlocksSpec): string | null {
       totalText += content.length;
       hasContent = true;
     } else if (b.type === "image") {
-      if (b.urls.length === 0) return "Ein Bild-Block hat keine URL.";
-      if (b.urls.length > 10) return "Max. 10 Bilder pro Bild-Block.";
-      for (const url of b.urls) {
-        if (!HTTP_URL.test(url)) return `Ungültige Bild-URL: ${url.slice(0, 60)}`;
+      const images = b.images ?? [];
+      if (images.length === 0) return "Ein Bild-Block ist leer.";
+      if (images.length > 10) return "Max. 10 Bilder pro Bild-Block.";
+      for (const img of images) {
+        if (img.kind === "url") {
+          if (!HTTP_URL.test(img.url)) return `Ungültige Bild-URL: ${img.url.slice(0, 60)}`;
+        } else {
+          if (!img.dataBase64 || !img.fileName) return "Hochgeladenes Bild ist unvollständig.";
+          const bytes = Math.floor((img.dataBase64.length * 3) / 4);
+          if (bytes > MAX_UPLOAD_BYTES) return `Bild „${img.fileName}" ist größer als 8 MB.`;
+          totalUploadBytes += bytes;
+        }
       }
       hasContent = true;
     }
   }
   if (!hasContent) return "Nachricht braucht mindestens einen Text- oder Bild-Block.";
-  // Discord-Limit: 4000 Zeichen Text über die gesamte Components-V2-Nachricht.
   if (totalText > 4000) return `Zu viel Text: ${totalText} / 4000 Zeichen.`;
+  if (totalUploadBytes > MAX_TOTAL_UPLOAD_BYTES) return "Hochgeladene Bilder zusammen über 25 MB.";
   return null;
 }
 
-// Baut die Discord-Components aus der Spec. Mit accentColor wandert alles in
-// einen Container (farbige Akzentleiste links, wie bei Embeds).
-function buildBlockComponents(spec: BlocksSpec) {
+// Baut Components + die nötigen Attachments. Hochgeladene Bilder werden als
+// AttachmentBuilder beigelegt und im Gallery-Item via attachment://<name> referenziert.
+function buildBlockComponents(spec: BlocksSpec): {
+  components: ReturnType<typeof makeComponents>;
+  files: AttachmentBuilder[];
+} {
+  const files: AttachmentBuilder[] = [];
+  let uploadIdx = 0;
+
+  // Eindeutiger Attachment-Name pro Upload (Discord verlangt Eindeutigkeit).
+  const attachImage = (img: Extract<BlockImage, { kind: "upload" }>): string => {
+    const ext = (img.fileName.split(".").pop() ?? "png").replace(/[^a-z0-9]/gi, "").toLowerCase() || "png";
+    const name = `block-${uploadIdx++}.${ext}`;
+    files.push(new AttachmentBuilder(Buffer.from(img.dataBase64, "base64"), { name }));
+    return `attachment://${name}`;
+  };
+
+  const galleryUrl = (img: BlockImage) => (img.kind === "url" ? img.url : attachImage(img));
+
+  const components = makeComponents(spec, galleryUrl);
+  return { components, files };
+}
+
+function makeComponents(spec: BlocksSpec, galleryUrl: (img: BlockImage) => string) {
   const toBuilder = (b: MessageBlock) => {
     if (b.type === "text") return new TextDisplayBuilder().setContent(b.content.trim());
     if (b.type === "image") {
       const gallery = new MediaGalleryBuilder();
-      for (const url of b.urls) {
-        gallery.addItems(new MediaGalleryItemBuilder().setURL(url));
+      for (const img of b.images) {
+        gallery.addItems(new MediaGalleryItemBuilder().setURL(galleryUrl(img)));
       }
       return gallery;
     }
@@ -286,12 +324,30 @@ export async function handleSendMessage(
       const invalid = validateBlocks(body.blocks);
       if (invalid) return { ok: false, error: invalid };
 
-      const components = buildBlockComponents(body.blocks);
+      const { components, files } = buildBlockComponents(body.blocks);
       const msg = await channel.send({
         components,
+        files: files.length > 0 ? files : undefined,
         flags: MessageFlags.IsComponentsV2,
         allowedMentions: { parse: ["users", "roles"] },
       });
+
+      // Für die History: base64-Daten NICHT speichern (würde die DB aufblähen).
+      // Hochgeladene Bilder durch ihre Discord-CDN-URL ersetzen.
+      const cdnUrls = [...msg.attachments.values()].map((a) => a.url);
+      let cdnIdx = 0;
+      const storedBlocks = body.blocks.blocks.map((b) => {
+        if (b.type !== "image") return b;
+        return {
+          ...b,
+          images: b.images.map((img) =>
+            img.kind === "upload"
+              ? { kind: "url" as const, url: cdnUrls[cdnIdx++] ?? "" }
+              : img,
+          ),
+        };
+      });
+
       await prisma.botMessage.create({
         data: {
           channelId,
@@ -302,7 +358,7 @@ export async function handleSendMessage(
             body.blocks.blocks
               .find((b): b is Extract<MessageBlock, { type: "text" }> => b.type === "text")
               ?.content.slice(0, 200) ?? null,
-          blocksJson: JSON.stringify(body.blocks),
+          blocksJson: JSON.stringify({ ...body.blocks, blocks: storedBlocks }),
           sentBy: body.sentBy ?? null,
         },
       });

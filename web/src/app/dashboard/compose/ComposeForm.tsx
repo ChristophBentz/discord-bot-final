@@ -15,13 +15,22 @@ import {
   type PollSpec,
 } from "./actions";
 
-// Editor-Modell für den Baukasten: ein Block pro Zeile, Bilder als
-// Mehrzeilen-Eingabe (eine URL pro Zeile).
+// Ein Bild im Editor: entweder per URL eingegeben oder hochgeladen (mit
+// lokaler Vorschau-URL + base64-Daten fürs Senden).
+interface DraftImage {
+  id: number;
+  kind: "url" | "upload";
+  url: string; // bei upload: Object-URL für die Vorschau
+  fileName: string;
+  dataBase64: string;
+}
+
+// Editor-Modell für den Baukasten: ein Block pro Zeile.
 interface BlockDraft {
   id: number;
   type: "text" | "image" | "separator";
   text: string;
-  imageUrls: string;
+  images: DraftImage[];
   large: boolean;
 }
 
@@ -31,10 +40,13 @@ function draftsToSpec(drafts: BlockDraft[], accentColor: number | null): BlocksS
     if (d.type === "image") {
       return {
         type: "image",
-        urls: d.imageUrls
-          .split("\n")
-          .map((u) => u.trim())
-          .filter(Boolean),
+        images: d.images
+          .filter((img) => (img.kind === "url" ? img.url.trim() : img.dataBase64))
+          .map((img) =>
+            img.kind === "url"
+              ? ({ kind: "url", url: img.url.trim() } as const)
+              : ({ kind: "upload", fileName: img.fileName, dataBase64: img.dataBase64 } as const),
+          ),
       };
     }
     return { type: "separator", large: d.large };
@@ -183,15 +195,14 @@ function BlocksBody({ drafts, accentColor }: { drafts: BlockDraft[]; accentColor
           );
         }
         if (b.type === "image") {
-          const urls = b.imageUrls
-            .split("\n")
-            .map((u) => u.trim())
+          const urls = b.images
+            .map((img) => (img.kind === "url" ? img.url.trim() : img.url))
             .filter(Boolean)
             .slice(0, 10);
           if (urls.length === 0) {
             return (
               <div key={b.id} className="rounded border border-dashed border-line px-3 py-4 text-center text-xs italic text-ink-subtle">
-                Bild-Block ohne URL
+                Bild-Block ohne Bild
               </div>
             );
           }
@@ -410,6 +421,7 @@ export function ComposeForm({
 
   // blocks (Baukasten)
   const blockIdRef = useRef(1);
+  const imageIdRef = useRef(1);
   const [blockDrafts, setBlockDrafts] = useState<BlockDraft[]>([]);
   const [blocksAccentEnabled, setBlocksAccentEnabled] = useState(false);
   const [blocksAccentColor, setBlocksAccentColor] = useState("#a855f7");
@@ -417,11 +429,71 @@ export function ComposeForm({
   const addBlock = (type: BlockDraft["type"]) =>
     setBlockDrafts((prev) => [
       ...prev,
-      { id: blockIdRef.current++, type, text: "", imageUrls: "", large: false },
+      { id: blockIdRef.current++, type, text: "", images: [], large: false },
     ]);
 
   const updateBlock = (id: number, patch: Partial<BlockDraft>) =>
     setBlockDrafts((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+
+  // Bild zu einem Bild-Block hinzufügen (per URL oder Upload).
+  const addImageUrl = (blockId: number) =>
+    setBlockDrafts((prev) =>
+      prev.map((b) =>
+        b.id === blockId
+          ? {
+              ...b,
+              images: [
+                ...b.images,
+                { id: imageIdRef.current++, kind: "url" as const, url: "", fileName: "", dataBase64: "" },
+              ],
+            }
+          : b,
+      ),
+    );
+
+  const addImageUploads = async (blockId: number, files: FileList) => {
+    const draftImages: DraftImage[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      if (file.size > 8 * 1024 * 1024) {
+        setFeedback({ kind: "error", msg: `„${file.name}" ist größer als 8 MB.` });
+        continue;
+      }
+      const dataBase64: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve((r.result as string).split(",")[1] ?? "");
+        r.onerror = () => reject(new Error("Lesefehler"));
+        r.readAsDataURL(file);
+      });
+      draftImages.push({
+        id: imageIdRef.current++,
+        kind: "upload",
+        url: URL.createObjectURL(file), // lokale Vorschau
+        fileName: file.name,
+        dataBase64,
+      });
+    }
+    if (draftImages.length === 0) return;
+    setBlockDrafts((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, images: [...b.images, ...draftImages] } : b)),
+    );
+  };
+
+  const updateImage = (blockId: number, imageId: number, url: string) =>
+    setBlockDrafts((prev) =>
+      prev.map((b) =>
+        b.id === blockId
+          ? { ...b, images: b.images.map((img) => (img.id === imageId ? { ...img, url } : img)) }
+          : b,
+      ),
+    );
+
+  const removeImage = (blockId: number, imageId: number) =>
+    setBlockDrafts((prev) =>
+      prev.map((b) =>
+        b.id === blockId ? { ...b, images: b.images.filter((img) => img.id !== imageId) } : b,
+      ),
+    );
 
   const removeBlock = (id: number) =>
     setBlockDrafts((prev) => prev.filter((b) => b.id !== id));
@@ -514,7 +586,7 @@ export function ComposeForm({
           blocksAccentEnabled ? parseInt(blocksAccentColor.replace("#", ""), 16) : null,
         );
         const hasContent = spec.blocks.some(
-          (b) => (b.type === "text" && b.content) || (b.type === "image" && b.urls.length > 0),
+          (b) => (b.type === "text" && b.content) || (b.type === "image" && b.images.length > 0),
         );
         if (!hasContent) return fail("Mindestens ein Text- oder Bild-Block muss gefüllt sein.");
         const r = await sendBlocks({ channelId, blocks: spec });
@@ -787,14 +859,69 @@ export function ComposeForm({
                     </div>
                   )}
                   {b.type === "image" && (
-                    <div>
-                      <textarea
-                        value={b.imageUrls}
-                        onChange={(e) => updateBlock(b.id, { imageUrls: e.target.value })}
-                        rows={2}
-                        placeholder={"https://… (eine Bild-URL pro Zeile, max. 10 — mehrere = Galerie)"}
-                        className="input w-full resize-y !py-2 font-mono text-xs"
-                      />
+                    <div className="space-y-2">
+                      {b.images.map((img) => (
+                        <div key={img.id} className="flex items-center gap-2">
+                          {img.kind === "upload" ? (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={img.url}
+                                alt=""
+                                className="h-10 w-10 shrink-0 rounded-md border border-line object-cover"
+                              />
+                              <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">
+                                {img.fileName}
+                              </span>
+                            </>
+                          ) : (
+                            <input
+                              value={img.url}
+                              onChange={(e) => updateImage(b.id, img.id, e.target.value)}
+                              placeholder="https://…"
+                              className="input min-w-0 flex-1 !py-1.5 font-mono text-xs"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(b.id, img.id)}
+                            title="Bild entfernen"
+                            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-ink-subtle hover:bg-rose-500/15 hover:text-rose-400"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                      {b.images.length < 10 && (
+                        <div className="flex flex-wrap gap-2">
+                          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line bg-bg-elevated/60 px-2.5 py-1 text-xs font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-ink">
+                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                            Bild/GIF hochladen
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/gif,image/webp"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files) void addImageUploads(b.id, e.target.files);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => addImageUrl(b.id)}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-bg-elevated/60 px-2.5 py-1 text-xs font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-ink"
+                          >
+                            + URL
+                          </button>
+                        </div>
+                      )}
+                      {b.images.length === 0 && (
+                        <p className="text-[11px] text-ink-subtle">
+                          Bilder hochladen oder per URL angeben — mehrere ergeben eine Galerie (max. 10).
+                        </p>
+                      )}
                     </div>
                   )}
                   {b.type === "separator" && (
