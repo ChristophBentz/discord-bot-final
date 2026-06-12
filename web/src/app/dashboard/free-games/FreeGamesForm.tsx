@@ -3,6 +3,7 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
 import { MessagePreview } from "@/components/MessagePreview";
+import { PlatformLogo } from "@/components/PlatformLogo";
 import { checkNow, saveFreeGamesSettings } from "./actions";
 
 interface Initial {
@@ -49,11 +50,11 @@ function intToHex(color: number, fallback = "#a1a1aa"): string {
   return "#" + color.toString(16).padStart(6, "0");
 }
 
-const SOURCES: { key: keyof Initial; label: string; emoji: string; sub: string }[] = [
-  { key: "freeGamesEpic", label: "Epic Games Store", emoji: "🎮", sub: "epicgames.com" },
-  { key: "freeGamesSteam", label: "Steam", emoji: "♨", sub: "store.steampowered.com" },
-  { key: "freeGamesGog", label: "GOG", emoji: "📀", sub: "gog.com" },
-  { key: "freeGamesConsole", label: "Konsolen", emoji: "🎯", sub: "PlayStation / Xbox / Switch" },
+const SOURCES: { key: keyof Initial; label: string; platform: string; sub: string }[] = [
+  { key: "freeGamesEpic", label: "Epic Games Store", platform: "epic", sub: "epicgames.com" },
+  { key: "freeGamesSteam", label: "Steam", platform: "steam", sub: "store.steampowered.com" },
+  { key: "freeGamesGog", label: "GOG", platform: "gog", sub: "gog.com" },
+  { key: "freeGamesConsole", label: "Konsolen", platform: "console", sub: "PlayStation / Xbox / Switch" },
 ];
 
 const CONTENT_TYPES: { key: keyof Initial; label: string; desc: string }[] = [
@@ -162,7 +163,7 @@ export function FreeGamesForm({ initial, channels, roles, bot }: Props) {
           {SOURCES.map((s) => (
             <ToggleChip
               key={s.key}
-              emoji={s.emoji}
+              platform={s.platform}
               label={s.label}
               sub={s.sub}
               name={s.key}
@@ -443,14 +444,14 @@ function FormField({
 }
 
 function ToggleChip({
-  emoji,
+  platform,
   label,
   sub,
   name,
   checked,
   onChange,
 }: {
-  emoji?: string;
+  platform?: string;
   label: string;
   sub?: string;
   name: string;
@@ -465,13 +466,13 @@ function ToggleChip({
           : "border-line bg-bg-elevated/40 hover:border-line-strong"
       }`}
     >
-      {emoji && (
+      {platform && (
         <span
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-lg ${
-            checked ? "bg-brand/15" : "bg-bg-elevated"
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+            checked ? "bg-brand/15 text-ink" : "bg-bg-elevated text-ink-muted"
           }`}
         >
-          {emoji}
+          <PlatformLogo platform={platform} className="h-5 w-5" />
         </span>
       )}
       <div className="min-w-0 flex-1">
@@ -486,8 +487,9 @@ function ToggleChip({
         className="sr-only"
       />
       <span
-        className="relative h-5 w-9 shrink-0 rounded-full bg-zinc-700 transition-colors"
-        style={{ background: checked ? "rgb(168 85 247)" : undefined }}
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-brand-gradient" : "bg-zinc-700"
+        }`}
       >
         <span
           className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
