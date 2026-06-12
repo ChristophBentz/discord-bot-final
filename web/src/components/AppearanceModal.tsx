@@ -192,6 +192,18 @@ export function AppearanceModal({ open, onClose, current }: Props) {
             </button>
           </div>
         </div>
+
+        <div className="border-t border-line pt-3 text-center text-[11px] text-ink-subtle">
+          Entwickelt von{" "}
+          <a
+            href="https://moser-dev.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-ink-muted transition-colors hover:text-brand hover:underline"
+          >
+            moser-dev.com
+          </a>
+        </div>
       </div>
     </Modal>
   );
