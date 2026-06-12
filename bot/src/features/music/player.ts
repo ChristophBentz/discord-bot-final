@@ -2,12 +2,15 @@ import type { Client } from "discord.js";
 import { Player } from "discord-player";
 import { DefaultExtractors } from "@discord-player/extractor";
 import { logger } from "../../lib/logger.js";
-import { YtdlpExtractor } from "./ytdlpExtractor.js";
+import { YtdlpExtractor, updateYtDlp } from "./ytdlpExtractor.js";
 
 let _player: Player | null = null;
 
 export async function initMusicPlayer(client: Client): Promise<void> {
   if (_player) return;
+
+  // yt-dlp beim Start aktualisieren (fire-and-forget — blockiert den Start nicht).
+  void updateYtDlp();
   // Cast: discord.js 14.26+ exposes ESM/CJS dual types; discord-player resolves the CJS variant.
   const player = new Player(client as never);
 

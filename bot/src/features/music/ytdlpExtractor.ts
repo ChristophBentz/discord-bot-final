@@ -21,6 +21,31 @@ const YTDLP_BIN = join(
 const YT_URL = /^https?:\/\/(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\//i;
 const SC_URL = /^https?:\/\/(www\.|m\.)?soundcloud\.com\//i;
 
+/**
+ * yt-dlp auf die neueste Version bringen (Self-Update des Standalone-Binarys).
+ * YouTube sperrt alte yt-dlp-Versionen regelmäßig aus — das von youtube-dl-exec
+ * mitgelieferte Binary ist auf dem Stand des npm-Installs eingefroren. Wird beim
+ * Bot-Start aufgerufen; Fehler (z.B. offline) sind unkritisch und werden nur geloggt.
+ */
+export function updateYtDlp(): Promise<void> {
+  return new Promise((resolve) => {
+    const proc = spawn(YTDLP_BIN, ["-U"], { stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    proc.stdout.on("data", (b) => (output += b.toString()));
+    proc.stderr.on("data", (b) => (output += b.toString()));
+    proc.on("error", (err) => {
+      logger.warn({ err: err.message }, "yt-dlp Self-Update fehlgeschlagen");
+      resolve();
+    });
+    proc.on("close", (code) => {
+      const summary = output.trim().split("\n").slice(-1)[0] ?? "";
+      if (code === 0) logger.info({ summary }, "yt-dlp Self-Update");
+      else logger.warn({ code, output: output.slice(0, 400) }, "yt-dlp Self-Update fehlgeschlagen");
+      resolve();
+    });
+  });
+}
+
 interface YtDlpInfo {
   title?: string;
   uploader?: string;
