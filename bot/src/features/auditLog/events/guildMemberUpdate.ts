@@ -1,6 +1,6 @@
 import { AuditLogEvent, Events } from "discord.js";
 import type { BotEvent } from "../../../lib/types.js";
-import { fetchAuditExecutor, sendLog } from "../service.js";
+import { fetchAuditExecutor, recordModEvent, sendLog } from "../service.js";
 import {
   memberTimeoutEmbed,
   memberTimeoutRemoveEmbed,
@@ -22,6 +22,14 @@ const event: BotEvent<Events.GuildMemberUpdate> = {
       );
       // Timeout neu gesetzt oder verlängert
       if (newUntil > Date.now()) {
+        await recordModEvent({
+          userId: newMember.id,
+          moderatorId: executor?.id,
+          action: "timeout",
+          detail: [`bis ${new Date(newUntil).toLocaleString("de-DE")}`, reason]
+            .filter(Boolean)
+            .join(" · "),
+        });
         await sendLog(
           newMember.client,
           "moderation",
@@ -33,7 +41,15 @@ const event: BotEvent<Events.GuildMemberUpdate> = {
           }),
         );
       } else if (oldUntil > 0) {
-        // Timeout aufgehoben (oder abgelaufen)
+        // Timeout aufgehoben (oder abgelaufen) — nur manuelle Aufhebung in den
+        // Verlauf, das natürliche Ablaufen ist keine Mod-Aktion.
+        if (executor) {
+          await recordModEvent({
+            userId: newMember.id,
+            moderatorId: executor.id,
+            action: "timeoutEnd",
+          });
+        }
         await sendLog(
           newMember.client,
           "moderation",

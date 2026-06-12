@@ -1,6 +1,6 @@
 import { AuditLogEvent, Events } from "discord.js";
 import type { BotEvent } from "../../../lib/types.js";
-import { fetchRecentAudit, sendLog } from "../service.js";
+import { fetchRecentAudit, recordModEvent, sendLog } from "../service.js";
 import {
   memberForceDisconnectEmbed,
   memberForceMoveEmbed,
@@ -31,6 +31,13 @@ const event: BotEvent<Events.VoiceStateUpdate> = {
         AuditLogEvent.MemberDisconnect,
       );
       if (executor && executor.id !== user.id) {
+        const channelName = newState.guild.channels.cache.get(oldChannel)?.name ?? oldChannel;
+        await recordModEvent({
+          userId: user.id,
+          moderatorId: executor.id,
+          action: "voiceDisconnect",
+          detail: `aus ${channelName}`,
+        });
         await sendLog(
           client,
           "moderation",
@@ -46,6 +53,15 @@ const event: BotEvent<Events.VoiceStateUpdate> = {
         AuditLogEvent.MemberMove,
       );
       if (executor && executor.id !== user.id) {
+        const cache = newState.guild.channels.cache;
+        const fromName = cache.get(oldChannel)?.name ?? oldChannel;
+        const toName = cache.get(newChannel)?.name ?? newChannel;
+        await recordModEvent({
+          userId: user.id,
+          moderatorId: executor.id,
+          action: "voiceMove",
+          detail: `${fromName} → ${toName}`,
+        });
         await sendLog(
           client,
           "moderation",

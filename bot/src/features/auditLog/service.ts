@@ -94,6 +94,28 @@ export async function sendLog(
   }
 }
 
+// Mod-Aktion für den Dashboard-Verlauf persistieren — unabhängig davon,
+// ob das Discord-Channel-Logging für die Kategorie aktiv ist.
+export async function recordModEvent(args: {
+  userId: string;
+  moderatorId?: string | null;
+  action: "kick" | "timeout" | "timeoutEnd" | "voiceMove" | "voiceDisconnect";
+  detail?: string | null;
+}): Promise<void> {
+  try {
+    await prisma.modEvent.create({
+      data: {
+        userId: args.userId,
+        moderatorId: args.moderatorId ?? null,
+        action: args.action,
+        detail: args.detail ?? null,
+      },
+    });
+  } catch (err) {
+    logger.error({ err, action: args.action }, "ModEvent konnte nicht gespeichert werden");
+  }
+}
+
 // Damit die Web-Seite den Cache invalidieren könnte (für später, wenn wir IPC machen).
 export function invalidateAuditLogCache(): void {
   cached = null;

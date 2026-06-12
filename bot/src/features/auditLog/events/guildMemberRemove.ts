@@ -1,6 +1,6 @@
 import { AuditLogEvent, Events } from "discord.js";
 import type { BotEvent } from "../../../lib/types.js";
-import { fetchAuditExecutor, sendLog } from "../service.js";
+import { fetchAuditExecutor, recordModEvent, sendLog } from "../service.js";
 import { memberKickEmbed, memberLeaveEmbed } from "../embeds.js";
 
 const event: BotEvent<Events.GuildMemberRemove> = {
@@ -16,7 +16,13 @@ const event: BotEvent<Events.GuildMemberRemove> = {
     );
 
     if (executor) {
-      // → Kick. Logge als Moderation-Action.
+      // → Kick. Logge als Moderation-Action + Dashboard-Verlauf.
+      await recordModEvent({
+        userId: member.id,
+        moderatorId: executor.id,
+        action: "kick",
+        detail: reason,
+      });
       await sendLog(
         member.client,
         "moderation",

@@ -4,8 +4,9 @@ import { useState } from "react";
 import { BanList, TimeoutList, type BanEntry, type TimeoutEntry } from "./ModerationLists";
 import { WarningsList, type WarningEntry } from "./WarningsList";
 import { AppealsList, type AppealEntry } from "./AppealsList";
+import { ModEventsList, type ModEventEntry } from "./ModEventsList";
 
-type TabKey = "timeouts" | "bans" | "appeals" | "warnings";
+type TabKey = "timeouts" | "bans" | "appeals" | "warnings" | "actions";
 
 interface Props {
   error: string | null;
@@ -13,6 +14,7 @@ interface Props {
   bans: BanEntry[];
   appeals: AppealEntry[];
   warnings: WarningEntry[];
+  modEvents: ModEventEntry[];
 }
 
 const stroke = {
@@ -44,9 +46,14 @@ const TONE = {
     icon: "bg-purple-500/15 text-purple-400",
     dot: "bg-purple-400",
   },
+  blue: {
+    active: "border-blue-500/40 bg-blue-500/[0.08]",
+    icon: "bg-blue-500/15 text-blue-400",
+    dot: "bg-blue-400",
+  },
 } as const;
 
-export function ModerationTabs({ error, timeouts, bans, appeals, warnings }: Props) {
+export function ModerationTabs({ error, timeouts, bans, appeals, warnings, modEvents }: Props) {
   const openAppeals = appeals.filter((a) => a.status === "pending").length;
 
   const tabs: {
@@ -111,6 +118,19 @@ export function ModerationTabs({ error, timeouts, bans, appeals, warnings }: Pro
         </svg>
       ),
     },
+    {
+      key: "actions",
+      label: "Aktionen",
+      count: modEvents.length,
+      sub: "letzte 50",
+      tone: "blue",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" {...stroke}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      ),
+    },
   ];
 
   // Sinnvoller Start-Tab: offene Anträge zuerst, sonst der erste mit Inhalt.
@@ -148,6 +168,12 @@ export function ModerationTabs({ error, timeouts, bans, appeals, warnings }: Pro
       description: "Letzte 50 — Klick auf einen User für Profil und vollständige Historie.",
       body: <WarningsList items={warnings} />,
     },
+    actions: {
+      title: "Mod-Aktionen",
+      description:
+        "Kicks, Timeouts, Voice-Moves und -Disconnects — auch wenn sie direkt in Discord ausgeführt wurden.",
+      body: <ModEventsList items={modEvents} />,
+    },
   };
   const panel = PANEL[active];
 
@@ -167,7 +193,7 @@ export function ModerationTabs({ error, timeouts, bans, appeals, warnings }: Pro
       )}
 
       {/* Stat-Kacheln = Tabs */}
-      <div role="tablist" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div role="tablist" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {tabs.map((tab) => {
           const tone = TONE[tab.tone];
           const isActive = active === tab.key;

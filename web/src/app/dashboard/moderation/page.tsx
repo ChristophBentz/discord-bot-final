@@ -4,6 +4,7 @@ import { callBot } from "@/lib/botApi";
 import type { BanEntry, TimeoutEntry } from "./ModerationLists";
 import type { WarningEntry } from "./WarningsList";
 import type { AppealEntry } from "./AppealsList";
+import type { ModEventEntry } from "./ModEventsList";
 import { ModerationTabs } from "./ModerationTabs";
 
 interface BotState {
@@ -30,10 +31,11 @@ export default function ModerationPage() {
 
 // Bans/Timeouts kommen vom Bot (Discord-REST) — streamen, statt die Navigation zu blockieren.
 async function ModerationData() {
-  const [botRes, warnings, appeals] = await Promise.all([
+  const [botRes, warnings, appeals, modEvents] = await Promise.all([
     callBot<BotState>("/api/moderation/state", { method: "GET" }),
     prisma.warning.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     prisma.banAppeal.findMany({ orderBy: { createdAt: "desc" }, take: 25 }),
+    prisma.modEvent.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
 
   const timeouts = botRes.ok ? botRes.data.timeouts : [];
@@ -45,6 +47,7 @@ async function ModerationData() {
     new Set([
       ...warnings.flatMap((w) => [w.userId, w.moderatorId]),
       ...appeals.map((a) => a.userId),
+      ...modEvents.flatMap((e) => [e.userId, ...(e.moderatorId ? [e.moderatorId] : [])]),
     ]),
   );
   const members = await prisma.member.findMany({
@@ -82,6 +85,21 @@ async function ModerationData() {
     };
   });
 
+  const modEventEntries: ModEventEntry[] = modEvents.map((e) => {
+    const user = memberById.get(e.userId);
+    const mod = e.moderatorId ? memberById.get(e.moderatorId) : null;
+    return {
+      id: e.id,
+      userId: e.userId,
+      userName: user?.displayName ?? `User ${e.userId.slice(-4)}`,
+      userAvatarUrl: user?.avatarUrl ?? null,
+      moderatorName: mod?.displayName ?? (e.moderatorId ? `Mod ${e.moderatorId.slice(-4)}` : null),
+      action: e.action,
+      detail: e.detail,
+      createdAt: e.createdAt.toISOString(),
+    };
+  });
+
   return (
     <ModerationTabs
       error={error}
@@ -89,6 +107,7 @@ async function ModerationData() {
       bans={bans}
       appeals={appealEntries}
       warnings={warningEntries}
+      modEvents={modEventEntries}
     />
   );
 }
@@ -96,8 +115,8 @@ async function ModerationData() {
 function ModerationSkeleton() {
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="h-[74px] animate-pulse rounded-2xl border border-line bg-bg-elevated/40"

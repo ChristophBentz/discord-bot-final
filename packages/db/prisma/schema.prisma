@@ -330,6 +330,21 @@ model Warning {
   @@index([userId])
 }
 
+// Protokoll von Mod-Aktionen (Kick, Timeout, Voice-Move/-Disconnect) fürs Dashboard.
+// Wird vom Bot bei Discord-Events geschrieben — egal ob im Dashboard oder direkt
+// in Discord ausgeführt. Warnings haben ihre eigene Tabelle.
+model ModEvent {
+  id          Int      @id @default(autoincrement())
+  userId      String // betroffener User
+  moderatorId String? // null = unbekannt (z.B. kein Audit-Log-Zugriff)
+  action      String // kick | timeout | timeoutEnd | voiceMove | voiceDisconnect
+  detail      String? // z.B. "Lobby → AFK", Dauer oder Grund
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
 // Aktive Mutes (für Timeout-Wiederherstellung nach Bot-Restart).
 model Mute {
   id        Int      @id @default(autoincrement())
