@@ -11,7 +11,13 @@ export interface AllowedMember {
 }
 
 export type AccessControlData =
-  | { ok: true; enabled: boolean; allowed: AllowedMember[]; ownerId: string | null }
+  | {
+      ok: true;
+      enabled: boolean;
+      restrictCommands: boolean;
+      allowed: AllowedMember[];
+      ownerId: string | null;
+    }
   | { ok: false; error: string };
 
 async function requireOwner(): Promise<boolean> {
@@ -25,7 +31,10 @@ export async function getAccessControl(): Promise<AccessControlData> {
   if (!(await requireOwner())) return { ok: false, error: "Nur der Owner darf das." };
 
   const [config, allowed] = await Promise.all([
-    prisma.config.findUnique({ where: { id: 1 }, select: { accessAllowlistEnabled: true } }),
+    prisma.config.findUnique({
+      where: { id: 1 },
+      select: { accessAllowlistEnabled: true, restrictCommandsToAllowlist: true },
+    }),
     prisma.allowlistedUser.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
   const ids = allowed.map((a) => a.userId);
@@ -40,6 +49,7 @@ export async function getAccessControl(): Promise<AccessControlData> {
   return {
     ok: true,
     enabled: config?.accessAllowlistEnabled ?? false,
+    restrictCommands: config?.restrictCommandsToAllowlist ?? false,
     allowed: ids.map((userId) => ({
       userId,
       displayName: byId.get(userId)?.displayName ?? null,
@@ -57,6 +67,18 @@ export async function setAllowlistEnabled(
     where: { id: 1 },
     update: { accessAllowlistEnabled: enabled },
     create: { id: 1, accessAllowlistEnabled: enabled },
+  });
+  return { ok: true };
+}
+
+export async function setRestrictCommands(
+  enabled: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await requireOwner())) return { ok: false, error: "Nur der Owner darf das." };
+  await prisma.config.upsert({
+    where: { id: 1 },
+    update: { restrictCommandsToAllowlist: enabled },
+    create: { id: 1, restrictCommandsToAllowlist: enabled },
   });
   return { ok: true };
 }

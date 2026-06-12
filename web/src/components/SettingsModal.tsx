@@ -16,6 +16,7 @@ import {
 import {
   getAccessControl,
   setAllowlistEnabled,
+  setRestrictCommands,
   setMemberAllowed,
   searchAllowlistCandidates,
   type AllowedMember,
@@ -139,6 +140,7 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
 
   // Allowlist-Zugangssteuerung
   const [allowlistEnabled, setAllowlistEnabledState] = useState(false);
+  const [restrictCommands, setRestrictCommandsState] = useState(false);
   const [allowedMembers, setAllowedMembers] = useState<AllowedMember[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
   const [searchResults, setSearchResults] = useState<AllowedMember[]>([]);
@@ -151,6 +153,7 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
     getAccessControl().then((res) => {
       if (cancelled || !res.ok) return;
       setAllowlistEnabledState(res.enabled);
+      setRestrictCommandsState(res.restrictCommands);
       setAllowedMembers(res.allowed);
     });
     return () => {
@@ -177,6 +180,11 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
     setAllowlistEnabledState(next);
     setAllowlistBusy(true);
     setAllowlistEnabled(next).finally(() => setAllowlistBusy(false));
+  };
+
+  const toggleRestrictCommands = (next: boolean) => {
+    setRestrictCommandsState(next);
+    setRestrictCommands(next);
   };
 
   const addAllowedMember = (m: AllowedMember) => {
@@ -682,6 +690,37 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
                           </div>
                         )}
                       </div>
+
+                      {/* Mod-Slash-Commands an die Allowlist koppeln */}
+                      <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-line bg-bg-elevated/40 p-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-ink">
+                            Auch /ban &amp; Co. einschränken
+                          </div>
+                          <p className="mt-0.5 text-xs text-ink-muted">
+                            Standardmäßig funktionieren die Mod-Slash-Commands (/ban, /kick,
+                            /timeout, /warn, /unban) weiter über die Discord-Berechtigung. Wenn
+                            aktiv, dürfen nur Owner + freigegebene Mitglieder sie nutzen.
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={restrictCommands}
+                          onChange={(e) => toggleRestrictCommands(e.target.checked)}
+                          className="sr-only"
+                        />
+                        <span
+                          className={`relative mt-1 h-5 w-9 shrink-0 rounded-full transition-colors ${
+                            restrictCommands ? "bg-brand-gradient" : "bg-zinc-700"
+                          }`}
+                        >
+                          <span
+                            className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                              restrictCommands ? "translate-x-4" : ""
+                            }`}
+                          />
+                        </span>
+                      </label>
                     </div>
                   )}
                 </div>

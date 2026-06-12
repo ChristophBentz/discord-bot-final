@@ -54,6 +54,9 @@ model Config {
   // Wenn true: nur der Owner + explizit freigegebene Mitglieder (AllowlistedUser)
   // kommen ins Dashboard — überschreibt die Permission-basierte Zugangslogik.
   accessAllowlistEnabled Boolean @default(false)
+  // Wenn true (und Allowlist aktiv): die Mod-Slash-Commands (/ban, /kick …)
+  // funktionieren nur noch für Owner + freigegebene Mitglieder.
+  restrictCommandsToAllowlist Boolean @default(false)
 
   // Welcome / Leave
   welcomeEnabled   Boolean @default(false)

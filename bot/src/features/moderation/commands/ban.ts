@@ -5,6 +5,7 @@ import {
 } from "discord.js";
 import type { SlashCommand } from "../../../lib/types.js";
 import { handleBan } from "../../../api/routes/moderation.js";
+import { canUseModCommands, NO_COMMAND_ACCESS_MESSAGE } from "../access.js";
 
 const command: SlashCommand = {
   data: new SlashCommandBuilder()
@@ -23,6 +24,10 @@ const command: SlashCommand = {
 
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    if (!(await canUseModCommands(interaction.user.id))) {
+      await interaction.editReply(NO_COMMAND_ACCESS_MESSAGE);
+      return;
+    }
     const user = interaction.options.getUser("user", true);
     const reason = interaction.options.getString("grund", true);
     const deleteDays = interaction.options.getInteger("lösch_tage") ?? 0;

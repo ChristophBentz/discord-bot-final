@@ -5,6 +5,7 @@ import {
 } from "discord.js";
 import type { SlashCommand } from "../../../lib/types.js";
 import { handleUnban } from "../../../api/routes/moderation.js";
+import { canUseModCommands, NO_COMMAND_ACCESS_MESSAGE } from "../access.js";
 
 const command: SlashCommand = {
   data: new SlashCommandBuilder()
@@ -21,6 +22,10 @@ const command: SlashCommand = {
 
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    if (!(await canUseModCommands(interaction.user.id))) {
+      await interaction.editReply(NO_COMMAND_ACCESS_MESSAGE);
+      return;
+    }
     const userId = interaction.options.getString("user_id", true).trim();
     const reason = interaction.options.getString("grund") ?? "";
 
