@@ -51,6 +51,10 @@ model Config {
   // unabhängig vom Log-Channel.
   recordModEvents Boolean @default(true)
 
+  // Wenn true: nur der Owner + explizit freigegebene Mitglieder (AllowlistedUser)
+  // kommen ins Dashboard — überschreibt die Permission-basierte Zugangslogik.
+  accessAllowlistEnabled Boolean @default(false)
+
   // Welcome / Leave
   welcomeEnabled   Boolean @default(false)
   welcomeChannelId String?
@@ -508,6 +512,13 @@ model GuildRole {
 // Vergabe angeboten. Nur OWNER_DISCORD_ID kann die Liste bearbeiten.
 model BlockedRole {
   roleId    String   @id
+  createdAt DateTime @default(now())
+}
+
+// Explizit fürs Dashboard freigegebene Mitglieder — nur relevant wenn
+// Config.accessAllowlistEnabled true ist. Nur der Owner pflegt die Liste.
+model AllowlistedUser {
+  userId    String   @id
   createdAt DateTime @default(now())
 }
 

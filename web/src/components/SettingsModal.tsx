@@ -14,6 +14,13 @@ import {
   type RoleBlockRow,
 } from "@/app/dashboard/roleBlockActions";
 import {
+  getAccessControl,
+  setAllowlistEnabled,
+  setMemberAllowed,
+  searchAllowlistCandidates,
+  type AllowedMember,
+} from "@/app/dashboard/accessControlActions";
+import {
   ACCENT_PRESETS,
   DEFAULT_ACCENT,
   hexToTriplet,
@@ -129,6 +136,60 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
   const [roleLoadError, setRoleLoadError] = useState<string | null>(null);
   const [roleSearch, setRoleSearch] = useState("");
   const [togglingRole, setTogglingRole] = useState<string | null>(null);
+
+  // Allowlist-Zugangssteuerung
+  const [allowlistEnabled, setAllowlistEnabledState] = useState(false);
+  const [allowedMembers, setAllowedMembers] = useState<AllowedMember[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<AllowedMember[]>([]);
+  const [allowlistBusy, setAllowlistBusy] = useState(false);
+
+  // Allowlist-Daten laden, sobald die Sicherheits-Sektion geöffnet wird.
+  useEffect(() => {
+    if (section !== "security") return;
+    let cancelled = false;
+    getAccessControl().then((res) => {
+      if (cancelled || !res.ok) return;
+      setAllowlistEnabledState(res.enabled);
+      setAllowedMembers(res.allowed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [section]);
+
+  // Mitglieder-Suche (debounced) für die Allowlist.
+  useEffect(() => {
+    if (!memberSearch.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      searchAllowlistCandidates(memberSearch).then((res) => {
+        const allowedIds = new Set(allowedMembers.map((m) => m.userId));
+        setSearchResults(res.filter((m) => !allowedIds.has(m.userId)));
+      });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [memberSearch, allowedMembers]);
+
+  const toggleAllowlist = (next: boolean) => {
+    setAllowlistEnabledState(next);
+    setAllowlistBusy(true);
+    setAllowlistEnabled(next).finally(() => setAllowlistBusy(false));
+  };
+
+  const addAllowedMember = (m: AllowedMember) => {
+    setAllowedMembers((prev) => [...prev, m]);
+    setMemberSearch("");
+    setSearchResults([]);
+    setMemberAllowed(m.userId, true);
+  };
+
+  const removeAllowedMember = (userId: string) => {
+    setAllowedMembers((prev) => prev.filter((m) => m.userId !== userId));
+    setMemberAllowed(userId, false);
+  };
 
   // Rollen lazy laden, sobald die Sicherheits-Sektion zum ersten Mal geöffnet wird.
   useEffect(() => {
@@ -515,9 +576,114 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
                     )}
                   </div>
                   <p className="mt-1.5 text-[11px] text-ink-subtle">
-                    Zugang steuerst du in Discord über die Berechtigungen dieser Rollen — es
-                    gibt bewusst keine separate Liste hier, damit nichts auseinanderläuft.
+                    {allowlistEnabled
+                      ? "Diese Rollen sind aktuell wirkungslos — der Zugang läuft über die Allowlist unten."
+                      : "Zugang läuft über die Discord-Berechtigungen dieser Rollen. Strenger: unten die Allowlist aktivieren."}
                   </p>
+                </div>
+
+                {/* Allowlist — Zugang auf ausgewählte Personen beschränken */}
+                <div>
+                  <label className="flex cursor-pointer items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold">Zugang auf ausgewählte Personen beschränken</h3>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        Wenn aktiv, kommen <span className="font-medium text-ink">nur du und die unten
+                        freigegebenen Mitglieder</span> ins Dashboard — egal welche Rollen sie haben.
+                        Du selbst kannst dich nie aussperren.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={allowlistEnabled}
+                      onChange={(e) => toggleAllowlist(e.target.checked)}
+                      disabled={allowlistBusy}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`relative mt-1 h-5 w-9 shrink-0 rounded-full transition-colors ${
+                        allowlistEnabled ? "bg-brand-gradient" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                          allowlistEnabled ? "translate-x-4" : ""
+                        }`}
+                      />
+                    </span>
+                  </label>
+
+                  {allowlistEnabled && (
+                    <div className="mt-3 space-y-3">
+                      {/* Freigegebene Mitglieder */}
+                      <div className="space-y-1.5">
+                        {allowedMembers.length === 0 ? (
+                          <p className="text-xs text-ink-subtle">
+                            Noch niemand freigegeben — aktuell kommt nur der Owner rein.
+                          </p>
+                        ) : (
+                          allowedMembers.map((m) => (
+                            <div
+                              key={m.userId}
+                              className="flex items-center gap-2.5 rounded-lg border border-line bg-bg-elevated/40 px-3 py-2"
+                            >
+                              {m.avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={m.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-line" />
+                              ) : (
+                                <span className="grid h-6 w-6 place-items-center rounded-full bg-bg-elevated text-[10px] font-semibold">
+                                  {(m.displayName ?? "?")[0]?.toUpperCase()}
+                                </span>
+                              )}
+                              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                                {m.displayName ?? `User ${m.userId.slice(-4)}`}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeAllowedMember(m.userId)}
+                                title="Freigabe entfernen"
+                                className="grid h-6 w-6 place-items-center rounded text-ink-subtle hover:bg-rose-500/15 hover:text-rose-400"
+                              >
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Mitglied hinzufügen */}
+                      <div className="relative">
+                        <input
+                          value={memberSearch}
+                          onChange={(e) => setMemberSearch(e.target.value)}
+                          placeholder="Mitglied suchen und freigeben …"
+                          className="input !py-2 text-sm"
+                        />
+                        {searchResults.length > 0 && (
+                          <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-line bg-bg-elevated shadow-card-lg">
+                            {searchResults.map((m) => (
+                              <button
+                                key={m.userId}
+                                type="button"
+                                onClick={() => addAllowedMember(m)}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-bg-hover"
+                              >
+                                {m.avatarUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={m.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-line" />
+                                ) : (
+                                  <span className="grid h-6 w-6 place-items-center rounded-full bg-bg-elevated text-[10px] font-semibold">
+                                    {(m.displayName ?? "?")[0]?.toUpperCase()}
+                                  </span>
+                                )}
+                                <span className="truncate">{m.displayName ?? `User ${m.userId.slice(-4)}`}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Sperrliste */}
