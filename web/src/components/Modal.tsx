@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   open: boolean;
@@ -35,7 +36,9 @@ export function Modal({ open, onClose, title, children, width = "md" }: ModalPro
 
   if (!open) return null;
 
-  return (
+  // Portal nach document.body: Vorfahren mit backdrop-filter/transform (z.B. die
+  // Sidebar) werden sonst zum Anker für position:fixed — Modal hinge dann dort fest.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => {
@@ -61,6 +64,7 @@ export function Modal({ open, onClose, title, children, width = "md" }: ModalPro
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
