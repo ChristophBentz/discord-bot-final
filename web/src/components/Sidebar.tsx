@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { AppearanceModal } from "@/components/AppearanceModal";
+import { SettingsModal } from "@/components/SettingsModal";
 import type { Accent } from "@/lib/accent";
 
 type IconName =
@@ -366,7 +366,7 @@ export function Sidebar({ serverName, memberCount, serverIconUrl, accent }: Side
         </div>
       </div>
 
-      <AppearanceModal
+      <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         current={accent}
