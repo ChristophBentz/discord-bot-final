@@ -231,9 +231,11 @@ interface SidebarProps {
   serverIconUrl: string | null;
   /** Aktuell gespeicherte Akzentfarbe — Startwert fürs Einstellungs-Modal */
   accent: Accent;
+  /** Ist der eingeloggte User der Owner? (schaltet die Sicherheits-Sektion frei) */
+  isOwner: boolean;
 }
 
-export function Sidebar({ serverName, memberCount, serverIconUrl, accent }: SidebarProps) {
+export function Sidebar({ serverName, memberCount, serverIconUrl, accent, isOwner }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userName = session?.user?.name ?? "User";
@@ -370,6 +372,7 @@ export function Sidebar({ serverName, memberCount, serverIconUrl, accent }: Side
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         current={accent}
+        isOwner={isOwner}
       />
     </aside>
   );

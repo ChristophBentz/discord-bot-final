@@ -139,6 +139,28 @@ export async function addOption(panelId: number, formData: FormData): Promise<Re
   const parsed = parseOptionInput(formData);
   if (!parsed.ok) return parsed;
 
+  // Sicherheit: keine privilegierten/gesperrten Rollen in Self-Role-Panels —
+  // sonst könnte sich jeder per Klick Admin-Rechte geben.
+  const [role, blocked] = await Promise.all([
+    prisma.guildRole.findUnique({
+      where: { roleId: parsed.data.roleId },
+      select: { privileged: true, managed: true },
+    }),
+    prisma.blockedRole.findUnique({ where: { roleId: parsed.data.roleId } }),
+  ]);
+  if (role?.privileged) {
+    return {
+      ok: false,
+      error: "Rollen mit Admin-/Verwaltungsrechten dürfen nicht in Self-Role-Panels.",
+    };
+  }
+  if (role?.managed) {
+    return { ok: false, error: "Diese Rolle wird von Discord verwaltet und ist nicht vergebbar." };
+  }
+  if (blocked) {
+    return { ok: false, error: "Diese Rolle ist vom Owner gesperrt." };
+  }
+
   const existing = await prisma.selfRoleOption.count({ where: { panelId } });
   if (existing >= 25) {
     return { ok: false, error: "Max. 25 Rollen pro Panel (Discord-Limit)." };

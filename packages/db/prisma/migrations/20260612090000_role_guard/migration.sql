@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "GuildRole" ADD COLUMN "privileged" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "GuildRole" ADD COLUMN "managed" BOOLEAN NOT NULL DEFAULT false;
+
+-- CreateTable
+CREATE TABLE "BlockedRole" (
+    "roleId" TEXT NOT NULL PRIMARY KEY,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

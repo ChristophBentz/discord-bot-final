@@ -490,8 +490,21 @@ model GuildRole {
   name     String
   color    Int    @default(0)
   position Int    @default(0)
+  // true wenn die Rolle gefährliche Permissions trägt (Administrator,
+  // Rollen/Server/Channels/Webhooks verwalten, Ban, Kick) — vom Bot-Sync
+  // gesetzt. Solche Rollen werden nie über das Dashboard vergeben.
+  privileged Boolean @default(false)
+  // true für Integrations-/Booster-Rollen (managed) — nicht manuell vergebbar.
+  managed    Boolean @default(false)
 
   @@index([position])
+}
+
+// Vom Owner manuell gesperrte Rollen — werden im Dashboard nicht zur
+// Vergabe angeboten. Nur OWNER_DISCORD_ID kann die Liste bearbeiten.
+model BlockedRole {
+  roleId    String   @id
+  createdAt DateTime @default(now())
 }
 
 // Vom Bot synchronisiert — alle Text-fähigen Server-Channels.

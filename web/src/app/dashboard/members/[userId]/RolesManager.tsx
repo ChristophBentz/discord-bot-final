@@ -7,6 +7,10 @@ export interface RoleOption {
   roleId: string;
   name: string;
   color: number;
+  /** true wenn die Rolle nicht über das Dashboard vergeben werden darf */
+  locked?: boolean;
+  /** Grund fürs Sperren (Tooltip) */
+  lockReason?: string;
 }
 
 function intToHex(color: number, fallback = "#a1a1aa"): string {
@@ -144,6 +148,23 @@ export function RolesManager({ userId, currentRoles, allRoles }: Props) {
                   available.map((r) => {
                     const c = intToHex(r.color, "#a1a1aa");
                     const adding = pendingId === r.roleId;
+                    if (r.locked) {
+                      return (
+                        <div
+                          key={r.roleId}
+                          title={r.lockReason ?? "Diese Rolle kann nicht über das Dashboard vergeben werden."}
+                          className="flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm opacity-45"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-ink-subtle" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="11" width="14" height="10" rx="2" />
+                            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                          </svg>
+                          <span className="truncate" style={{ color: c }}>
+                            {r.name}
+                          </span>
+                        </div>
+                      );
+                    }
                     return (
                       <button
                         key={r.roleId}

@@ -1,10 +1,14 @@
 import type { Client } from "discord.js";
+import { prisma } from "@repo/db";
 import { env } from "../../lib/env.js";
 import { logger } from "../../lib/logger.js";
+import { roleIsPrivileged } from "../../features/members/service.js";
 
 export interface RoleChangeBody {
   add?: string[];
   remove?: string[];
+  /** Discord-ID des Mods, der die Änderung im Dashboard auslöst (für Hierarchie-Check) */
+  actorId?: string;
 }
 
 export type RoleChangeResult =
@@ -32,7 +36,60 @@ export async function handleRoleChange(
   const member = await guild.members.fetch(userId).catch(() => null);
   if (!member) return { ok: false, error: "Member nicht gefunden" };
 
-  // Schutz: Bot-Rolle und @everyone nie ändern.
+  const ownerId = process.env.OWNER_DISCORD_ID;
+  const actorIsOwner = Boolean(body.actorId && ownerId && body.actorId === ownerId);
+
+  // ─── Schutz-Checks beim HINZUFÜGEN (Entfernen ist unkritisch) ───────────────
+  // Der Owner darf alles (kann es eh direkt in Discord). Für alle anderen:
+  // keine privilegierten/managed/gesperrten Rollen und nichts über der eigenen
+  // höchsten Rolle — verhindert Rechteausweitung zum Admin.
+  if (add.length > 0 && !actorIsOwner) {
+    const [dbRoles, blocked] = await Promise.all([
+      prisma.guildRole.findMany({
+        where: { roleId: { in: add } },
+        select: { roleId: true, name: true, privileged: true, managed: true },
+      }),
+      prisma.blockedRole.findMany({ select: { roleId: true } }),
+    ]);
+    const dbById = new Map(dbRoles.map((r) => [r.roleId, r]));
+    const blockedSet = new Set(blocked.map((b) => b.roleId));
+
+    // Höchste Rollen-Position des handelnden Mods.
+    let actorTopPosition = 0;
+    if (body.actorId) {
+      const actor = await guild.members.fetch(body.actorId).catch(() => null);
+      actorTopPosition = actor?.roles.highest.position ?? 0;
+    }
+
+    for (const roleId of add) {
+      const info = dbById.get(roleId);
+      const live = guild.roles.cache.get(roleId);
+      const name = info?.name ?? live?.name ?? roleId;
+
+      if (blockedSet.has(roleId)) {
+        return { ok: false, error: `Rolle „${name}" ist vom Owner gesperrt.` };
+      }
+      // privileged: DB-Flag ODER Live-Check (falls Sync noch nicht durch ist).
+      if (info?.privileged || (live && roleIsPrivileged(live))) {
+        return {
+          ok: false,
+          error: `Rolle „${name}" trägt Admin-/Verwaltungsrechte und kann nicht über das Dashboard vergeben werden.`,
+        };
+      }
+      if (info?.managed || live?.managed) {
+        return { ok: false, error: `Rolle „${name}" wird von Discord verwaltet und ist nicht manuell vergebbar.` };
+      }
+      // Hierarchie: nichts über der eigenen höchsten Rolle.
+      if (body.actorId && live && live.position >= actorTopPosition) {
+        return {
+          ok: false,
+          error: `Rolle „${name}" liegt über deiner höchsten Rolle — Vergabe nicht erlaubt.`,
+        };
+      }
+    }
+  }
+
+  // Bot-Rolle und @everyone nie ändern.
   const safe = (id: string) => id !== guild.id;
 
   try {
@@ -43,7 +100,7 @@ export async function handleRoleChange(
       await member.roles.remove(remove.filter(safe), "Dashboard-Änderung");
     }
     logger.info(
-      { userId, add: add.length, remove: remove.length },
+      { userId, actorId: body.actorId, add: add.length, remove: remove.length },
       "Rollen via API geändert",
     );
     return { ok: true, addedCount: add.length, removedCount: remove.length };

@@ -7,18 +7,19 @@ import { callBot } from "@/lib/botApi";
 
 export type RoleActionResult = { ok: true } | { ok: false; error: string };
 
-async function requireAuth(): Promise<RoleActionResult | null> {
+// Liefert die Discord-ID des eingeloggten Mods — der Bot prüft damit die
+// Rollenhierarchie, damit niemand sich Rollen über der eigenen geben kann.
+async function getActorId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return { ok: false, error: "Nicht eingeloggt." };
-  return null;
+  return (session?.user as { discordId?: string } | undefined)?.discordId ?? null;
 }
 
 export async function assignRole(userId: string, roleId: string): Promise<RoleActionResult> {
-  const auth = await requireAuth();
-  if (auth) return auth;
+  const actorId = await getActorId();
+  if (!actorId) return { ok: false, error: "Nicht eingeloggt." };
   const res = await callBot(`/api/members/${userId}/roles`, {
     method: "POST",
-    body: { add: [roleId] },
+    body: { add: [roleId], actorId },
   });
   if (!res.ok) return res;
   revalidatePath(`/dashboard/members/${userId}`);
@@ -27,11 +28,11 @@ export async function assignRole(userId: string, roleId: string): Promise<RoleAc
 }
 
 export async function removeRole(userId: string, roleId: string): Promise<RoleActionResult> {
-  const auth = await requireAuth();
-  if (auth) return auth;
+  const actorId = await getActorId();
+  if (!actorId) return { ok: false, error: "Nicht eingeloggt." };
   const res = await callBot(`/api/members/${userId}/roles`, {
     method: "POST",
-    body: { remove: [roleId] },
+    body: { remove: [roleId], actorId },
   });
   if (!res.ok) return res;
   revalidatePath(`/dashboard/members/${userId}`);

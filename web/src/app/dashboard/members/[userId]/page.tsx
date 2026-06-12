@@ -105,6 +105,11 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     prisma.inviteUse.findFirst({ where: { userId }, orderBy: { joinedAt: "desc" } }),
   ]);
 
+  // Gesperrte Rollen (Owner-Liste) für die Picker-Ausblendung.
+  const blockedRoleIds = new Set(
+    (await prisma.blockedRole.findMany({ select: { roleId: true } })).map((b) => b.roleId),
+  );
+
   const inviter = inviteUse?.inviterId
     ? await prisma.member.findUnique({
         where: { userId: inviteUse.inviterId },
@@ -439,9 +444,17 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
               currentRoles={roles.map(
                 (r): RoleOption => ({ roleId: r.roleId, name: r.name, color: r.color }),
               )}
-              allRoles={allRoles.map(
-                (r): RoleOption => ({ roleId: r.roleId, name: r.name, color: r.color }),
-              )}
+              allRoles={allRoles.map((r): RoleOption => {
+                const locked = r.privileged || r.managed || blockedRoleIds.has(r.roleId);
+                const lockReason = r.privileged
+                  ? "Trägt Admin-/Verwaltungsrechte — aus Sicherheitsgründen gesperrt."
+                  : r.managed
+                    ? "Von Discord verwaltet (Integration/Booster) — nicht manuell vergebbar."
+                    : blockedRoleIds.has(r.roleId)
+                      ? "Vom Owner gesperrt."
+                      : undefined;
+                return { roleId: r.roleId, name: r.name, color: r.color, locked, lockReason };
+              })}
             />
           </section>
 

@@ -55,16 +55,37 @@ export async function markMemberLeft(userId: string): Promise<void> {
     });
 }
 
+// Permissions, die eine Rolle „gefährlich" machen — eine solche Rolle wird
+// nie über das Dashboard vergeben (verhindert Admin-Eskalation durch Mods).
+const PRIVILEGED_PERMISSIONS = [
+  PermissionFlagsBits.Administrator,
+  PermissionFlagsBits.ManageGuild,
+  PermissionFlagsBits.ManageRoles,
+  PermissionFlagsBits.ManageChannels,
+  PermissionFlagsBits.ManageWebhooks,
+  PermissionFlagsBits.ManageGuildExpressions,
+  PermissionFlagsBits.BanMembers,
+  PermissionFlagsBits.KickMembers,
+  PermissionFlagsBits.ModerateMembers,
+  PermissionFlagsBits.MentionEveryone,
+];
+
+export function roleIsPrivileged(role: Role): boolean {
+  return PRIVILEGED_PERMISSIONS.some((perm) => role.permissions.has(perm));
+}
+
 export async function upsertRole(role: Role): Promise<void> {
+  const data = {
+    name: role.name,
+    color: role.color,
+    position: role.position,
+    privileged: roleIsPrivileged(role),
+    managed: role.managed,
+  };
   await prisma.guildRole.upsert({
     where: { roleId: role.id },
-    update: { name: role.name, color: role.color, position: role.position },
-    create: {
-      roleId: role.id,
-      name: role.name,
-      color: role.color,
-      position: role.position,
-    },
+    update: data,
+    create: { roleId: role.id, ...data },
   });
 }
 

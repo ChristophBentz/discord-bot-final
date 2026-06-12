@@ -14,6 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Pageload aus (ohne erst auf JWT-Expiry zu warten).
   const discordId = (session.user as { discordId?: string } | undefined)?.discordId;
   const ownerId = process.env.OWNER_DISCORD_ID;
+  const isOwner = Boolean(discordId && ownerId && discordId === ownerId);
   if (discordId && discordId !== ownerId) {
     const member = await prisma.member.findUnique({
       where: { userId: discordId },
@@ -34,6 +35,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         memberCount={memberCount}
         serverIconUrl={serverIconUrl}
         accent={resolveAccent(config.accentFrom, config.accentTo)}
+        isOwner={isOwner}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar serverName={serverName} />

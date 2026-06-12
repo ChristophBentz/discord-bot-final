@@ -7,6 +7,11 @@ import { useSession, signOut } from "next-auth/react";
 import { saveAccentColor } from "@/app/dashboard/appearanceActions";
 import { sendFeedback } from "@/app/dashboard/feedbackActions";
 import {
+  getRoleBlockData,
+  setRoleBlocked,
+  type RoleBlockRow,
+} from "@/app/dashboard/roleBlockActions";
+import {
   ACCENT_PRESETS,
   DEFAULT_ACCENT,
   hexToTriplet,
@@ -19,12 +24,25 @@ interface Props {
   onClose: () => void;
   /** Aktuell gespeicherte Akzentfarbe (aus der Config) */
   current: Accent;
+  /** Ist der eingeloggte User der Owner? (schaltet die Sicherheits-Sektion frei) */
+  isOwner: boolean;
 }
 
-type Section = "appearance" | "account" | "feedback" | "about";
+type Section = "appearance" | "account" | "security" | "feedback" | "about";
 
 // Empfänger für Feedback — per Env überschreibbar (Build-Zeit).
 const FEEDBACK_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL ?? "info@moser-dev.com";
+
+const SECURITY_SECTION: { key: Section; label: string; icon: React.ReactNode } = {
+  key: "security",
+  label: "Sicherheit",
+  icon: (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  ),
+};
 
 const SECTIONS: Array<{ key: Section; label: string; icon: React.ReactNode }> = [
   {
@@ -67,9 +85,13 @@ const SECTIONS: Array<{ key: Section; label: string; icon: React.ReactNode }> = 
   },
 ];
 
-export function SettingsModal({ open, onClose, current }: Props) {
+export function SettingsModal({ open, onClose, current, isOwner }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
+  // Sicherheits-Sektion nur für den Owner sichtbar.
+  const sections = isOwner
+    ? [SECTIONS[0]!, SECTIONS[1]!, SECURITY_SECTION, ...SECTIONS.slice(2)]
+    : SECTIONS;
   const [section, setSection] = useState<Section>("appearance");
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
@@ -83,6 +105,43 @@ export function SettingsModal({ open, onClose, current }: Props) {
   const [feedbackResult, setFeedbackResult] = useState<{ kind: "ok" | "error"; msg: string } | null>(
     null,
   );
+
+  // ─── Sicherheit: Owner-Rollensperrliste ────────────────────────────────────
+  const [roleRows, setRoleRows] = useState<RoleBlockRow[] | null>(null);
+  const [roleLoadError, setRoleLoadError] = useState<string | null>(null);
+  const [roleSearch, setRoleSearch] = useState("");
+  const [togglingRole, setTogglingRole] = useState<string | null>(null);
+
+  // Rollen lazy laden, sobald die Sicherheits-Sektion zum ersten Mal geöffnet wird.
+  useEffect(() => {
+    if (section !== "security" || roleRows !== null) return;
+    let cancelled = false;
+    getRoleBlockData().then((res) => {
+      if (cancelled) return;
+      if (res.ok) setRoleRows(res.roles);
+      else setRoleLoadError(res.error);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [section, roleRows]);
+
+  const toggleRoleBlock = (roleId: string, next: boolean) => {
+    setTogglingRole(roleId);
+    setRoleRows((rows) =>
+      rows ? rows.map((r) => (r.roleId === roleId ? { ...r, blocked: next } : r)) : rows,
+    );
+    setRoleBlocked(roleId, next).then((res) => {
+      setTogglingRole(null);
+      if (!res.ok) {
+        // Bei Fehler zurückdrehen
+        setRoleRows((rows) =>
+          rows ? rows.map((r) => (r.roleId === roleId ? { ...r, blocked: !next } : r)) : rows,
+        );
+        setRoleLoadError(res.error);
+      }
+    });
+  };
 
   const submitFeedback = () => {
     if (feedbackText.trim().length === 0) return;
@@ -184,7 +243,7 @@ export function SettingsModal({ open, onClose, current }: Props) {
         {/* Körper: Navigation + Inhalt */}
         <div className="flex min-h-0 flex-1">
           <nav className="w-44 shrink-0 space-y-0.5 border-r border-line p-3">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button
                 key={s.key}
                 type="button"
@@ -372,6 +431,98 @@ export function SettingsModal({ open, onClose, current }: Props) {
                   (Administrator, Kick, Ban oder Timeout) auf dem konfigurierten Server.
                   Berechtigungen werden bei jedem Seitenaufruf neu geprüft.
                 </p>
+              </div>
+            )}
+
+            {section === "security" && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold">Rollen-Sperrliste</h3>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    Gesperrte Rollen können im Dashboard nicht vergeben werden. Rollen mit
+                    Admin-/Verwaltungsrechten sind automatisch gesperrt — hier kannst du
+                    zusätzlich eigene sperren. Nur du als Owner siehst diese Sektion.
+                  </p>
+                </div>
+
+                {roleLoadError && (
+                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-400">
+                    {roleLoadError}
+                  </div>
+                )}
+
+                {roleRows === null && !roleLoadError ? (
+                  <p className="text-sm text-ink-subtle">Rollen werden geladen …</p>
+                ) : roleRows && roleRows.length > 0 ? (
+                  <>
+                    <input
+                      value={roleSearch}
+                      onChange={(e) => setRoleSearch(e.target.value)}
+                      placeholder="Rolle suchen …"
+                      className="input !py-2 text-sm"
+                    />
+                    <div className="max-h-72 space-y-1 overflow-y-auto">
+                      {roleRows
+                        .filter((r) =>
+                          roleSearch.trim()
+                            ? r.name.toLowerCase().includes(roleSearch.trim().toLowerCase())
+                            : true,
+                        )
+                        .map((r) => {
+                          const auto = r.privileged || r.managed;
+                          const color = r.color
+                            ? "#" + r.color.toString(16).padStart(6, "0")
+                            : "#a1a1aa";
+                          return (
+                            <div
+                              key={r.roleId}
+                              className="flex items-center gap-3 rounded-lg border border-line bg-bg-elevated/40 px-3 py-2"
+                            >
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: color }}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-medium">{r.name}</div>
+                                {auto && (
+                                  <div className="text-[11px] text-amber-400">
+                                    {r.privileged ? "Admin-/Verwaltungsrechte" : "Discord-verwaltet"}{" "}
+                                    · automatisch gesperrt
+                                  </div>
+                                )}
+                              </div>
+                              {auto ? (
+                                <span className="shrink-0 text-[11px] font-medium text-ink-subtle">
+                                  gesperrt
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRoleBlock(r.roleId, !r.blocked)}
+                                  disabled={togglingRole === r.roleId}
+                                  aria-pressed={r.blocked}
+                                  className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+                                    r.blocked ? "bg-rose-500" : "bg-zinc-600"
+                                  }`}
+                                  title={r.blocked ? "Entsperren" : "Sperren"}
+                                >
+                                  <span
+                                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                                      r.blocked ? "translate-x-4" : "translate-x-0.5"
+                                    }`}
+                                  />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-ink-subtle">
+                    Noch keine Rollen synchronisiert — der Bot füllt sie beim nächsten Sync.
+                  </p>
+                )}
               </div>
             )}
 
