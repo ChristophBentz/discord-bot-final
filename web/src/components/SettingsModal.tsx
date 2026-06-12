@@ -10,6 +10,7 @@ import {
   getRoleBlockData,
   setRoleBlocked,
   type AccessRoleRow,
+  type OwnerInfo,
   type RoleBlockRow,
 } from "@/app/dashboard/roleBlockActions";
 import {
@@ -124,7 +125,7 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
   // ─── Sicherheit: Zugangs-Übersicht + Owner-Rollensperrliste ─────────────────
   const [roleRows, setRoleRows] = useState<RoleBlockRow[] | null>(null);
   const [accessRoles, setAccessRoles] = useState<AccessRoleRow[]>([]);
-  const [securityOwnerId, setSecurityOwnerId] = useState<string | null>(null);
+  const [securityOwner, setSecurityOwner] = useState<OwnerInfo | null>(null);
   const [roleLoadError, setRoleLoadError] = useState<string | null>(null);
   const [roleSearch, setRoleSearch] = useState("");
   const [togglingRole, setTogglingRole] = useState<string | null>(null);
@@ -138,7 +139,7 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
       if (res.ok) {
         setRoleRows(res.roles);
         setAccessRoles(res.accessRoles);
-        setSecurityOwnerId(res.ownerId);
+        setSecurityOwner(res.owner);
       } else {
         setRoleLoadError(res.error);
       }
@@ -466,13 +467,25 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
                     (Berechtigung Administrator, Kicken, Bannen oder Timeouten).
                   </p>
                   <div className="mt-3 space-y-2 rounded-xl border border-line bg-bg-elevated/40 p-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="grid h-5 w-5 place-items-center rounded-full bg-brand-gradient text-[10px] font-bold text-white">
-                        ★
+                    <div className="flex items-center gap-2.5 text-sm">
+                      {securityOwner?.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={securityOwner.avatarUrl}
+                          alt=""
+                          className="h-6 w-6 rounded-full object-cover ring-1 ring-line"
+                        />
+                      ) : (
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-brand-gradient text-[10px] font-bold text-white">
+                          ★
+                        </span>
+                      )}
+                      <span className="font-medium">{securityOwner?.displayName ?? "Owner"}</span>
+                      <span className="rounded bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-ink-subtle">
+                        Owner
                       </span>
-                      <span className="font-medium">Owner</span>
                       <span className="font-mono text-[11px] text-ink-subtle">
-                        {securityOwnerId ?? "— nicht gesetzt (OWNER_DISCORD_ID)"}
+                        {securityOwner?.id ?? "— nicht gesetzt (OWNER_DISCORD_ID)"}
                       </span>
                     </div>
                     {roleRows === null ? (

@@ -20,8 +20,14 @@ export interface AccessRoleRow {
   color: number;
 }
 
+export interface OwnerInfo {
+  id: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
 export type RoleBlockData =
-  | { ok: true; roles: RoleBlockRow[]; accessRoles: AccessRoleRow[]; ownerId: string | null }
+  | { ok: true; roles: RoleBlockRow[]; accessRoles: AccessRoleRow[]; owner: OwnerInfo }
   | { ok: false; error: string };
 
 async function requireOwner(): Promise<boolean> {
@@ -34,9 +40,16 @@ async function requireOwner(): Promise<boolean> {
 export async function getRoleBlockData(): Promise<RoleBlockData> {
   if (!(await requireOwner())) return { ok: false, error: "Nur der Owner darf das." };
 
-  const [roles, blocked] = await Promise.all([
+  const ownerId = process.env.OWNER_DISCORD_ID ?? null;
+  const [roles, blocked, ownerMember] = await Promise.all([
     prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
     prisma.blockedRole.findMany({ select: { roleId: true } }),
+    ownerId
+      ? prisma.member.findUnique({
+          where: { userId: ownerId },
+          select: { displayName: true, avatarUrl: true },
+        })
+      : Promise.resolve(null),
   ]);
   const blockedSet = new Set(blocked.map((b) => b.roleId));
 
@@ -55,7 +68,11 @@ export async function getRoleBlockData(): Promise<RoleBlockData> {
     accessRoles: roles
       .filter((r) => r.grantsAccess)
       .map((r) => ({ roleId: r.roleId, name: r.name, color: r.color })),
-    ownerId: process.env.OWNER_DISCORD_ID ?? null,
+    owner: {
+      id: ownerId,
+      displayName: ownerMember?.displayName ?? null,
+      avatarUrl: ownerMember?.avatarUrl ?? null,
+    },
   };
 }
 
