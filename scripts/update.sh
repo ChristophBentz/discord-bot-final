@@ -107,8 +107,10 @@ log "Update: $OLD_SHA → $NEW_SHA"
 
 # ─── 3. Dependencies ────────────────────────────────────────────────────────
 step "install"
+# Wichtig: kein `log … | tail` — die Pipe-Subshell würde LOG_LINES des
+# Parent-Prozesses nicht füllen und die Fehlermeldung käme nie im Dashboard an.
 INSTALL_OUT=$(npm ci 2>&1) || {
-  log "$INSTALL_OUT" | tail -30
+  log "$(echo "$INSTALL_OUT" | tail -30)"
   git reset --hard "$OLD_SHA"
   fail "npm ci fehlgeschlagen — git zurückgesetzt"
 }
@@ -127,7 +129,7 @@ log "DB-Migrationen angewendet."
 # ─── 5. Build ───────────────────────────────────────────────────────────────
 step "build"
 BUILD_OUT=$(npm run build 2>&1) || {
-  log "$BUILD_OUT" | tail -30
+  log "$(echo "$BUILD_OUT" | tail -30)"
   [ -f "${DB_FILE}.bak" ] && cp "${DB_FILE}.bak" "$DB_FILE"
   git reset --hard "$OLD_SHA"
   fail "Build fehlgeschlagen — git + DB zurückgesetzt"
