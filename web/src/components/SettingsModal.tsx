@@ -9,6 +9,7 @@ import { sendFeedback } from "@/app/dashboard/feedbackActions";
 import {
   getRoleBlockData,
   setRoleBlocked,
+  type AccessRoleRow,
   type RoleBlockRow,
 } from "@/app/dashboard/roleBlockActions";
 import {
@@ -120,8 +121,10 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
     null,
   );
 
-  // ─── Sicherheit: Owner-Rollensperrliste ────────────────────────────────────
+  // ─── Sicherheit: Zugangs-Übersicht + Owner-Rollensperrliste ─────────────────
   const [roleRows, setRoleRows] = useState<RoleBlockRow[] | null>(null);
+  const [accessRoles, setAccessRoles] = useState<AccessRoleRow[]>([]);
+  const [securityOwnerId, setSecurityOwnerId] = useState<string | null>(null);
   const [roleLoadError, setRoleLoadError] = useState<string | null>(null);
   const [roleSearch, setRoleSearch] = useState("");
   const [togglingRole, setTogglingRole] = useState<string | null>(null);
@@ -132,8 +135,13 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
     let cancelled = false;
     getRoleBlockData().then((res) => {
       if (cancelled) return;
-      if (res.ok) setRoleRows(res.roles);
-      else setRoleLoadError(res.error);
+      if (res.ok) {
+        setRoleRows(res.roles);
+        setAccessRoles(res.accessRoles);
+        setSecurityOwnerId(res.ownerId);
+      } else {
+        setRoleLoadError(res.error);
+      }
     });
     return () => {
       cancelled = true;
@@ -449,13 +457,63 @@ export function SettingsModal({ open, onClose, current, isOwner, initialSection 
             )}
 
             {section === "security" && (
-              <div className="space-y-5">
+              <div className="space-y-6">
+                {/* Zugangs-Übersicht */}
+                <div>
+                  <h3 className="text-sm font-semibold">Wer kommt ins Dashboard</h3>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    Zugang haben der Owner und alle Mitglieder mit einer dieser Rollen
+                    (Berechtigung Administrator, Kicken, Bannen oder Timeouten).
+                  </p>
+                  <div className="mt-3 space-y-2 rounded-xl border border-line bg-bg-elevated/40 p-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="grid h-5 w-5 place-items-center rounded-full bg-brand-gradient text-[10px] font-bold text-white">
+                        ★
+                      </span>
+                      <span className="font-medium">Owner</span>
+                      <span className="font-mono text-[11px] text-ink-subtle">
+                        {securityOwnerId ?? "— nicht gesetzt (OWNER_DISCORD_ID)"}
+                      </span>
+                    </div>
+                    {roleRows === null ? (
+                      <p className="text-xs text-ink-subtle">wird geladen …</p>
+                    ) : accessRoles.length === 0 ? (
+                      <p className="text-xs text-ink-subtle">
+                        Keine weiteren Rollen — nur der Owner hat Zugang.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {accessRoles.map((r) => {
+                          const c = r.color
+                            ? "#" + r.color.toString(16).padStart(6, "0")
+                            : "#a1a1aa";
+                          return (
+                            <span
+                              key={r.roleId}
+                              className="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs"
+                              style={{ color: c, borderColor: c + "55", backgroundColor: c + "14" }}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
+                              {r.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-ink-subtle">
+                    Zugang steuerst du in Discord über die Berechtigungen dieser Rollen — es
+                    gibt bewusst keine separate Liste hier, damit nichts auseinanderläuft.
+                  </p>
+                </div>
+
+                {/* Sperrliste */}
                 <div>
                   <h3 className="text-sm font-semibold">Rollen-Sperrliste</h3>
                   <p className="mt-0.5 text-xs text-ink-muted">
                     Gesperrte Rollen können im Dashboard nicht vergeben werden. Rollen mit
                     Admin-/Verwaltungsrechten sind automatisch gesperrt — hier kannst du
-                    zusätzlich eigene sperren. Nur du als Owner siehst diese Sektion.
+                    zusätzlich eigene sperren.
                   </p>
                 </div>
 

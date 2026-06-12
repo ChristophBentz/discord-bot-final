@@ -11,10 +11,17 @@ export interface RoleBlockRow {
   privileged: boolean;
   managed: boolean;
   blocked: boolean;
+  grantsAccess: boolean;
+}
+
+export interface AccessRoleRow {
+  roleId: string;
+  name: string;
+  color: number;
 }
 
 export type RoleBlockData =
-  | { ok: true; roles: RoleBlockRow[] }
+  | { ok: true; roles: RoleBlockRow[]; accessRoles: AccessRoleRow[]; ownerId: string | null }
   | { ok: false; error: string };
 
 async function requireOwner(): Promise<boolean> {
@@ -42,7 +49,13 @@ export async function getRoleBlockData(): Promise<RoleBlockData> {
       privileged: r.privileged,
       managed: r.managed,
       blocked: blockedSet.has(r.roleId),
+      grantsAccess: r.grantsAccess,
     })),
+    // Rollen, die Dashboard-Zugang gewähren (Admin/Kick/Ban/Timeout).
+    accessRoles: roles
+      .filter((r) => r.grantsAccess)
+      .map((r) => ({ roleId: r.roleId, name: r.name, color: r.color })),
+    ownerId: process.env.OWNER_DISCORD_ID ?? null,
   };
 }
 

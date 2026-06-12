@@ -497,6 +497,9 @@ model GuildRole {
   privileged Boolean @default(false)
   // true für Integrations-/Booster-Rollen (managed) — nicht manuell vergebbar.
   managed    Boolean @default(false)
+  // true wenn die Rolle Dashboard-Zugang gewährt (Administrator, Kick, Ban
+  // oder Timeout) — vom Bot-Sync gesetzt, für die Übersicht in den Einstellungen.
+  grantsAccess Boolean @default(false)
 
   @@index([position])
 }

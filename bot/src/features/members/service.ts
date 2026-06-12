@@ -74,6 +74,18 @@ export function roleIsPrivileged(role: Role): boolean {
   return PRIVILEGED_PERMISSIONS.some((perm) => role.permissions.has(perm));
 }
 
+// Permissions, die Dashboard-Zugang gewähren — identisch mit isMemberProtected.
+const ACCESS_PERMISSIONS = [
+  PermissionFlagsBits.Administrator,
+  PermissionFlagsBits.KickMembers,
+  PermissionFlagsBits.BanMembers,
+  PermissionFlagsBits.ModerateMembers,
+];
+
+export function roleGrantsAccess(role: Role): boolean {
+  return ACCESS_PERMISSIONS.some((perm) => role.permissions.has(perm));
+}
+
 export async function upsertRole(role: Role): Promise<void> {
   const data = {
     name: role.name,
@@ -81,6 +93,7 @@ export async function upsertRole(role: Role): Promise<void> {
     position: role.position,
     privileged: roleIsPrivileged(role),
     managed: role.managed,
+    grantsAccess: roleGrantsAccess(role),
   };
   await prisma.guildRole.upsert({
     where: { roleId: role.id },
