@@ -20,7 +20,10 @@ interface Props {
   current: Accent;
 }
 
-type Section = "appearance" | "account" | "about";
+type Section = "appearance" | "account" | "feedback" | "about";
+
+// Empfänger für Feedback — per Env überschreibbar (Build-Zeit).
+const FEEDBACK_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL ?? "info@moser-dev.com";
 
 const SECTIONS: Array<{ key: Section; label: string; icon: React.ReactNode }> = [
   {
@@ -39,6 +42,16 @@ const SECTIONS: Array<{ key: Section; label: string; icon: React.ReactNode }> = 
     icon: (
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="4" /><path d="M4 21c0-3.9 3.6-7 8-7s8 3.1 8 7" />
+      </svg>
+    ),
+  },
+  {
+    key: "feedback",
+    label: "Feedback",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12a8 8 0 0 1-12.4 6.7L3 20l1.3-4.6A8 8 0 1 1 21 12Z" />
+        <path d="M9 11h6M9 14h3" />
       </svg>
     ),
   },
@@ -64,6 +77,7 @@ export function SettingsModal({ open, onClose, current }: Props) {
   const [baseline, setBaseline] = useState<Accent>(current);
   const [from, setFrom] = useState(current.from);
   const [to, setTo] = useState(current.to);
+  const [feedbackText, setFeedbackText] = useState("");
 
   const valid = isHexColor(from) && isHexColor(to);
   const dirty = from !== baseline.from || to !== baseline.to;
@@ -329,6 +343,54 @@ export function SettingsModal({ open, onClose, current }: Props) {
                   Zugriff auf das Dashboard haben Mitglieder mit Moderations-Berechtigung
                   (Administrator, Kick, Ban oder Timeout) auf dem konfigurierten Server.
                   Berechtigungen werden bei jedem Seitenaufruf neu geprüft.
+                </p>
+              </div>
+            )}
+
+            {section === "feedback" && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold">Feedback</h3>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    Was sollte der Bot besser oder anders machen? Schreib es hier —
+                    der Senden-Button öffnet dein Mail-Programm mit fertiger E-Mail.
+                  </p>
+                </div>
+
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value.slice(0, 1500))}
+                  rows={8}
+                  placeholder="Dein Vorschlag, Wunsch oder Problem …"
+                  className="input resize-none"
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-ink-subtle tabular-nums">
+                    {feedbackText.length} / 1500
+                  </span>
+                  <a
+                    href={`mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(
+                      "Feedback zum Discord-Bot",
+                    )}&body=${encodeURIComponent(feedbackText)}`}
+                    className={`btn-primary !py-1.5 text-[13px] ${
+                      feedbackText.trim().length === 0 ? "pointer-events-none opacity-50" : ""
+                    }`}
+                    aria-disabled={feedbackText.trim().length === 0}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m22 2-7 20-4-9-9-4 20-7Z" />
+                      <path d="M22 2 11 13" />
+                    </svg>
+                    Per E-Mail senden
+                  </a>
+                </div>
+
+                <p className="border-t border-line pt-3 text-[11px] text-ink-subtle">
+                  Oder schreib direkt an{" "}
+                  <a href={`mailto:${FEEDBACK_EMAIL}`} className="text-ink-muted hover:text-brand hover:underline">
+                    {FEEDBACK_EMAIL}
+                  </a>
+                  .
                 </p>
               </div>
             )}
