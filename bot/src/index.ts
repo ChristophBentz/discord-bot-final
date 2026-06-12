@@ -26,6 +26,7 @@ const client = new Client({
     GatewayIntentBits.GuildPresences, // für Server-Stats „Online-Zählung" — privileged intent!
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildInvites, // Invite-Tracking (braucht „Server verwalten"-Berechtigung)
+    GatewayIntentBits.GuildExpressions, // Audit-Logs: Emojis & Sticker
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });

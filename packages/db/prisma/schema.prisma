@@ -41,6 +41,11 @@ model Config {
   logMemberRoles    Boolean @default(false)
   logVoice          Boolean @default(false)
   logModeration     Boolean @default(false) // Kick, Timeout, Warn (Ban/Unban läuft über logMemberBan/Unban)
+  logChannels       Boolean @default(false) // Channels & Threads erstellt/gelöscht/geändert
+  logServerRoles    Boolean @default(false) // Server-Rollen erstellt/gelöscht/geändert
+  logServer         Boolean @default(false) // Server-Einstellungen (Name, Icon, AFK …)
+  logInvites        Boolean @default(false) // Invites erstellt/gelöscht
+  logEmojis         Boolean @default(false) // Emojis & Sticker
 
   // Welcome / Leave
   welcomeEnabled   Boolean @default(false)

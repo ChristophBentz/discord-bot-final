@@ -14,6 +14,30 @@ function truncate(text: string, max = 1024): string {
   return text.slice(0, max - 1) + "…";
 }
 
+// Generischer Embed für Server-Events (Channels, Rollen, Server-Settings, Invites, Emojis).
+export function serverEventEmbed(args: {
+  title: string;
+  color: number;
+  description?: string;
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
+  footer?: string;
+  thumbnail?: string;
+}): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setColor(args.color)
+    .setTitle(args.title)
+    .setTimestamp(new Date());
+  if (args.description) embed.setDescription(truncate(args.description, 4000));
+  if (args.fields && args.fields.length > 0) {
+    embed.addFields(
+      args.fields.map((f) => ({ ...f, value: truncate(f.value) })),
+    );
+  }
+  if (args.footer) embed.setFooter({ text: args.footer });
+  if (args.thumbnail) embed.setThumbnail(args.thumbnail);
+  return embed;
+}
+
 // Nachricht gelöscht
 export function messageDeleteEmbed(args: {
   author: User | null;

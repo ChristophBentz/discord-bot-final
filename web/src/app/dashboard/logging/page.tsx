@@ -31,6 +31,11 @@ export default async function LoggingPage() {
             logMemberRoles: c.logMemberRoles,
             logVoice: c.logVoice,
             logModeration: c.logModeration,
+            logChannels: c.logChannels,
+            logServerRoles: c.logServerRoles,
+            logServer: c.logServer,
+            logInvites: c.logInvites,
+            logEmojis: c.logEmojis,
           }}
           channels={channels.map((c) => ({
             channelId: c.channelId,

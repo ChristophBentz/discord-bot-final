@@ -17,35 +17,29 @@ export async function saveLoggingSettings(formData: FormData): Promise<SaveLoggi
 
   const toggle = (name: string): boolean => formData.get(name) === "on";
 
+  const data = {
+    logChannelId: channelId,
+    logMessageDelete: toggle("logMessageDelete"),
+    logMessageEdit: toggle("logMessageEdit"),
+    logMemberJoin: toggle("logMemberJoin"),
+    logMemberLeave: toggle("logMemberLeave"),
+    logMemberBan: toggle("logMemberBan"),
+    logMemberUnban: toggle("logMemberUnban"),
+    logMemberNickname: toggle("logMemberNickname"),
+    logMemberRoles: toggle("logMemberRoles"),
+    logVoice: toggle("logVoice"),
+    logModeration: toggle("logModeration"),
+    logChannels: toggle("logChannels"),
+    logServerRoles: toggle("logServerRoles"),
+    logServer: toggle("logServer"),
+    logInvites: toggle("logInvites"),
+    logEmojis: toggle("logEmojis"),
+  };
+
   await prisma.config.upsert({
     where: { id: 1 },
-    update: {
-      logChannelId: channelId,
-      logMessageDelete: toggle("logMessageDelete"),
-      logMessageEdit: toggle("logMessageEdit"),
-      logMemberJoin: toggle("logMemberJoin"),
-      logMemberLeave: toggle("logMemberLeave"),
-      logMemberBan: toggle("logMemberBan"),
-      logMemberUnban: toggle("logMemberUnban"),
-      logMemberNickname: toggle("logMemberNickname"),
-      logMemberRoles: toggle("logMemberRoles"),
-      logVoice: toggle("logVoice"),
-      logModeration: toggle("logModeration"),
-    },
-    create: {
-      id: 1,
-      logChannelId: channelId,
-      logMessageDelete: toggle("logMessageDelete"),
-      logMessageEdit: toggle("logMessageEdit"),
-      logMemberJoin: toggle("logMemberJoin"),
-      logMemberLeave: toggle("logMemberLeave"),
-      logMemberBan: toggle("logMemberBan"),
-      logMemberUnban: toggle("logMemberUnban"),
-      logMemberNickname: toggle("logMemberNickname"),
-      logMemberRoles: toggle("logMemberRoles"),
-      logVoice: toggle("logVoice"),
-      logModeration: toggle("logModeration"),
-    },
+    update: data,
+    create: { id: 1, ...data },
   });
 
   revalidatePath("/dashboard");

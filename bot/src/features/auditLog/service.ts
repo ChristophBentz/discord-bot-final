@@ -20,7 +20,12 @@ export type LogCategory =
   | "memberNickname"
   | "memberRoles"
   | "voice"
-  | "moderation";
+  | "moderation"
+  | "channels"
+  | "serverRoles"
+  | "server"
+  | "invites"
+  | "emojis";
 
 const TOGGLE_MAP: Record<LogCategory, keyof Config> = {
   messageDelete: "logMessageDelete",
@@ -33,6 +38,11 @@ const TOGGLE_MAP: Record<LogCategory, keyof Config> = {
   memberRoles: "logMemberRoles",
   voice: "logVoice",
   moderation: "logModeration",
+  channels: "logChannels",
+  serverRoles: "logServerRoles",
+  server: "logServer",
+  invites: "logInvites",
+  emojis: "logEmojis",
 };
 
 // Carl-Bot-ähnliche Farbpalette.

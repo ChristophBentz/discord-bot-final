@@ -16,6 +16,11 @@ interface Initial {
   logMemberRoles: boolean;
   logVoice: boolean;
   logModeration: boolean;
+  logChannels: boolean;
+  logServerRoles: boolean;
+  logServer: boolean;
+  logInvites: boolean;
+  logEmojis: boolean;
 }
 
 type Key = keyof Omit<Initial, "logChannelId">;
@@ -164,6 +169,66 @@ const GROUPS: Group[] = [
       },
     ],
   },
+  {
+    title: "Server",
+    categories: [
+      {
+        key: "logChannels",
+        label: "Channels & Threads",
+        description: "Erstellt, gelöscht, geändert (Name, Topic, Slowmode …).",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" />
+          </svg>
+        ),
+      },
+      {
+        key: "logServerRoles",
+        label: "Server-Rollen",
+        description: "Rollen erstellt, gelöscht, geändert — inkl. Berechtigungen.",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 3v18M3 12h18" />
+          </svg>
+        ),
+      },
+      {
+        key: "logServer",
+        label: "Server-Einstellungen",
+        description: "Name, Icon, Banner, AFK- und System-Channel.",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+          </svg>
+        ),
+      },
+      {
+        key: "logInvites",
+        label: "Invites",
+        description: "Einladungen erstellt und gelöscht — mit Ersteller und Ablauf.",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+        ),
+      },
+      {
+        key: "logEmojis",
+        label: "Emojis & Sticker",
+        description: "Hinzugefügt, entfernt und umbenannt.",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+            <path d="M9 9h.01M15 9h.01" />
+          </svg>
+        ),
+      },
+    ],
+  },
 ];
 
 const ALL_KEYS = GROUPS.flatMap((g) => g.categories.map((c) => c.key));
@@ -273,7 +338,7 @@ export function LoggingForm({
           <button
             type="button"
             onClick={() => toggleAll(!allActive)}
-            className="text-xs font-medium text-brand hover:text-brand-light"
+            className="text-xs font-medium text-brand hover:opacity-80"
           >
             {allActive ? "Alle deaktivieren" : "Alle aktivieren"}
           </button>
@@ -300,7 +365,7 @@ export function LoggingForm({
                       <div
                         className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
                           on
-                            ? "bg-brand/15 text-brand-light"
+                            ? "bg-brand/15 text-brand"
                             : "bg-bg-elevated text-ink-subtle"
                         }`}
                       >
@@ -320,8 +385,9 @@ export function LoggingForm({
                         className="peer/c sr-only"
                       />
                       <span
-                        className="relative mt-1 h-5 w-9 shrink-0 rounded-full bg-zinc-700 transition-colors"
-                        style={{ background: on ? "rgb(168 85 247)" : undefined }}
+                        className={`relative mt-1 h-5 w-9 shrink-0 rounded-full transition-colors ${
+                          on ? "bg-brand-gradient" : "bg-zinc-700"
+                        }`}
                       >
                         <span
                           className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
