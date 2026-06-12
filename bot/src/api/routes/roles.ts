@@ -36,8 +36,13 @@ export async function handleRoleChange(
   const member = await guild.members.fetch(userId).catch(() => null);
   if (!member) return { ok: false, error: "Member nicht gefunden" };
 
+  // actorId muss eine echte Snowflake sein, sonst ignorieren (defense-in-depth:
+  // selbst wenn das BOT_API_SECRET leakt, lässt sich der Owner-Bypass nicht über
+  // einen gefälschten actorId erschleichen — die ID wird hart gegen OWNER_DISCORD_ID
+  // geprüft, und die Hierarchie unten gegen die echte Discord-Position).
+  const actorId = isValidRoleId(body.actorId) ? body.actorId : null;
   const ownerId = process.env.OWNER_DISCORD_ID;
-  const actorIsOwner = Boolean(body.actorId && ownerId && body.actorId === ownerId);
+  const actorIsOwner = Boolean(actorId && ownerId && actorId === ownerId);
 
   // ─── Schutz-Checks beim HINZUFÜGEN (Entfernen ist unkritisch) ───────────────
   // Der Owner darf alles (kann es eh direkt in Discord). Für alle anderen:
@@ -54,10 +59,11 @@ export async function handleRoleChange(
     const dbById = new Map(dbRoles.map((r) => [r.roleId, r]));
     const blockedSet = new Set(blocked.map((b) => b.roleId));
 
-    // Höchste Rollen-Position des handelnden Mods.
+    // Höchste Rollen-Position des handelnden Mods. Ohne gültige actorId
+    // bleibt sie 0 → unten wird dann jede echte Rolle als „zu hoch" abgelehnt.
     let actorTopPosition = 0;
-    if (body.actorId) {
-      const actor = await guild.members.fetch(body.actorId).catch(() => null);
+    if (actorId) {
+      const actor = await guild.members.fetch(actorId).catch(() => null);
       actorTopPosition = actor?.roles.highest.position ?? 0;
     }
 
@@ -80,7 +86,7 @@ export async function handleRoleChange(
         return { ok: false, error: `Rolle „${name}" wird von Discord verwaltet und ist nicht manuell vergebbar.` };
       }
       // Hierarchie: nichts über der eigenen höchsten Rolle.
-      if (body.actorId && live && live.position >= actorTopPosition) {
+      if (actorId && live && live.position >= actorTopPosition) {
         return {
           ok: false,
           error: `Rolle „${name}" liegt über deiner höchsten Rolle — Vergabe nicht erlaubt.`,

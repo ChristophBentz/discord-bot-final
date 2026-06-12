@@ -4,6 +4,7 @@ import { prisma } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { registerScheduler, recordSchedulerRun } from "../../lib/healthBuffer.js";
 import { fetchAndParseFeed, type FeedItem, type ParsedFeed } from "./parser.js";
+import { checkFetchUrl } from "../../lib/safeUrl.js";
 
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -16,6 +17,8 @@ async function fetchImageAttachment(
   url: string,
 ): Promise<{ attachment: AttachmentBuilder; filename: string } | null> {
   try {
+    // SSRF-Schutz: Bild-URLs stammen aus fremden Feeds.
+    if (await checkFetchUrl(url)) return null;
     const res = await fetch(url, {
       headers: {
         "User-Agent": BROWSER_UA,

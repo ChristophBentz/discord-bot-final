@@ -3,12 +3,15 @@
 import { prisma } from "@repo/db";
 import { revalidatePath } from "next/cache";
 import { callBot } from "@/lib/botApi";
+import { requireAuth } from "@/lib/requireAuth";
 
 const SNOWFLAKE = /^\d{17,20}$/;
 
 export type SaveLoggingResult = { ok: true } | { ok: false; error: string };
 
 export async function saveLoggingSettings(formData: FormData): Promise<SaveLoggingResult> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   const rawChannel = String(formData.get("logChannelId") ?? "").trim();
   const channelId = rawChannel === "" ? null : rawChannel;
 

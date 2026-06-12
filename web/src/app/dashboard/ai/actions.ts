@@ -2,6 +2,7 @@
 
 import { getConfig, prisma } from "@repo/db";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/requireAuth";
 
 export interface AiSettings {
   aiEnabled: boolean;
@@ -20,6 +21,8 @@ const clamp = (n: number, min: number, max: number) =>
 export async function saveAiSettings(
   form: AiSettings,
 ): Promise<{ ok: boolean; error?: string }> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   const apiKey = form.aiApiKey.trim();
   const baseUrl =
     form.aiApiBaseUrl.trim().replace(/\/+$/, "") || "https://api.minimaxi.com";
@@ -51,6 +54,8 @@ export async function testAiConnection(): Promise<{
   error?: string;
   imageUrl?: string;
 }> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   const cfg = await getConfig();
   if (!cfg.aiApiKey) return { ok: false, error: "Bitte erst API-Key speichern." };
 
@@ -97,6 +102,10 @@ export async function getAiStats(): Promise<{
   imagesLast30d: number;
   topUsers: { userId: string; displayName: string | null; count: number }[];
 }> {
+  // Read-only, aber zeigt User-Daten → nur für eingeloggte Mods.
+  if (await requireAuth()) {
+    return { totalImages: 0, imagesLast24h: 0, imagesLast30d: 0, topUsers: [] };
+  }
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 

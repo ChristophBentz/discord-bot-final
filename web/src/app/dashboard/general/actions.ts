@@ -3,6 +3,7 @@
 import { prisma } from "@repo/db";
 import { revalidatePath } from "next/cache";
 import { callBot } from "@/lib/botApi";
+import { requireAuth } from "@/lib/requireAuth";
 
 const MAX_STATUS_LENGTH = 128;
 const MAX_NICKNAME_LENGTH = 32;
@@ -12,6 +13,8 @@ export type SaveStatusResult =
   | { ok: false; error: string };
 
 export async function saveBotStatus(formData: FormData): Promise<SaveStatusResult> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   const raw = String(formData.get("botStatusText") ?? "").trim();
 
   if (raw.length > MAX_STATUS_LENGTH) {
@@ -37,6 +40,8 @@ export type SaveNicknameResult =
   | { ok: false; error: string };
 
 export async function saveBotNickname(formData: FormData): Promise<SaveNicknameResult> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   const raw = String(formData.get("botNickname") ?? "").trim();
   if (raw.length > MAX_NICKNAME_LENGTH) {
     return { ok: false, error: `Maximal ${MAX_NICKNAME_LENGTH} Zeichen erlaubt.` };
@@ -59,6 +64,8 @@ export type SaveDescriptionResult =
   | { ok: false; error: string };
 
 export async function saveBotDescription(formData: FormData): Promise<SaveDescriptionResult> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   const raw = String(formData.get("botDescription") ?? "").trim();
   if (raw.length > 400) {
     return { ok: false, error: "Maximal 400 Zeichen erlaubt." };
@@ -82,6 +89,8 @@ export type SaveAvatarResult =
   | { ok: false; error: string };
 
 export async function saveBotAvatar(dataUrl: string | null): Promise<SaveAvatarResult> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   if (dataUrl && !dataUrl.startsWith("data:image/")) {
     return { ok: false, error: "Ungültiges Datei-Format." };
   }
@@ -103,6 +112,8 @@ export type SaveBannerResult =
   | { ok: false; error: string };
 
 export async function saveBotBanner(dataUrl: string | null): Promise<SaveBannerResult> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   if (dataUrl && !dataUrl.startsWith("data:image/")) {
     return { ok: false, error: "Ungültiges Datei-Format." };
   }

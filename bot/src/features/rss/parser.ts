@@ -1,6 +1,8 @@
 // Minimalistischer RSS/Atom-Parser ohne externe Dependencies.
 // Unterstützt RSS 2.0 (<item>), RDF (<item>), und Atom (<entry>).
 
+import { checkFetchUrl } from "../../lib/safeUrl.js";
+
 export interface FeedItem {
   guid: string;
   title: string;
@@ -218,6 +220,8 @@ export function parseFeed(xml: string, sourceUrl?: string): ParsedFeed {
 }
 
 export async function fetchAndParseFeed(url: string): Promise<ParsedFeed> {
+  const blocked = await checkFetchUrl(url);
+  if (blocked) throw new Error(blocked);
   const res = await fetch(url, {
     headers: {
       "User-Agent": "DiscordBot-RSS/1.0",

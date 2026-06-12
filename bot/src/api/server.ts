@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage } from "node:http";
+import { timingSafeEqual } from "node:crypto";
 import type { Client } from "discord.js";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
@@ -114,12 +115,26 @@ function fail(res: import("node:http").ServerResponse, status: number, error: st
   res.end(JSON.stringify({ ok: false, error }));
 }
 
+// Timing-safe Vergleich des API-Secrets. Längen-Mismatch zuerst abfangen,
+// damit timingSafeEqual nicht wirft, und über einen Dummy-Vergleich trotzdem
+// konstante Zeit halten.
+const SECRET_BUF = Buffer.from(env.BOT_API_SECRET);
+function secretMatches(provided: string): boolean {
+  const buf = Buffer.from(provided);
+  if (buf.length !== SECRET_BUF.length) {
+    // Konstante-Zeit-Dummy gegen sich selbst, Ergebnis verwerfen.
+    timingSafeEqual(buf, buf);
+    return false;
+  }
+  return timingSafeEqual(buf, SECRET_BUF);
+}
+
 export function startApiServer(client: Client): void {
   const server = createServer(async (req, res) => {
     try {
-      // Auth: geteiltes Secret im Header
+      // Auth: geteiltes Secret im Header — timing-safe verglichen.
       const auth = req.headers["x-bot-api-key"];
-      if (auth !== env.BOT_API_SECRET) {
+      if (typeof auth !== "string" || !secretMatches(auth)) {
         fail(res, 401, "unauthorized");
         return;
       }

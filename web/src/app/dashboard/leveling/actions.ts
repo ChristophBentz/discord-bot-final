@@ -2,6 +2,7 @@
 
 import { prisma } from "@repo/db";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/requireAuth";
 
 const SNOWFLAKE = /^\d{17,20}$/;
 
@@ -15,6 +16,8 @@ function parseInt0(value: FormDataEntryValue | null, fallback: number, min = 0):
 }
 
 export async function saveLevelingSettings(formData: FormData): Promise<SaveLevelingResult> {
+  const auth = await requireAuth();
+  if (auth) return auth;
   const channelRaw = String(formData.get("levelUpChannelId") ?? "").trim();
   if (channelRaw && !SNOWFLAKE.test(channelRaw)) {
     return { ok: false, error: "Channel-ID muss eine Discord-Snowflake sein (17–20 Ziffern)." };
