@@ -12,7 +12,18 @@ interface BotState {
   bans: BanEntry[];
 }
 
-export default function ModerationPage() {
+const TAB_KEYS = ["timeouts", "bans", "appeals", "warnings", "actions"] as const;
+type TabParam = (typeof TAB_KEYS)[number];
+
+export default async function ModerationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  // ?tab=actions öffnet direkt den gewünschten Tab (z.B. verlinkt von Audit Logs).
+  const { tab } = await searchParams;
+  const initialTab = TAB_KEYS.includes(tab as TabParam) ? (tab as TabParam) : undefined;
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
@@ -23,14 +34,14 @@ export default function ModerationPage() {
         </p>
       </header>
       <Suspense fallback={<ModerationSkeleton />}>
-        <ModerationData />
+        <ModerationData initialTab={initialTab} />
       </Suspense>
     </div>
   );
 }
 
 // Bans/Timeouts kommen vom Bot (Discord-REST) — streamen, statt die Navigation zu blockieren.
-async function ModerationData() {
+async function ModerationData({ initialTab }: { initialTab?: TabParam }) {
   const [botRes, warnings, appeals, modEvents, config] = await Promise.all([
     callBot<BotState>("/api/moderation/state", { method: "GET" }),
     prisma.warning.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
@@ -110,6 +121,7 @@ async function ModerationData() {
       warnings={warningEntries}
       modEvents={modEventEntries}
       modEventRecording={config?.recordModEvents ?? true}
+      initialTab={initialTab}
     />
   );
 }

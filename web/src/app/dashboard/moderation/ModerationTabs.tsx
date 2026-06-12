@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { BanList, TimeoutList, type BanEntry, type TimeoutEntry } from "./ModerationLists";
 import { WarningsList, type WarningEntry } from "./WarningsList";
 import { AppealsList, type AppealEntry } from "./AppealsList";
@@ -17,6 +18,8 @@ interface Props {
   modEvents: ModEventEntry[];
   /** Ist die Aufzeichnung (Audit Logs → Mod-Aktionen-Verlauf) aktiv? */
   modEventRecording: boolean;
+  /** Tab, der initial geöffnet wird (z.B. via ?tab=actions verlinkt) */
+  initialTab?: TabKey;
 }
 
 const stroke = {
@@ -63,6 +66,7 @@ export function ModerationTabs({
   warnings,
   modEvents,
   modEventRecording,
+  initialTab,
 }: Props) {
   const openAppeals = appeals.filter((a) => a.status === "pending").length;
 
@@ -143,9 +147,10 @@ export function ModerationTabs({
     },
   ];
 
-  // Sinnvoller Start-Tab: offene Anträge zuerst, sonst der erste mit Inhalt.
+  // Sinnvoller Start-Tab: explizit verlinkt > offene Anträge > der erste mit Inhalt.
   const defaultTab: TabKey =
-    openAppeals > 0
+    initialTab ??
+    (openAppeals > 0
       ? "appeals"
       : timeouts.length > 0
         ? "timeouts"
@@ -153,7 +158,7 @@ export function ModerationTabs({
           ? "bans"
           : warnings.length > 0
             ? "warnings"
-            : "timeouts";
+            : "timeouts");
   const [active, setActive] = useState<TabKey>(defaultTab);
 
   const PANEL: Record<TabKey, { title: string; description: string; body: React.ReactNode }> = {
@@ -187,8 +192,11 @@ export function ModerationTabs({
           {!modEventRecording && (
             <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
               Aufzeichnung ist deaktiviert — neue Mod-Aktionen werden nicht gespeichert.
-              Einschalten unter Audit Logs → „Mod-Aktionen-Verlauf". Bestehende Einträge
-              bleiben hier sichtbar.
+              Einschalten unter{" "}
+              <Link href="/dashboard/logging" className="font-medium underline hover:text-amber-200">
+                Audit Logs → „Mod-Aktionen-Verlauf"
+              </Link>
+              . Bestehende Einträge bleiben hier sichtbar.
             </div>
           )}
           <ModEventsList items={modEvents} />

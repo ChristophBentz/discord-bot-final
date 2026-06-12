@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition, type ReactNode } from "react";
+import Link from "next/link";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
 import { saveLoggingSettings } from "./actions";
 
@@ -417,6 +418,15 @@ export function LoggingForm({
               „Aktionen"-Tab auf der Moderations-Seite auf — funktioniert auch ohne
               Log-Channel und unabhängig von den Kategorien oben.
             </p>
+            <Link
+              href="/dashboard/moderation?tab=actions"
+              className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
+            >
+              Verlauf öffnen
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </Link>
           </div>
           <input
             type="checkbox"
