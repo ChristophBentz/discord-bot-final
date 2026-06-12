@@ -84,6 +84,17 @@ const icons = {
   ),
 };
 
+/** Zahlen ab 1000 kompakt: 1.500 → "1,5k", 2.000.000 → "2M". */
+function formatCompact(n: number): string {
+  const fmt = (value: number, suffix: string) => {
+    const rounded = (Math.round(value * 10) / 10).toFixed(1).replace(".", ",");
+    return `${rounded.endsWith(",0") ? rounded.slice(0, -2) : rounded}${suffix}`;
+  };
+  if (n >= 1_000_000) return fmt(n / 1_000_000, "M");
+  if (n >= 1_000) return fmt(n / 1_000, "k");
+  return n.toLocaleString("de-DE");
+}
+
 function formatVoiceTime(seconds: number): string {
   const totalMinutes = Math.floor(seconds / 60);
   const h = Math.floor(totalMinutes / 60);
@@ -303,12 +314,12 @@ export default async function DashboardOverview() {
 
         {/* Stat Cards */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Mitglieder" value={memberCount.toLocaleString("de-DE")}>
+          <StatCard label="Mitglieder" value={formatCompact(memberCount)}>
             {icons.users}
           </StatCard>
           <StatCard
             label="Nachrichten"
-            value={totalMessages.toLocaleString("de-DE")}
+            value={formatCompact(totalMessages)}
             hint={`über ${stats._count} aktive User`}
           >
             {icons.chat}
@@ -316,7 +327,7 @@ export default async function DashboardOverview() {
           <StatCard label="Voice-Zeit" value={formatVoiceTime(totalVoice)} hint="kumuliert">
             {icons.voice}
           </StatCard>
-          <StatCard label="XP vergeben" value={totalXp.toLocaleString("de-DE")}>
+          <StatCard label="XP vergeben" value={formatCompact(totalXp)}>
             {icons.bolt}
           </StatCard>
         </section>
