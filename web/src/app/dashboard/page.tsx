@@ -100,6 +100,8 @@ function formatVoiceTime(seconds: number): string {
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   if (h === 0) return `${m}m`;
+  // Ab 1000 Stunden kompakt ohne Minuten ("1,2k h"), sonst wird der Wert zu lang.
+  if (h >= 1000) return `${formatCompact(h)} h`;
   return `${h}h ${m}m`;
 }
 
