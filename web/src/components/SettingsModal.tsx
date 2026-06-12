@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { saveAccentColor } from "@/app/dashboard/appearanceActions";
+import { sendFeedback } from "@/app/dashboard/feedbackActions";
 import {
   ACCENT_PRESETS,
   DEFAULT_ACCENT,
@@ -78,6 +79,23 @@ export function SettingsModal({ open, onClose, current }: Props) {
   const [from, setFrom] = useState(current.from);
   const [to, setTo] = useState(current.to);
   const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSending, startFeedbackTransition] = useTransition();
+  const [feedbackResult, setFeedbackResult] = useState<{ kind: "ok" | "error"; msg: string } | null>(
+    null,
+  );
+
+  const submitFeedback = () => {
+    if (feedbackText.trim().length === 0) return;
+    startFeedbackTransition(async () => {
+      const result = await sendFeedback(feedbackText);
+      if (result.ok) {
+        setFeedbackText("");
+        setFeedbackResult({ kind: "ok", msg: "Danke! Dein Feedback wurde gesendet." });
+      } else {
+        setFeedbackResult({ kind: "error", msg: result.error });
+      }
+    });
+  };
 
   const valid = isHexColor(from) && isHexColor(to);
   const dirty = from !== baseline.from || to !== baseline.to;
@@ -353,13 +371,16 @@ export function SettingsModal({ open, onClose, current }: Props) {
                   <h3 className="text-sm font-semibold">Feedback</h3>
                   <p className="mt-0.5 text-xs text-ink-muted">
                     Was sollte der Bot besser oder anders machen? Schreib es hier —
-                    der Senden-Button öffnet dein Mail-Programm mit fertiger E-Mail.
+                    es wird direkt per E-Mail an den Entwickler geschickt.
                   </p>
                 </div>
 
                 <textarea
                   value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value.slice(0, 1500))}
+                  onChange={(e) => {
+                    setFeedbackText(e.target.value.slice(0, 1500));
+                    setFeedbackResult(null);
+                  }}
                   rows={8}
                   placeholder="Dein Vorschlag, Wunsch oder Problem …"
                   className="input resize-none"
@@ -368,25 +389,34 @@ export function SettingsModal({ open, onClose, current }: Props) {
                   <span className="text-[11px] text-ink-subtle tabular-nums">
                     {feedbackText.length} / 1500
                   </span>
-                  <a
-                    href={`mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(
-                      "Feedback zum Discord-Bot",
-                    )}&body=${encodeURIComponent(feedbackText)}`}
-                    className={`btn-primary !py-1.5 text-[13px] ${
-                      feedbackText.trim().length === 0 ? "pointer-events-none opacity-50" : ""
-                    }`}
-                    aria-disabled={feedbackText.trim().length === 0}
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m22 2-7 20-4-9-9-4 20-7Z" />
-                      <path d="M22 2 11 13" />
-                    </svg>
-                    Per E-Mail senden
-                  </a>
+                  <div className="flex items-center gap-3">
+                    {feedbackResult && (
+                      <span
+                        className={`text-xs ${
+                          feedbackResult.kind === "ok" ? "text-emerald-400" : "text-rose-400"
+                        }`}
+                      >
+                        {feedbackResult.msg}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={submitFeedback}
+                      disabled={feedbackText.trim().length === 0 || feedbackSending}
+                      className="btn-primary !py-1.5 text-[13px] disabled:opacity-50"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m22 2-7 20-4-9-9-4 20-7Z" />
+                        <path d="M22 2 11 13" />
+                      </svg>
+                      {feedbackSending ? "Sendet …" : "Senden"}
+                    </button>
+                  </div>
                 </div>
 
                 <p className="border-t border-line pt-3 text-[11px] text-ink-subtle">
-                  Oder schreib direkt an{" "}
+                  Dein Discord-Name wird mitgeschickt, damit Rückfragen möglich sind.
+                  Alternativ direkt an{" "}
                   <a href={`mailto:${FEEDBACK_EMAIL}`} className="text-ink-muted hover:text-brand hover:underline">
                     {FEEDBACK_EMAIL}
                   </a>
