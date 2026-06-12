@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface VersionInfo {
   current: { sha: string | null; short: string | null };
   latest: { sha: string; short: string; message: string; date: string; url: string } | null;
+  latestError?: string;
   behindCount: number | null;
   upToDate: boolean | null;
   repoSlug: string | null;
@@ -163,6 +164,11 @@ export function UpdateCard() {
                 <code className="rounded bg-bg-elevated px-1 py-0.5 font-mono text-[11px]">
                   {version.latest!.short}
                 </code>
+              </span>
+            )}
+            {!version.latest && version.latestError && (
+              <span className="inline-flex items-center gap-1 text-xs text-amber-300">
+                <Dot warn /> Versions-Check nicht möglich: {version.latestError}
               </span>
             )}
           </div>

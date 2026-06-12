@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
@@ -56,6 +56,22 @@ function isDocker(): boolean {
   return existsSync(DOCKER_FLAG);
 }
 
+// Lock-Files älter als 30 Minuten gelten als verwaist (z.B. Server-Reboot
+// mitten im Update) — sonst hinge die Karte für immer auf "Update läuft".
+const LOCK_STALE_MS = 30 * 60 * 1000;
+function isUpdateRunning(): boolean {
+  if (!existsSync(LOCK_FILE)) return false;
+  try {
+    if (Date.now() - statSync(LOCK_FILE).mtimeMs > LOCK_STALE_MS) {
+      rmSync(LOCK_FILE, { force: true });
+      return false;
+    }
+  } catch {
+    /* stat fehlgeschlagen → als laufend behandeln */
+  }
+  return true;
+}
+
 interface GitHubCommit {
   sha: string;
   commit: { message: string; author: { date: string; name: string } };
@@ -66,6 +82,8 @@ export interface VersionInfo {
   ok: true;
   current: { sha: string | null; short: string | null };
   latest: { sha: string; short: string; message: string; date: string; url: string } | null;
+  // Warum latest fehlt (z.B. GitHub-Rate-Limit) — wird in der UI angezeigt.
+  latestError?: string;
   behindCount: number | null;
   upToDate: boolean | null;
   repoSlug: string | null;
@@ -75,46 +93,74 @@ export interface VersionInfo {
   updateInProgress: boolean;
 }
 
+// GitHub-Antwort cachen: unauthentifiziert sind nur 60 Requests/h erlaubt,
+// und jeder Versions-Check braucht zwei. 5 Minuten TTL reicht locker.
+const GH_CACHE_TTL_MS = 5 * 60 * 1000;
+let ghCache: {
+  fetchedAt: number;
+  forSha: string | null;
+  latest: VersionInfo["latest"];
+  behindCount: number | null;
+  error?: string;
+} | null = null;
+
 export async function handleGetVersion(): Promise<VersionInfo> {
   const currentSha = getCurrentSha();
   const repoSlug = getRepoSlug();
   const docker = isDocker();
-  const inProgress = existsSync(LOCK_FILE);
+  const inProgress = isUpdateRunning();
 
   let latest: VersionInfo["latest"] = null;
   let behindCount: number | null = null;
   let upToDate: boolean | null = null;
+  let latestError: string | undefined;
 
   if (repoSlug) {
-    try {
-      const res = await fetch(`https://api.github.com/repos/${repoSlug}/commits/main`, {
-        headers: { Accept: "application/vnd.github+json" },
-      });
-      if (res.ok) {
-        const commit = (await res.json()) as GitHubCommit;
-        latest = {
-          sha: commit.sha,
-          short: commit.sha.slice(0, 7),
-          message: commit.commit.message.split("\n")[0]!,
-          date: commit.commit.author.date,
-          url: commit.html_url,
-        };
-        if (currentSha) {
-          upToDate = currentSha === commit.sha;
-          // Anzahl Commits hinter: GitHub-Compare-API
-          const compareRes = await fetch(
-            `https://api.github.com/repos/${repoSlug}/compare/${currentSha}...${commit.sha}`,
-            { headers: { Accept: "application/vnd.github+json" } },
-          );
-          if (compareRes.ok) {
-            const cmp = (await compareRes.json()) as { ahead_by: number };
-            behindCount = cmp.ahead_by;
+    const cacheValid =
+      ghCache &&
+      Date.now() - ghCache.fetchedAt < GH_CACHE_TTL_MS &&
+      ghCache.forSha === currentSha;
+
+    if (!cacheValid) {
+      ghCache = { fetchedAt: Date.now(), forSha: currentSha, latest: null, behindCount: null };
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repoSlug}/commits/main`, {
+          headers: { Accept: "application/vnd.github+json" },
+        });
+        if (res.ok) {
+          const commit = (await res.json()) as GitHubCommit;
+          ghCache.latest = {
+            sha: commit.sha,
+            short: commit.sha.slice(0, 7),
+            message: commit.commit.message.split("\n")[0]!,
+            date: commit.commit.author.date,
+            url: commit.html_url,
+          };
+          if (currentSha) {
+            // Anzahl Commits hinter: GitHub-Compare-API
+            const compareRes = await fetch(
+              `https://api.github.com/repos/${repoSlug}/compare/${currentSha}...${commit.sha}`,
+              { headers: { Accept: "application/vnd.github+json" } },
+            );
+            if (compareRes.ok) {
+              const cmp = (await compareRes.json()) as { ahead_by: number };
+              ghCache.behindCount = cmp.ahead_by;
+            }
           }
+        } else if (res.status === 403 || res.status === 429) {
+          ghCache.error = "GitHub-Rate-Limit erreicht — Versions-Check klappt in ca. einer Stunde wieder.";
+        } else {
+          ghCache.error = `GitHub antwortete mit Status ${res.status}.`;
         }
+      } catch {
+        ghCache.error = "GitHub nicht erreichbar.";
       }
-    } catch {
-      // GitHub-API-Fehler: silent fail, latest bleibt null
     }
+
+    latest = ghCache!.latest;
+    behindCount = ghCache!.behindCount;
+    latestError = ghCache!.error;
+    if (latest && currentSha) upToDate = currentSha === latest.sha;
   }
 
   const canUpdate = !docker && currentSha !== null && existsSync(UPDATE_SCRIPT);
@@ -127,6 +173,7 @@ export async function handleGetVersion(): Promise<VersionInfo> {
     ok: true,
     current: { sha: currentSha, short: currentSha?.slice(0, 7) ?? null },
     latest,
+    latestError,
     behindCount,
     upToDate,
     repoSlug,
@@ -148,7 +195,7 @@ export interface TriggerResult {
 export function handleTriggerUpdate(): TriggerResult {
   if (isDocker()) return { ok: false, error: "Update via Dashboard ist im Docker-Mode nicht möglich" };
   if (!existsSync(UPDATE_SCRIPT)) return { ok: false, error: "update.sh nicht gefunden" };
-  if (existsSync(LOCK_FILE)) return { ok: false, error: "Update läuft bereits" };
+  if (isUpdateRunning()) return { ok: false, error: "Update läuft bereits" };
 
   // Detached + setsid damit das Skript überlebt, wenn pm2 unseren Bot killt
   const child = spawn("setsid", ["bash", UPDATE_SCRIPT], {
@@ -196,7 +243,7 @@ export function handleUpdateStatus(): UpdateStatus {
     };
     return {
       ok: true,
-      active: existsSync(LOCK_FILE),
+      active: isUpdateRunning(),
       step: data.step ?? null,
       startedAt: data.startedAt ?? null,
       finishedAt: data.finishedAt ?? null,
@@ -206,7 +253,7 @@ export function handleUpdateStatus(): UpdateStatus {
   } catch {
     return {
       ok: true,
-      active: existsSync(LOCK_FILE),
+      active: isUpdateRunning(),
       step: null,
       startedAt: null,
       finishedAt: null,
