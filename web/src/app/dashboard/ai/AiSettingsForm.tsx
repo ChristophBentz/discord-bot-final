@@ -179,29 +179,27 @@ export function AiSettingsForm({ initial, channels }: Props) {
         </div>
       )}
 
-      {/* Sticky Save Bar */}
-      <div className="sticky bottom-0 -mx-6 border-t border-line bg-bg-base/95 px-6 py-3 backdrop-blur">
-        <div className="flex items-center justify-between gap-3">
+      {/* Sticky Save Bar — gleiches Muster wie die anderen Feature-Formulare */}
+      <div className="sticky bottom-4 z-10 flex items-center justify-between rounded-2xl border border-line bg-bg-card/95 px-5 py-3 shadow-card-lg backdrop-blur">
+        <button
+          type="button"
+          onClick={runTest}
+          disabled={testing || !form.aiApiKey}
+          className="btn-secondary disabled:opacity-50"
+        >
+          {testing ? "Teste…" : "Verbindung testen"}
+        </button>
+        <div className="flex items-center gap-3">
+          {error && <span className="text-sm text-rose-400">{error}</span>}
+          {savedAt && <span className="text-sm text-emerald-400">Gespeichert.</span>}
           <button
             type="button"
-            onClick={runTest}
-            disabled={testing || !form.aiApiKey}
-            className="btn-secondary !px-3 !py-2 text-xs disabled:opacity-50"
+            onClick={submit}
+            disabled={pending}
+            className="btn-primary disabled:opacity-60"
           >
-            {testing ? "Teste…" : "Verbindung testen"}
+            {pending ? "Speichere…" : "Speichern"}
           </button>
-          <div className="flex items-center gap-3">
-            {error && <span className="text-xs text-rose-400">{error}</span>}
-            {savedAt && <span className="text-xs text-emerald-400">✓ Gespeichert</span>}
-            <button
-              type="button"
-              onClick={submit}
-              disabled={pending}
-              className="btn-primary !px-4 !py-2 text-sm disabled:opacity-50"
-            >
-              {pending ? "Speichere…" : "Speichern"}
-            </button>
-          </div>
         </div>
       </div>
     </div>
