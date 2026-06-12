@@ -2,6 +2,7 @@
 
 import { prisma } from "@repo/db";
 import { revalidatePath } from "next/cache";
+import { callBot } from "@/lib/botApi";
 
 const SNOWFLAKE = /^\d{17,20}$/;
 
@@ -42,6 +43,10 @@ export async function saveLoggingSettings(formData: FormData): Promise<SaveLoggi
     update: data,
     create: { id: 1, ...data },
   });
+
+  // Bot-Config-Cache invalidieren, damit die Toggles sofort wirken
+  // (sonst bis zu 15s Verzögerung). Bot nicht erreichbar = nicht schlimm.
+  await callBot("/api/auditlog/invalidate-cache", { method: "POST" }).catch(() => null);
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/logging");

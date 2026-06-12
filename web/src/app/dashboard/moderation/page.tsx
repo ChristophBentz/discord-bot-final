@@ -31,11 +31,12 @@ export default function ModerationPage() {
 
 // Bans/Timeouts kommen vom Bot (Discord-REST) — streamen, statt die Navigation zu blockieren.
 async function ModerationData() {
-  const [botRes, warnings, appeals, modEvents] = await Promise.all([
+  const [botRes, warnings, appeals, modEvents, config] = await Promise.all([
     callBot<BotState>("/api/moderation/state", { method: "GET" }),
     prisma.warning.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     prisma.banAppeal.findMany({ orderBy: { createdAt: "desc" }, take: 25 }),
     prisma.modEvent.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+    prisma.config.findUnique({ where: { id: 1 }, select: { recordModEvents: true } }),
   ]);
 
   const timeouts = botRes.ok ? botRes.data.timeouts : [];
@@ -108,6 +109,7 @@ async function ModerationData() {
       appeals={appealEntries}
       warnings={warningEntries}
       modEvents={modEventEntries}
+      modEventRecording={config?.recordModEvents ?? true}
     />
   );
 }

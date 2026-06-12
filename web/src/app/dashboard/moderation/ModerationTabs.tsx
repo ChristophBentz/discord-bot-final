@@ -15,6 +15,8 @@ interface Props {
   appeals: AppealEntry[];
   warnings: WarningEntry[];
   modEvents: ModEventEntry[];
+  /** Ist die Aufzeichnung (Audit Logs → Mod-Aktionen-Verlauf) aktiv? */
+  modEventRecording: boolean;
 }
 
 const stroke = {
@@ -53,7 +55,15 @@ const TONE = {
   },
 } as const;
 
-export function ModerationTabs({ error, timeouts, bans, appeals, warnings, modEvents }: Props) {
+export function ModerationTabs({
+  error,
+  timeouts,
+  bans,
+  appeals,
+  warnings,
+  modEvents,
+  modEventRecording,
+}: Props) {
   const openAppeals = appeals.filter((a) => a.status === "pending").length;
 
   const tabs: {
@@ -172,7 +182,18 @@ export function ModerationTabs({ error, timeouts, bans, appeals, warnings, modEv
       title: "Mod-Aktionen",
       description:
         "Kicks, Timeouts, Voice-Moves und -Disconnects — auch wenn sie direkt in Discord ausgeführt wurden.",
-      body: <ModEventsList items={modEvents} />,
+      body: (
+        <>
+          {!modEventRecording && (
+            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+              Aufzeichnung ist deaktiviert — neue Mod-Aktionen werden nicht gespeichert.
+              Einschalten unter Audit Logs → „Mod-Aktionen-Verlauf". Bestehende Einträge
+              bleiben hier sichtbar.
+            </div>
+          )}
+          <ModEventsList items={modEvents} />
+        </>
+      ),
     },
   };
   const panel = PANEL[active];

@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage } from "node:http";
 import type { Client } from "discord.js";
 import { env } from "../lib/env.js";
 import { logger } from "../lib/logger.js";
+import { invalidateAuditLogCache } from "../features/auditLog/service.js";
 import { handleRoleChange, type RoleChangeBody } from "./routes/roles.js";
 import { handleWarn, type WarnBody } from "./routes/warn.js";
 import { handleAwardAchievement, type AwardBody } from "./routes/achievements.js";
@@ -262,6 +263,14 @@ export function startApiServer(client: Client): void {
       // POST /api/tickets/ensure-panel — Web triggert nach Settings-Change
       if (req.method === "POST" && url.pathname === "/api/tickets/ensure-panel") {
         await handleEnsurePanel(client);
+        ok(res, { ok: true });
+        return;
+      }
+
+      // POST /api/auditlog/invalidate-cache — Web triggert nach Logging-Settings-Change,
+      // damit Toggles (z.B. Mod-Aktionen-Verlauf) sofort statt nach Cache-TTL wirken.
+      if (req.method === "POST" && url.pathname === "/api/auditlog/invalidate-cache") {
+        invalidateAuditLogCache();
         ok(res, { ok: true });
         return;
       }
