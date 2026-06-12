@@ -91,6 +91,16 @@ export function SettingsModal({ open, onClose, current }: Props) {
       if (result.ok) {
         setFeedbackText("");
         setFeedbackResult({ kind: "ok", msg: "Danke! Dein Feedback wurde gesendet." });
+      } else if (result.notConfigured) {
+        // Kein SMTP auf diesem Server (z.B. fremde Installation) →
+        // Mail-Programm mit fertiger E-Mail öffnen, Feedback kommt trotzdem an.
+        window.location.href = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(
+          "Feedback zum Discord-Bot",
+        )}&body=${encodeURIComponent(feedbackText)}`;
+        setFeedbackResult({
+          kind: "ok",
+          msg: "Mail-Programm geöffnet — bitte dort absenden.",
+        });
       } else {
         setFeedbackResult({ kind: "error", msg: result.error });
       }

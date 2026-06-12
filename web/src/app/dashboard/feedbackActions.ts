@@ -4,7 +4,11 @@ import nodemailer from "nodemailer";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export type SendFeedbackResult = { ok: true } | { ok: false; error: string };
+export type SendFeedbackResult =
+  | { ok: true }
+  // notConfigured: kein SMTP auf diesem Server — Client fällt auf mailto: zurück,
+  // damit Feedback auch von fremden Installationen ankommt.
+  | { ok: false; error: string; notConfigured?: boolean };
 
 /**
  * Feedback direkt per SMTP verschicken. Braucht SMTP_HOST/USER/PASS in der .env —
@@ -23,7 +27,8 @@ export async function sendFeedback(text: string): Promise<SendFeedbackResult> {
   if (!host || !user || !pass) {
     return {
       ok: false,
-      error: "E-Mail-Versand ist nicht konfiguriert — SMTP_HOST, SMTP_USER und SMTP_PASS in der .env setzen.",
+      error: "Kein SMTP konfiguriert — Mail-Programm wird geöffnet.",
+      notConfigured: true,
     };
   }
 
