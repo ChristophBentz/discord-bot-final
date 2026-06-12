@@ -16,6 +16,20 @@ if (process.env.NODE_ENV !== "production") {
 
 export * from "@prisma/client";
 
+/**
+ * Text für die Suche normalisieren: Unicode-Schriftarten (𝑺𝒏𝒐𝒐𝒌𝒚 → snooky),
+ * Ligaturen und Akzente (é → e) auf einfache Kleinbuchstaben falten.
+ * Muss identisch bleiben mit web/src/lib/normalizeSearch.ts (Client-Kopie).
+ */
+export function normalizeSearchText(text: string): string {
+  return text
+    .normalize("NFKC") // Kompatibilitäts-Zeichen → Basis-Zeichen (𝑺 → S, ﬁ → fi)
+    .normalize("NFD") // Akzente als kombinierende Zeichen abspalten
+    .replace(/[̀-ͯ]/g, "") // kombinierende Akzente entfernen
+    .toLowerCase()
+    .trim();
+}
+
 export async function getConfig() {
   const existing = await prisma.config.findUnique({ where: { id: 1 } });
   if (existing) return existing;

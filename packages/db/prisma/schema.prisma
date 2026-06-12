@@ -460,6 +460,9 @@ model Member {
   userId             String    @id
   username           String
   displayName        String
+  // NFKC-normalisiert + lowercase (displayName + username) — macht Namen mit
+  // Unicode-Schriftarten (𝑺𝒏𝒐𝒐𝒌𝒚) und Akzenten durchsuchbar. Vom Bot-Sync gepflegt.
+  searchName         String?
   discriminator      String?
   avatarUrl          String?
   // User-Banner-Hash (für Profile-Page) — wird per Discord-API on-demand gefetcht

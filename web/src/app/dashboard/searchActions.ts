@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@repo/db";
+import { prisma, normalizeSearchText } from "@repo/db";
 
 export interface SearchResult {
   type: "member" | "channel" | "page" | "command" | "achievement" | "ticket" | "appeal" | "feed" | "panel";
@@ -194,12 +194,14 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
     });
   }
 
-  // 2) Members (DB-Suche, Max 8)
+  // 2) Members (DB-Suche, Max 8) — searchName ist NFKC-normalisiert, damit
+  // Namen in Unicode-Schriftarten (𝑺𝒏𝒐𝒐𝒌𝒚) über "snooky" gefunden werden.
   const members = await prisma.member.findMany({
     where: {
       OR: [
         { displayName: { contains: q } },
         { username: { contains: q } },
+        { searchName: { contains: normalizeSearchText(q) } },
         { userId: q },
       ],
     },

@@ -1,6 +1,6 @@
 import type { Client, Guild, GuildMember, Role } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
-import { prisma } from "@repo/db";
+import { prisma, normalizeSearchText } from "@repo/db";
 import { logger } from "../../lib/logger.js";
 import { registerScheduler, recordSchedulerRun } from "../../lib/healthBuffer.js";
 import { env } from "../../lib/env.js";
@@ -28,6 +28,9 @@ export async function upsertMember(member: GuildMember): Promise<void> {
   const data = {
     username: member.user.username,
     displayName: member.displayName,
+    // Normalisiert (𝑺𝒏𝒐𝒐𝒌𝒚 → snooky), damit die Dashboard-Suche
+    // Unicode-Schriftarten findet.
+    searchName: normalizeSearchText(`${member.displayName} ${member.user.username}`),
     discriminator: member.user.discriminator === "0" ? null : member.user.discriminator,
     avatarUrl: member.displayAvatarURL({ size: 128 }),
     joinedAt: member.joinedAt,

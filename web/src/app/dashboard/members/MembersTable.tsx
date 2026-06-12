@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { normalizeSearchText } from "@/lib/normalizeSearch";
 
 export interface MemberRow {
   userId: string;
@@ -61,15 +62,16 @@ export function MembersTable({
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    // Normalisiert (𝑺𝒏𝒐𝒐𝒌𝒚 → snooky), damit Unicode-Schriftarten gefunden werden.
+    const q = normalizeSearchText(query);
     let result = rows;
     if (q) {
       result = result.filter(
         (r) =>
-          r.displayName.toLowerCase().includes(q) ||
-          r.username.toLowerCase().includes(q) ||
+          normalizeSearchText(r.displayName).includes(q) ||
+          normalizeSearchText(r.username).includes(q) ||
           r.userId.includes(q) ||
-          r.topRoles.some((role) => role.name.toLowerCase().includes(q)),
+          r.topRoles.some((role) => normalizeSearchText(role.name).includes(q)),
       );
     }
     if (selectedRoleIds.size > 0) {
