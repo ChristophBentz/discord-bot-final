@@ -122,8 +122,8 @@ export function SettingsModal({ open, onClose, current }: Props) {
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden />
 
-      {/* Panel */}
-      <div className="card relative flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden !p-0">
+      {/* Panel — feste Höhe, damit der Dialog beim Sektionswechsel nicht springt */}
+      <div className="card relative flex h-[600px] max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden !p-0">
         {/* Kopfzeile */}
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="text-sm font-semibold">Einstellungen</h2>
@@ -161,7 +161,7 @@ export function SettingsModal({ open, onClose, current }: Props) {
             ))}
           </nav>
 
-          <div className="min-h-[400px] flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6">
             {section === "appearance" && (
               <div className="space-y-6">
                 <div>
@@ -374,20 +374,27 @@ export function SettingsModal({ open, onClose, current }: Props) {
           </div>
         </div>
 
-        {/* Fußzeile — Speichern nur in der Darstellung relevant */}
-        {section === "appearance" && (
-          <div className="flex items-center justify-between gap-3 border-t border-line bg-bg-raised/50 px-5 py-3">
-            <span
-              className={`text-xs ${
-                feedback
-                  ? feedback.kind === "ok"
-                    ? "text-emerald-400"
-                    : "text-rose-400"
-                  : "text-ink-subtle"
-              }`}
-            >
-              {feedback ? feedback.msg : dirty ? "Ungespeicherte Änderungen" : ""}
-            </span>
+        {/* Fußzeile — immer sichtbar, damit die Geometrie konstant bleibt;
+            Speichern-Aktionen nur in der Darstellung */}
+        <div className="flex items-center justify-between gap-3 border-t border-line bg-bg-raised/50 px-5 py-3">
+          <span
+            className={`text-xs ${
+              feedback
+                ? feedback.kind === "ok"
+                  ? "text-emerald-400"
+                  : "text-rose-400"
+                : "text-ink-subtle"
+            }`}
+          >
+            {section === "appearance"
+              ? feedback
+                ? feedback.msg
+                : dirty
+                  ? "Ungespeicherte Änderungen"
+                  : ""
+              : ""}
+          </span>
+          {section === "appearance" ? (
             <div className="flex gap-2">
               <button
                 type="button"
@@ -405,8 +412,12 @@ export function SettingsModal({ open, onClose, current }: Props) {
                 {isPending ? "Speichert …" : "Speichern"}
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <button type="button" onClick={onClose} className="btn-secondary !py-1.5 text-[13px]">
+              Schließen
+            </button>
+          )}
+        </div>
       </div>
     </div>,
     document.body,
