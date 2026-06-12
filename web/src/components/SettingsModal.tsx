@@ -502,13 +502,13 @@ export function SettingsModal({ open, onClose, current, isOwner }: Props) {
                                   disabled={togglingRole === r.roleId}
                                   aria-pressed={r.blocked}
                                   className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-                                    r.blocked ? "bg-rose-500" : "bg-zinc-600"
+                                    r.blocked ? "bg-brand-gradient" : "bg-zinc-700"
                                   }`}
                                   title={r.blocked ? "Entsperren" : "Sperren"}
                                 >
                                   <span
-                                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                                      r.blocked ? "translate-x-4" : "translate-x-0.5"
+                                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                                      r.blocked ? "translate-x-4" : ""
                                     }`}
                                   />
                                 </button>
