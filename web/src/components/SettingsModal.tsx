@@ -19,6 +19,9 @@ import {
   type Accent,
 } from "@/lib/accent";
 
+export type SettingsSection = "appearance" | "account" | "security" | "feedback" | "about";
+type Section = SettingsSection;
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -26,9 +29,9 @@ interface Props {
   current: Accent;
   /** Ist der eingeloggte User der Owner? (schaltet die Sicherheits-Sektion frei) */
   isOwner: boolean;
+  /** Sektion, die beim Öffnen aktiv sein soll (z.B. aus der ⌘K-Suche) */
+  initialSection?: SettingsSection;
 }
-
-type Section = "appearance" | "account" | "security" | "feedback" | "about";
 
 // Empfänger für Feedback — per Env überschreibbar (Build-Zeit).
 const FEEDBACK_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL ?? "info@moser-dev.com";
@@ -85,7 +88,7 @@ const SECTIONS: Array<{ key: Section; label: string; icon: React.ReactNode }> = 
   },
 ];
 
-export function SettingsModal({ open, onClose, current, isOwner }: Props) {
+export function SettingsModal({ open, onClose, current, isOwner, initialSection }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
   // Sicherheits-Sektion nur für den Owner sichtbar.
@@ -93,6 +96,17 @@ export function SettingsModal({ open, onClose, current, isOwner }: Props) {
     ? [SECTIONS[0]!, SECTIONS[1]!, SECURITY_SECTION, ...SECTIONS.slice(2)]
     : SECTIONS;
   const [section, setSection] = useState<Section>("appearance");
+
+  // Gewünschte Start-Sektion übernehmen (z.B. aus der ⌘K-Suche).
+  // Sicherheit nur, wenn der User sie überhaupt sehen darf.
+  useEffect(() => {
+    if (!open || !initialSection) return;
+    if (initialSection === "security" && !isOwner) {
+      setSection("appearance");
+      return;
+    }
+    setSection(initialSection);
+  }, [open, initialSection, isOwner]);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
 

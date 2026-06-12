@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma, normalizeSearchText } from "@repo/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export interface SearchResult {
   type: "member" | "channel" | "page" | "command" | "achievement" | "ticket" | "appeal" | "feed" | "panel";
@@ -155,6 +157,43 @@ const PAGES: PageEntry[] = [
   },
 ];
 
+// Einstellungs-Sektionen (Zahnrad-Modal) — öffnen über ?einstellungen=<sektion>,
+// die Sidebar fängt den Parameter ab und öffnet das Modal an der Stelle.
+const SETTINGS_PAGES: PageEntry[] = [
+  {
+    title: "Einstellungen · Darstellung",
+    subtitle: "Akzentfarbe & Presets",
+    href: "/dashboard?einstellungen=darstellung",
+    keywords: ["einstellungen", "settings", "farbe", "akzent", "akzentfarbe", "design", "theme", "aussehen", "gradient", "verlauf"],
+  },
+  {
+    title: "Einstellungen · Konto",
+    subtitle: "Discord-Konto & Abmelden",
+    href: "/dashboard?einstellungen=konto",
+    keywords: ["einstellungen", "konto", "account", "abmelden", "logout", "ausloggen"],
+  },
+  {
+    title: "Einstellungen · Feedback",
+    subtitle: "Verbesserungsvorschläge an den Entwickler",
+    href: "/dashboard?einstellungen=feedback",
+    keywords: ["einstellungen", "feedback", "vorschlag", "verbesserung", "wunsch", "kontakt", "melden"],
+  },
+  {
+    title: "Einstellungen · Über",
+    subtitle: "Entwickler, Bot-Health, Lizenz",
+    href: "/dashboard?einstellungen=ueber",
+    keywords: ["einstellungen", "über", "about", "version", "lizenz", "entwickler", "info"],
+  },
+];
+
+// Nur für den Owner sichtbar — wie die Sektion selbst.
+const SETTINGS_SECURITY_PAGE: PageEntry = {
+  title: "Einstellungen · Sicherheit",
+  subtitle: "Rollen-Sperrliste (nur Owner)",
+  href: "/dashboard?einstellungen=sicherheit",
+  keywords: ["einstellungen", "sicherheit", "security", "sperrliste", "rollen sperren", "blockieren", "gesperrt"],
+};
+
 function matchScore(haystack: string, needle: string): number {
   const h = haystack.toLowerCase();
   const n = needle.toLowerCase();
@@ -180,8 +219,16 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
 
   const results: SearchResult[] = [];
 
+  // Sicherheits-Sektion nur für den Owner anbieten.
+  const session = await getServerSession(authOptions);
+  const discordId = (session?.user as { discordId?: string } | undefined)?.discordId;
+  const isOwner = Boolean(discordId && process.env.OWNER_DISCORD_ID === discordId);
+  const allPages = isOwner
+    ? [...PAGES, ...SETTINGS_PAGES, SETTINGS_SECURITY_PAGE]
+    : [...PAGES, ...SETTINGS_PAGES];
+
   // 1) Pages (inkl. Aliasse)
-  const scoredPages = PAGES.map((p) => ({ p, score: pageScore(p, q) }))
+  const scoredPages = allPages.map((p) => ({ p, score: pageScore(p, q) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score);
   for (const { p } of scoredPages) {

@@ -2,10 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { SettingsModal } from "@/components/SettingsModal";
+import { SettingsModal, type SettingsSection } from "@/components/SettingsModal";
 import type { Accent } from "@/lib/accent";
+
+// URL-Parameter (?einstellungen=…) → Modal-Sektion. So kann die globale
+// Suche die Einstellungs-Sektionen direkt öffnen.
+const SECTION_PARAM: Record<string, SettingsSection> = {
+  darstellung: "appearance",
+  konto: "account",
+  sicherheit: "security",
+  feedback: "feedback",
+  ueber: "about",
+};
 
 type IconName =
   | "home"
@@ -241,6 +251,24 @@ export function Sidebar({ serverName, memberCount, serverIconUrl, accent, isOwne
   const userName = session?.user?.name ?? "User";
   const userInitial = userName[0]?.toUpperCase() ?? "U";
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | undefined>(undefined);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // ?einstellungen=<sektion> öffnet das Modal (kommt z.B. aus der ⌘K-Suche).
+  // Parameter danach aus der URL entfernen, damit Reload/Zurück nicht erneut öffnet.
+  useEffect(() => {
+    const param = searchParams.get("einstellungen");
+    if (!param) return;
+    const section = SECTION_PARAM[param];
+    if (section) {
+      setSettingsSection(section);
+      setSettingsOpen(true);
+    }
+    const rest = new URLSearchParams(searchParams);
+    rest.delete("einstellungen");
+    router.replace(`${pathname}${rest.size > 0 ? `?${rest}` : ""}`, { scroll: false });
+  }, [searchParams, pathname, router]);
 
   const navRef = useRef<HTMLElement>(null);
   const [moreBelow, setMoreBelow] = useState(false);
@@ -370,9 +398,13 @@ export function Sidebar({ serverName, memberCount, serverIconUrl, accent, isOwne
 
       <SettingsModal
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => {
+          setSettingsOpen(false);
+          setSettingsSection(undefined);
+        }}
         current={accent}
         isOwner={isOwner}
+        initialSection={settingsSection}
       />
     </aside>
   );
