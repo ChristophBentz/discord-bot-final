@@ -1,4 +1,5 @@
 import { getConfig, prisma } from "@repo/db";
+import { FeatureHero } from "@/components/FeatureHero";
 import { CommandsManager, type CommandSummary } from "./CommandsManager";
 
 export default async function CommandsPage() {
@@ -40,6 +41,35 @@ export default async function CommandsPage() {
           Änderungen sind sofort live.
         </p>
       </header>
+
+      <FeatureHero
+        icon={
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m4 7 4 4-4 4M12 15h8" />
+          </svg>
+        }
+        title="Custom Commands"
+        status={
+          commands.length > 0 ? (
+            <>{commands.length} Slash-Commands · Änderungen sofort live</>
+          ) : (
+            "Noch keine Commands angelegt"
+          )
+        }
+        active={commands.length > 0}
+        tone="brand"
+        stats={[
+          { label: "Commands", value: commands.length },
+          {
+            label: "Mit Embed",
+            value: commands.filter((c) => c.responseType === "embed").length,
+          },
+          {
+            label: "Rollenbeschränkt",
+            value: commands.filter((c) => c.allowedRoleIds.trim().length > 0).length,
+          },
+        ]}
+      />
 
       <CommandsManager
         commands={summaries}

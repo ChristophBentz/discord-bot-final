@@ -25,7 +25,7 @@ const TONE_BG: Record<NonNullable<Props["tone"]>, string> = {
 };
 const TONE_ICON: Record<NonNullable<Props["tone"]>, string> = {
   emerald: "bg-emerald-500/20 text-emerald-400",
-  brand: "bg-brand/20 text-brand-light",
+  brand: "bg-brand/20 text-brand",
   amber: "bg-amber-500/20 text-amber-400",
   purple: "bg-purple-500/20 text-purple-400",
 };

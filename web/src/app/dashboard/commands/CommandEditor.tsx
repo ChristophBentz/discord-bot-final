@@ -67,7 +67,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-line bg-bg-card shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)]"
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-line bg-bg-card shadow-card-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -100,7 +100,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
           <div className="overflow-y-auto px-6 py-6 space-y-6 md:border-r md:border-line">
             <Section title="Allgemein">
               <Field label="Befehl">
-                <div className="flex items-stretch overflow-hidden rounded-md border border-line bg-bg-elevated/60 focus-within:border-ink/30">
+                <div className="flex items-stretch overflow-hidden rounded-xl border border-line bg-bg-elevated/60 focus-within:border-brand/60">
                   <span className="grid place-items-center border-r border-line bg-bg-elevated/80 px-3 font-mono text-sm text-ink-subtle">
                     /
                   </span>
@@ -125,7 +125,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
                   value={form.description}
                   onChange={(e) => update("description", e.target.value.slice(0, 100))}
                   placeholder="Was tut dieser Command?"
-                  className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                  className="input !px-3 !py-2"
                 />
                 <p className="mt-1 text-[11px] text-ink-subtle">
                   Erscheint im Discord-Autocomplete unter dem Befehl.
@@ -152,7 +152,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
                     onChange={(e) => update("response", e.target.value.slice(0, 2000))}
                     rows={6}
                     placeholder="Hi {user}! Willkommen auf {server}."
-                    className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 font-mono text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                    className="input !px-3 !py-2 font-mono"
                   />
                   <div className="mt-1 flex items-center justify-between text-[11px] text-ink-subtle">
                     <span>Markdown erlaubt · Platzhalter siehe Vorschau</span>
@@ -167,7 +167,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
                       value={form.embedTitle}
                       onChange={(e) => update("embedTitle", e.target.value.slice(0, 256))}
                       placeholder="Optional"
-                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                      className="input !px-3 !py-2"
                     />
                   </Field>
 
@@ -177,7 +177,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
                       onChange={(e) => update("embedDescription", e.target.value.slice(0, 4000))}
                       rows={5}
                       placeholder="Längere Texte mit Markdown + Platzhaltern…"
-                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 font-mono text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                      className="input !px-3 !py-2 font-mono"
                     />
                   </Field>
 
@@ -196,7 +196,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
                       value={form.embedImageUrl}
                       onChange={(e) => update("embedImageUrl", e.target.value)}
                       placeholder="https://… (optional)"
-                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                      className="input !px-3 !py-2"
                     />
                   </Field>
 
@@ -206,7 +206,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
                       value={form.embedFooter}
                       onChange={(e) => update("embedFooter", e.target.value.slice(0, 2048))}
                       placeholder="Optional"
-                      className="w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm placeholder:text-ink-subtle/60 focus:border-ink/30 focus:outline-none"
+                      className="input !px-3 !py-2"
                     />
                   </Field>
                 </>
@@ -245,7 +245,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
 
             <PreviewBox form={form} bot={bot} />
 
-            <details className="mt-5 rounded-md border border-line bg-bg-card/60 text-xs">
+            <details className="mt-5 rounded-xl border border-line bg-bg-card/60 text-xs">
               <summary className="cursor-pointer select-none px-3 py-2 text-ink-muted hover:text-ink">
                 Platzhalter
               </summary>
@@ -279,7 +279,7 @@ export function CommandEditor({ initial, originalName, roles, bot, onClose, onSa
               type="button"
               onClick={submit}
               disabled={pending || !form.name}
-              className="inline-flex items-center gap-1.5 rounded-md bg-ink px-3.5 py-1.5 text-sm font-medium text-bg-base transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-primary !px-3.5 !py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
             >
               {pending ? (
                 <>
@@ -336,7 +336,7 @@ function SegmentedControl<T extends string>({
   options: { value: T; label: string }[];
 }) {
   return (
-    <div className="inline-flex rounded-md border border-line bg-bg-elevated/60 p-0.5">
+    <div className="inline-flex rounded-lg border border-line bg-bg-elevated/60 p-0.5">
       {options.map((opt) => {
         const active = value === opt.value;
         return (
@@ -381,7 +381,7 @@ function SwitchRow({
       </div>
       <span
         className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-          checked ? "bg-ink" : "bg-bg-elevated"
+          checked ? "bg-brand-gradient" : "bg-bg-elevated"
         }`}
       >
         <span
@@ -408,14 +408,14 @@ function RoleMultiselect({
 
   if (roles.length === 0) {
     return (
-      <div className="rounded-md border border-line bg-bg-elevated/40 px-3 py-2 text-xs text-ink-subtle">
+      <div className="rounded-xl border border-line bg-bg-elevated/40 px-3 py-2 text-xs text-ink-subtle">
         Keine Rollen vorhanden.
       </div>
     );
   }
 
   return (
-    <div className="max-h-44 overflow-y-auto rounded-md border border-line bg-bg-elevated/40 py-1">
+    <div className="max-h-44 overflow-y-auto rounded-xl border border-line bg-bg-elevated/40 py-1">
       {roles.map((r) => {
         const active = selected.includes(r.roleId);
         const color = r.color
@@ -434,13 +434,13 @@ function RoleMultiselect({
           >
             <span
               className={`grid h-3.5 w-3.5 place-items-center rounded border ${
-                active ? "border-ink bg-ink" : "border-line"
+                active ? "border-brand bg-brand" : "border-line"
               }`}
             >
               {active && (
                 <svg
                   viewBox="0 0 12 12"
-                  className="h-2.5 w-2.5 text-bg-base"
+                  className="h-2.5 w-2.5 text-white"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
@@ -539,7 +539,7 @@ function PreviewBox({
 
   if (form.responseType === "text") {
     return (
-      <div className="rounded-lg border border-line bg-bg-card p-4">
+      <div className="rounded-xl border border-line bg-bg-card p-4">
         {slashLine}
         <div className="flex items-start gap-3">
           <BotAvatar />
@@ -565,7 +565,7 @@ function PreviewBox({
       : null;
 
   return (
-    <div className="rounded-lg border border-line bg-bg-card p-4">
+    <div className="rounded-xl border border-line bg-bg-card p-4">
       {slashLine}
       <div className="flex items-start gap-3">
         <BotAvatar />

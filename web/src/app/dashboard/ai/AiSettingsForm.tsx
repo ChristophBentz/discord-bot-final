@@ -109,7 +109,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
       </Card>
 
       {/* Image Feature */}
-      <section className="overflow-hidden rounded-lg border border-line bg-bg-card">
+      <section className="card overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4">
           <span
             className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border border-line bg-bg-elevated/60 ${
@@ -165,7 +165,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
       {/* Test Result */}
       {testResult && (
         <div
-          className={`rounded-md border p-3 text-xs ${
+          className={`rounded-xl border p-3 text-xs ${
             testResult.ok
               ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-200"
               : "border-rose-500/30 bg-rose-500/5 text-rose-200"
@@ -186,7 +186,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
             type="button"
             onClick={runTest}
             disabled={testing || !form.aiApiKey}
-            className="rounded-md border border-line bg-bg-elevated px-3 py-2 text-xs font-medium text-ink-muted hover:text-ink disabled:opacity-50"
+            className="btn-secondary !px-3 !py-2 text-xs disabled:opacity-50"
           >
             {testing ? "Teste…" : "Verbindung testen"}
           </button>
@@ -197,7 +197,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
               type="button"
               onClick={submit}
               disabled={pending}
-              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-bg-base hover:bg-white disabled:opacity-50"
+              className="btn-primary !px-4 !py-2 text-sm disabled:opacity-50"
             >
               {pending ? "Speichere…" : "Speichern"}
             </button>
@@ -211,7 +211,7 @@ export function AiSettingsForm({ initial, channels }: Props) {
 // ─── Sub-Components ────────────────────────────────────────────────────────
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <section className="rounded-lg border border-line bg-bg-card p-5">{children}</section>;
+  return <section className="card p-6">{children}</section>;
 }
 
 function Field({
@@ -245,20 +245,20 @@ function Switch({
       onClick={() => onChange(!checked)}
       aria-pressed={checked}
       className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors ${
-        checked ? "border-ink bg-ink" : "border-line bg-bg-elevated hover:bg-bg-hover"
+        checked ? "border-transparent bg-brand-gradient" : "border-line bg-bg-elevated hover:bg-bg-hover"
       }`}
     >
       <span
-        className={`absolute left-0.5 top-[2px] inline-block h-3.5 w-3.5 rounded-full shadow transition-transform ${
-          checked ? "translate-x-4 bg-bg-base" : "translate-x-0 bg-white"
+        className={`absolute left-0.5 top-[2px] inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0"
         }`}
       />
     </button>
   );
 }
 
-const fieldBase =
-  "w-full rounded-md border border-line bg-bg-elevated/60 px-3 py-2 text-sm text-ink placeholder:text-ink-subtle/60 transition-colors focus:border-ink/30 focus:outline-none";
+// Standard-Input-Klasse aus globals.css, kompakter gepolstert
+const fieldBase = "input !px-3 !py-2";
 
 function TextInput({
   value,

@@ -86,10 +86,6 @@ export function CommandsManager({ commands, roles, roleMap, bot }: Props) {
     );
   }, [commands, query]);
 
-  const embedCount = commands.filter((c) => c.responseType === "embed").length;
-  const gatedCount = commands.filter((c) => c.allowedRoleIds.trim().length > 0).length;
-  const ephemeralCount = commands.filter((c) => c.ephemeral).length;
-
   function confirmDelete(name: string) {
     if (!confirm(`Command /${name} wirklich löschen?`)) return;
     setDeletingName(name);
@@ -103,74 +99,50 @@ export function CommandsManager({ commands, roles, roleMap, bot }: Props) {
   return (
     <>
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-y border-line py-3 text-sm">
-        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-ink-muted">
-          <span>
-            <span className="font-medium text-ink tabular-nums">{commands.length}</span>{" "}
-            {commands.length === 1 ? "Command" : "Commands"}
-          </span>
-          {embedCount > 0 && (
-            <span>
-              <span className="font-medium text-ink tabular-nums">{embedCount}</span> mit Embed
-            </span>
-          )}
-          {ephemeralCount > 0 && (
-            <span>
-              <span className="font-medium text-ink tabular-nums">{ephemeralCount}</span>{" "}
-              ephemeral
-            </span>
-          )}
-          {gatedCount > 0 && (
-            <span>
-              <span className="font-medium text-ink tabular-nums">{gatedCount}</span>{" "}
-              rollenbeschränkt
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {commands.length > 4 && (
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Suchen…"
-              className="w-44 rounded-md border border-line bg-bg-elevated px-3 py-1.5 text-sm placeholder:text-ink-subtle focus:border-brand focus:outline-none"
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => setEditing("new")}
-            className="inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-bg-base hover:bg-white"
-          >
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Neuer Command
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {commands.length > 4 && (
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Suchen…"
+            className="input !w-44 !px-3 !py-1.5"
+          />
+        )}
+        <button
+          type="button"
+          onClick={() => setEditing("new")}
+          className="btn-primary !px-3 !py-1.5 text-sm"
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Neuer Command
+        </button>
       </div>
 
       {commands.length === 0 ? (
         <EmptyState onCreate={() => setEditing("new")} />
       ) : (
-        <ul className="divide-y divide-line border-b border-line">
-          {filtered.map((c) => (
-            <CommandRow
-              key={c.name}
-              cmd={c}
-              roleMap={roleMap}
-              isDeleting={deletingName === c.name && pending}
-              onEdit={() => setEditing(c)}
-              onDelete={() => confirmDelete(c.name)}
-            />
-          ))}
-          {filtered.length === 0 && (
-            <li className="py-8 text-center text-sm text-ink-subtle">
-              Keine Treffer für „{query}".
-            </li>
-          )}
-        </ul>
+        <div className="card overflow-hidden">
+          <ul className="divide-y divide-line">
+            {filtered.map((c) => (
+              <CommandRow
+                key={c.name}
+                cmd={c}
+                roleMap={roleMap}
+                isDeleting={deletingName === c.name && pending}
+                onEdit={() => setEditing(c)}
+                onDelete={() => confirmDelete(c.name)}
+              />
+            ))}
+            {filtered.length === 0 && (
+              <li className="py-8 text-center text-sm text-ink-subtle">
+                Keine Treffer für „{query}".
+              </li>
+            )}
+          </ul>
+        </div>
       )}
 
       {/* Hilfe-Sektion */}
@@ -218,7 +190,7 @@ function CommandRow({
         type="button"
         onClick={onEdit}
         disabled={isDeleting}
-        className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 py-3.5 text-left transition-colors hover:bg-bg-card/40 disabled:opacity-40"
+        className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-bg-hover/50 disabled:opacity-40"
       >
         {/* Color-Indicator */}
         <span
@@ -275,7 +247,7 @@ function CommandRow({
       </button>
 
       {/* Action-Buttons rechts, ersetzen Timestamp bei Hover */}
-      <div className="pointer-events-none absolute right-0 top-1/2 hidden -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 sm:flex">
+      <div className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 sm:flex">
         <button
           type="button"
           onClick={onEdit}
@@ -305,7 +277,7 @@ function CommandRow({
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="rounded-lg border border-line bg-bg-card/40 px-6 py-16 text-center">
+    <div className="rounded-2xl border border-dashed border-line bg-bg-elevated/30 px-6 py-16 text-center">
       <h2 className="text-base font-medium text-ink">Noch keine Custom-Commands</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">
         Lege deinen ersten an — er erscheint sofort als Slash-Command in Discord,
@@ -314,7 +286,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <button
         type="button"
         onClick={onCreate}
-        className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-ink px-3.5 py-2 text-sm font-medium text-bg-base hover:bg-white"
+        className="btn-primary mt-5 !px-3.5 !py-2 text-sm"
       >
         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 5v14M5 12h14" />
@@ -335,7 +307,7 @@ function PlaceholderRef() {
     ["{random:a|b|c}", "zufällige Auswahl"],
   ];
   return (
-    <details className="rounded-lg border border-line bg-bg-card/40 p-4 text-sm">
+    <details className="rounded-xl border border-line bg-bg-card/40 p-4 text-sm">
       <summary className="cursor-pointer select-none text-ink-muted hover:text-ink">
         Platzhalter
       </summary>
