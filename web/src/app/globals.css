@@ -22,6 +22,13 @@
 }
 
 @layer base {
+  :root {
+    /* Akzentfarbe als RGB-Tripel — wird vom Root-Layout aus der Config
+       überschrieben (Dashboard → Zahnrad neben dem Profil). */
+    --accent-from: 168 85 247;
+    --accent-to: 236 72 153;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -41,8 +48,8 @@
     inset: 0;
     z-index: -1;
     background:
-      radial-gradient(900px 500px at 85% -10%, rgba(168, 85, 247, 0.14), transparent 60%),
-      radial-gradient(800px 500px at -5% 100%, rgba(236, 72, 153, 0.1), transparent 55%),
+      radial-gradient(900px 500px at 85% -10%, rgb(var(--accent-from) / 0.14), transparent 60%),
+      radial-gradient(800px 500px at -5% 100%, rgb(var(--accent-to) / 0.1), transparent 55%),
       radial-gradient(600px 400px at 20% 30%, rgba(59, 130, 246, 0.06), transparent 60%);
     pointer-events: none;
   }

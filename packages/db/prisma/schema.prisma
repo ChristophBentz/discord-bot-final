@@ -25,6 +25,10 @@ model Config {
   botAvatarUrl     String?
   botBannerUrl     String?
 
+  // Dashboard-Akzentfarbe (Hex mit #; null = Standard Violet → Pink)
+  accentFrom String?
+  accentTo   String?
+
   // Logging — ein Channel, zuschaltbar pro Kategorie
   logChannelId      String?
   logMessageDelete  Boolean @default(false)

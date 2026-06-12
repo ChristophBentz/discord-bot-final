@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { AppearanceModal } from "@/components/AppearanceModal";
+import type { Accent } from "@/lib/accent";
 
 type IconName =
   | "home"
@@ -227,13 +229,16 @@ interface SidebarProps {
   serverName: string;
   memberCount: number;
   serverIconUrl: string | null;
+  /** Aktuell gespeicherte Akzentfarbe — Startwert fürs Einstellungs-Modal */
+  accent: Accent;
 }
 
-export function Sidebar({ serverName, memberCount, serverIconUrl }: SidebarProps) {
+export function Sidebar({ serverName, memberCount, serverIconUrl, accent }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userName = session?.user?.name ?? "User";
   const userInitial = userName[0]?.toUpperCase() ?? "U";
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const navRef = useRef<HTMLElement>(null);
   const [moreBelow, setMoreBelow] = useState(false);
@@ -349,8 +354,23 @@ export function Sidebar({ serverName, memberCount, serverIconUrl }: SidebarProps
             <div className="truncate text-sm font-medium">{userName}</div>
             <div className="truncate text-[11px] text-ink-subtle">eingeloggt</div>
           </div>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Einstellungen"
+            title="Einstellungen"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-subtle transition-colors hover:bg-bg-hover hover:text-ink"
+          >
+            <Icon name="settings" />
+          </button>
         </div>
       </div>
+
+      <AppearanceModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        current={accent}
+      />
     </aside>
   );
 }

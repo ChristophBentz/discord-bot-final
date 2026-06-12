@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getConfig, prisma } from "@repo/db";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
+import { resolveAccent } from "@/lib/accent";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -32,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         serverName={serverName}
         memberCount={memberCount}
         serverIconUrl={serverIconUrl}
+        accent={resolveAccent(config.accentFrom, config.accentTo)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar serverName={serverName} />

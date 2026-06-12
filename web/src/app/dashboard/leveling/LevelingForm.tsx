@@ -212,7 +212,7 @@ export function LevelingForm({
                     key={p.level}
                     className="rounded-lg border border-line p-2 text-center"
                     style={{
-                      background: `rgba(168, 85, 247, ${0.05 + intensity * 0.15})`,
+                      background: `rgb(var(--accent-from) / ${0.05 + intensity * 0.15})`,
                     }}
                   >
                     <div className="text-[10px] uppercase tracking-wide text-ink-subtle">

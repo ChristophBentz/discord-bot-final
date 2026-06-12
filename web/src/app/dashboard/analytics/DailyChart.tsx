@@ -141,9 +141,9 @@ export function DailyChart({ points }: { points: DailyPoint[] }) {
           }}
         >
           <defs>
-            <linearGradient id={gradMsgId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
+            <linearGradient id={gradMsgId} x1="0" x2="0" y1="0" y2="1" className="text-brand">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
             </linearGradient>
             <linearGradient id={gradVoiceId} x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
@@ -186,7 +186,8 @@ export function DailyChart({ points }: { points: DailyPoint[] }) {
               x2={W - PADDING_R}
               y1={avgY}
               y2={avgY}
-              stroke="#a855f7"
+              stroke="currentColor"
+              className="text-brand"
               strokeOpacity="0.4"
               strokeDasharray="4 4"
               strokeWidth="1"
@@ -199,7 +200,7 @@ export function DailyChart({ points }: { points: DailyPoint[] }) {
 
           {/* Messages-Area (Hauptmetrik) */}
           <path d={msgArea} fill={`url(#${gradMsgId})`} />
-          <path d={msgPath} stroke="#a855f7" strokeWidth="2.5" fill="none" />
+          <path d={msgPath} stroke="currentColor" className="text-brand" strokeWidth="2.5" fill="none" />
 
           {/* Hover-Crosshair + Highlight-Dots */}
           {hoverIdx !== null && (
@@ -218,7 +219,8 @@ export function DailyChart({ points }: { points: DailyPoint[] }) {
                 cx={xFor(hoverIdx)}
                 cy={yForMsg(points[hoverIdx]!.messages)}
                 r="5"
-                fill="#a855f7"
+                fill="currentColor"
+                className="text-brand"
                 stroke="#fff"
                 strokeWidth="2"
               />

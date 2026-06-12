@@ -34,11 +34,12 @@ export default {
           muted: "#a1a1aa",
           subtle: "#71717a",
         },
-        // Primary-Akzent: Violet → Pink Gradient
+        // Primary-Akzent — Werte kommen als CSS-Variablen aus dem Root-Layout
+        // (global einstellbar im Dashboard, Default: Violet → Pink)
         brand: {
-          DEFAULT: "#a855f7",
-          hover: "#9333ea",
-          subtle: "rgba(168,85,247,0.12)",
+          DEFAULT: "rgb(var(--accent-from) / <alpha-value>)",
+          hover: "rgb(var(--accent-from) / 0.85)",
+          subtle: "rgb(var(--accent-from) / 0.12)",
         },
         // Modul-Icon-Farben (pastellig getönte Hintergründe).
         icon: {
@@ -56,7 +57,7 @@ export default {
       boxShadow: {
         card: "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.25)",
         "card-lg": "0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 48px rgba(0,0,0,0.45)",
-        glow: "0 0 0 1px rgba(168,85,247,0.30), 0 8px 24px rgba(168,85,247,0.20)",
+        glow: "0 0 0 1px rgb(var(--accent-from) / 0.30), 0 8px 24px rgb(var(--accent-from) / 0.20)",
       },
       backdropBlur: {
         xs: "4px",
@@ -67,9 +68,10 @@ export default {
         "3xl": "24px",
       },
       backgroundImage: {
-        "brand-gradient": "linear-gradient(135deg, #a855f7 0%, #ec4899 100%)",
+        "brand-gradient":
+          "linear-gradient(135deg, rgb(var(--accent-from)) 0%, rgb(var(--accent-to)) 100%)",
         "brand-gradient-soft":
-          "linear-gradient(135deg, rgba(168,85,247,0.2) 0%, rgba(236,72,153,0.15) 100%)",
+          "linear-gradient(135deg, rgb(var(--accent-from) / 0.2) 0%, rgb(var(--accent-to) / 0.15) 100%)",
       },
     },
   },

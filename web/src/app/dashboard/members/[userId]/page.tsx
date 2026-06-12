@@ -306,9 +306,9 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
             className="h-32"
             style={{
               background: `
-                radial-gradient(120% 140% at 100% 0%, rgba(236, 72, 153, 0.55), transparent 60%),
-                radial-gradient(120% 140% at 0% 100%, rgba(168, 85, 247, 0.55), transparent 55%),
-                linear-gradient(135deg, #1a0b2e 0%, #2d1845 50%, #4a1d56 100%)
+                radial-gradient(120% 140% at 100% 0%, rgb(var(--accent-to) / 0.55), transparent 60%),
+                radial-gradient(120% 140% at 0% 100%, rgb(var(--accent-from) / 0.55), transparent 55%),
+                linear-gradient(135deg, #11111a 0%, rgb(var(--accent-from) / 0.25) 100%)
               `,
             }}
           />
