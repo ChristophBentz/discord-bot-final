@@ -1,8 +1,15 @@
 import type { Client, TextChannel } from "discord.js";
 import {
   AttachmentBuilder,
+  ContainerBuilder,
   EmbedBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  MessageFlags,
   PermissionFlagsBits,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  TextDisplayBuilder,
 } from "discord.js";
 import { prisma } from "@repo/db";
 
@@ -23,12 +30,25 @@ export interface PollSpec {
   allowMultiselect: boolean;
 }
 
+// Baukasten-Nachricht (Discord Components V2): frei stapelbare Blöcke.
+export type MessageBlock =
+  | { type: "text"; content: string }
+  | { type: "image"; urls: string[] } // 1–10 Bilder als Galerie
+  | { type: "separator"; large?: boolean };
+
+export interface BlocksSpec {
+  blocks: MessageBlock[];
+  // Optional: alles in einen Container mit farbiger Akzentleiste packen.
+  accentColor?: number | null;
+}
+
 export interface SendBody {
   channelId?: string;
-  type?: "text" | "embed" | "poll" | "file";
+  type?: "text" | "embed" | "poll" | "file" | "blocks";
   content?: string;
   embed?: EmbedSpec;
   poll?: PollSpec;
+  blocks?: BlocksSpec;
   fileBase64?: string;
   fileName?: string;
   sentBy?: string;
@@ -73,6 +93,67 @@ function buildEmbedsFromSpec(spec: EmbedSpec): EmbedBuilder[] {
     }
     return e;
   });
+}
+
+const HTTP_URL = /^https?:\/\/\S+$/i;
+
+// Validiert eine BlocksSpec und liefert eine Fehlermeldung oder null.
+function validateBlocks(spec: BlocksSpec): string | null {
+  const blocks = spec.blocks ?? [];
+  if (blocks.length === 0) return "Keine Blöcke vorhanden.";
+  if (blocks.length > 25) return "Max. 25 Blöcke pro Nachricht.";
+
+  let totalText = 0;
+  let hasContent = false;
+  for (const b of blocks) {
+    if (b.type === "text") {
+      const content = b.content.trim();
+      if (!content) return "Ein Text-Block ist leer.";
+      totalText += content.length;
+      hasContent = true;
+    } else if (b.type === "image") {
+      if (b.urls.length === 0) return "Ein Bild-Block hat keine URL.";
+      if (b.urls.length > 10) return "Max. 10 Bilder pro Bild-Block.";
+      for (const url of b.urls) {
+        if (!HTTP_URL.test(url)) return `Ungültige Bild-URL: ${url.slice(0, 60)}`;
+      }
+      hasContent = true;
+    }
+  }
+  if (!hasContent) return "Nachricht braucht mindestens einen Text- oder Bild-Block.";
+  // Discord-Limit: 4000 Zeichen Text über die gesamte Components-V2-Nachricht.
+  if (totalText > 4000) return `Zu viel Text: ${totalText} / 4000 Zeichen.`;
+  return null;
+}
+
+// Baut die Discord-Components aus der Spec. Mit accentColor wandert alles in
+// einen Container (farbige Akzentleiste links, wie bei Embeds).
+function buildBlockComponents(spec: BlocksSpec) {
+  const toBuilder = (b: MessageBlock) => {
+    if (b.type === "text") return new TextDisplayBuilder().setContent(b.content.trim());
+    if (b.type === "image") {
+      const gallery = new MediaGalleryBuilder();
+      for (const url of b.urls) {
+        gallery.addItems(new MediaGalleryItemBuilder().setURL(url));
+      }
+      return gallery;
+    }
+    return new SeparatorBuilder()
+      .setSpacing(b.large ? SeparatorSpacingSize.Large : SeparatorSpacingSize.Small)
+      .setDivider(true);
+  };
+
+  if (typeof spec.accentColor === "number") {
+    const container = new ContainerBuilder().setAccentColor(spec.accentColor);
+    for (const block of spec.blocks) {
+      const built = toBuilder(block);
+      if (built instanceof TextDisplayBuilder) container.addTextDisplayComponents(built);
+      else if (built instanceof MediaGalleryBuilder) container.addMediaGalleryComponents(built);
+      else if (built instanceof SeparatorBuilder) container.addSeparatorComponents(built);
+    }
+    return [container];
+  }
+  return spec.blocks.map(toBuilder);
 }
 
 async function ensureSendableChannel(
@@ -194,6 +275,34 @@ export async function handleSendMessage(
           type,
           content: question,
           pollJson: JSON.stringify(p),
+          sentBy: body.sentBy ?? null,
+        },
+      });
+      return { ok: true, messageId: msg.id, channelId };
+    }
+
+    if (type === "blocks") {
+      if (!body.blocks) return { ok: false, error: "blocks fehlt." };
+      const invalid = validateBlocks(body.blocks);
+      if (invalid) return { ok: false, error: invalid };
+
+      const components = buildBlockComponents(body.blocks);
+      const msg = await channel.send({
+        components,
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: ["users", "roles"] },
+      });
+      await prisma.botMessage.create({
+        data: {
+          channelId,
+          messageId: msg.id,
+          type,
+          // Erster Text-Block als Kurz-Anzeige für die History.
+          content:
+            body.blocks.blocks
+              .find((b): b is Extract<MessageBlock, { type: "text" }> => b.type === "text")
+              ?.content.slice(0, 200) ?? null,
+          blocksJson: JSON.stringify(body.blocks),
           sentBy: body.sentBy ?? null,
         },
       });

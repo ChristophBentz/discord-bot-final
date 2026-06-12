@@ -4,13 +4,43 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
 import { MessagePreview } from "@/components/MessagePreview";
 import {
+  sendBlocks,
   sendEmbed,
   sendFile,
   sendPoll,
   sendText,
+  type BlocksSpec,
   type EmbedSpec,
+  type MessageBlock,
   type PollSpec,
 } from "./actions";
+
+// Editor-Modell für den Baukasten: ein Block pro Zeile, Bilder als
+// Mehrzeilen-Eingabe (eine URL pro Zeile).
+interface BlockDraft {
+  id: number;
+  type: "text" | "image" | "separator";
+  text: string;
+  imageUrls: string;
+  large: boolean;
+}
+
+function draftsToSpec(drafts: BlockDraft[], accentColor: number | null): BlocksSpec {
+  const blocks: MessageBlock[] = drafts.map((d) => {
+    if (d.type === "text") return { type: "text", content: d.text.trim() };
+    if (d.type === "image") {
+      return {
+        type: "image",
+        urls: d.imageUrls
+          .split("\n")
+          .map((u) => u.trim())
+          .filter(Boolean),
+      };
+    }
+    return { type: "separator", large: d.large };
+  });
+  return { blocks, accentColor };
+}
 
 // Renders ein Discord-Embed innerhalb der MessagePreview (für Embed-Tab)
 function EmbedBody({ spec }: { spec: EmbedSpec }) {
@@ -130,9 +160,67 @@ function FileBody({ file }: { file: File | null }) {
   );
 }
 
-type Tab = "text" | "embed" | "poll" | "file";
+type Tab = "text" | "embed" | "blocks" | "poll" | "file";
 
 // 2D-Line-Icons für die Tabs (passt zum Sidebar-Style)
+// Discord-ähnliche Vorschau der Baukasten-Nachricht.
+function BlocksBody({ drafts, accentColor }: { drafts: BlockDraft[]; accentColor: string | null }) {
+  if (drafts.length === 0) {
+    return (
+      <div className="rounded border-l-2 border-line bg-bg-elevated/40 px-3 py-2 text-xs italic text-ink-subtle">
+        keine Blöcke
+      </div>
+    );
+  }
+  const inner = (
+    <div className="max-w-[480px] space-y-2">
+      {drafts.map((b) => {
+        if (b.type === "text") {
+          return (
+            <div key={b.id} className="whitespace-pre-wrap break-words text-sm text-ink-muted">
+              {b.text || <span className="italic text-ink-subtle">leerer Text-Block</span>}
+            </div>
+          );
+        }
+        if (b.type === "image") {
+          const urls = b.imageUrls
+            .split("\n")
+            .map((u) => u.trim())
+            .filter(Boolean)
+            .slice(0, 10);
+          if (urls.length === 0) {
+            return (
+              <div key={b.id} className="rounded border border-dashed border-line px-3 py-4 text-center text-xs italic text-ink-subtle">
+                Bild-Block ohne URL
+              </div>
+            );
+          }
+          return (
+            <div key={b.id} className={`grid gap-1 ${urls.length > 1 ? "grid-cols-2" : ""}`}>
+              {urls.map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={url} alt="" className="max-h-48 w-full rounded border border-line object-cover" />
+              ))}
+            </div>
+          );
+        }
+        return <hr key={b.id} className={`border-line ${b.large ? "my-4" : "my-2"}`} />;
+      })}
+    </div>
+  );
+  if (accentColor) {
+    return (
+      <div
+        className="max-w-[500px] rounded border-l-[3px] bg-bg-elevated/60 p-3"
+        style={{ borderLeftColor: accentColor }}
+      >
+        {inner}
+      </div>
+    );
+  }
+  return inner;
+}
+
 function TabIcon({ name }: { name: Tab }) {
   const props = {
     viewBox: "0 0 24 24",
@@ -155,6 +243,14 @@ function TabIcon({ name }: { name: Tab }) {
         <svg {...props}>
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="M3 9h18M7 13h7M7 16h10" />
+        </svg>
+      );
+    case "blocks":
+      return (
+        <svg {...props}>
+          <rect x="3" y="3" width="18" height="6" rx="1.5" />
+          <rect x="3" y="11" width="18" height="4" rx="1.5" />
+          <rect x="3" y="17" width="12" height="4" rx="1.5" />
         </svg>
       );
     case "poll":
@@ -312,6 +408,34 @@ export function ComposeForm({
   const [embedFooter, setEmbedFooter] = useState("");
   const [embedExtraContent, setEmbedExtraContent] = useState("");
 
+  // blocks (Baukasten)
+  const blockIdRef = useRef(1);
+  const [blockDrafts, setBlockDrafts] = useState<BlockDraft[]>([]);
+  const [blocksAccentEnabled, setBlocksAccentEnabled] = useState(false);
+  const [blocksAccentColor, setBlocksAccentColor] = useState("#a855f7");
+
+  const addBlock = (type: BlockDraft["type"]) =>
+    setBlockDrafts((prev) => [
+      ...prev,
+      { id: blockIdRef.current++, type, text: "", imageUrls: "", large: false },
+    ]);
+
+  const updateBlock = (id: number, patch: Partial<BlockDraft>) =>
+    setBlockDrafts((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+
+  const removeBlock = (id: number) =>
+    setBlockDrafts((prev) => prev.filter((b) => b.id !== id));
+
+  const moveBlock = (id: number, dir: -1 | 1) =>
+    setBlockDrafts((prev) => {
+      const idx = prev.findIndex((b) => b.id === id);
+      const target = idx + dir;
+      if (idx < 0 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target]!, next[idx]!];
+      return next;
+    });
+
   // poll
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollAnswers, setPollAnswers] = useState<string[]>(["", ""]);
@@ -340,6 +464,9 @@ export function ComposeForm({
       setEmbedThumb("");
       setEmbedFooter("");
       setEmbedExtraContent("");
+    }
+    if (tab === "blocks") {
+      setBlockDrafts([]);
     }
     if (tab === "poll") {
       setPollQuestion("");
@@ -379,6 +506,18 @@ export function ComposeForm({
           content: embedExtraContent.trim() || undefined,
           embed: spec,
         });
+        r.ok ? ok() : fail(r.error);
+      } else if (tab === "blocks") {
+        if (blockDrafts.length === 0) return fail("Füge mindestens einen Block hinzu.");
+        const spec = draftsToSpec(
+          blockDrafts,
+          blocksAccentEnabled ? parseInt(blocksAccentColor.replace("#", ""), 16) : null,
+        );
+        const hasContent = spec.blocks.some(
+          (b) => (b.type === "text" && b.content) || (b.type === "image" && b.urls.length > 0),
+        );
+        if (!hasContent) return fail("Mindestens ein Text- oder Bild-Block muss gefüllt sein.");
+        const r = await sendBlocks({ channelId, blocks: spec });
         r.ok ? ok() : fail(r.error);
       } else if (tab === "poll") {
         const answers = pollAnswers.map((a) => a.trim()).filter((a) => a);
@@ -426,6 +565,9 @@ export function ComposeForm({
         </TabButton>
         <TabButton active={tab === "embed"} onClick={() => setTab("embed")}>
           <TabIcon name="embed" /> Embed
+        </TabButton>
+        <TabButton active={tab === "blocks"} onClick={() => setTab("blocks")}>
+          <TabIcon name="blocks" /> Baukasten
         </TabButton>
         <TabButton active={tab === "poll"} onClick={() => setTab("poll")}>
           <TabIcon name="poll" /> Umfrage
@@ -568,6 +710,142 @@ export function ComposeForm({
               maxLength={2048}
               className="input w-full"
             />
+          </div>
+        </div>
+      )}
+
+      {tab === "blocks" && (
+        <div className="space-y-4">
+          <p className="text-xs text-ink-muted">
+            Baue die Nachricht aus Blöcken auf — Text, Bilder und Trennlinien beliebig
+            stapeln und anordnen. Ideal für Welcome-Channels, Regeln oder Ankündigungen.
+          </p>
+
+          {blockDrafts.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-line bg-bg-elevated/30 px-4 py-8 text-center text-sm text-ink-muted">
+              Noch keine Blöcke — unten einen hinzufügen.
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {blockDrafts.map((b, i) => (
+              <div key={b.id} className="rounded-xl border border-line bg-bg-elevated/40">
+                <div className="flex items-center justify-between border-b border-line px-3 py-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+                    {b.type === "text" ? "Text" : b.type === "image" ? "Bild" : "Trennlinie"}
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => moveBlock(b.id, -1)}
+                      disabled={i === 0}
+                      title="Nach oben"
+                      className="grid h-6 w-6 place-items-center rounded text-ink-subtle hover:bg-bg-hover hover:text-ink disabled:opacity-30"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveBlock(b.id, 1)}
+                      disabled={i === blockDrafts.length - 1}
+                      title="Nach unten"
+                      className="grid h-6 w-6 place-items-center rounded text-ink-subtle hover:bg-bg-hover hover:text-ink disabled:opacity-30"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeBlock(b.id)}
+                      title="Block entfernen"
+                      className="grid h-6 w-6 place-items-center rounded text-ink-subtle hover:bg-rose-500/15 hover:text-rose-400"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="p-3">
+                  {b.type === "text" && (
+                    <div>
+                      <div className="mb-1 flex justify-end">
+                        <MentionPicker
+                          roles={roles}
+                          onPick={(id) =>
+                            updateBlock(b.id, {
+                              text: b.text ? `${b.text} <@&${id}> ` : `<@&${id}> `,
+                            })
+                          }
+                        />
+                      </div>
+                      <textarea
+                        value={b.text}
+                        onChange={(e) => updateBlock(b.id, { text: e.target.value })}
+                        rows={3}
+                        maxLength={4000}
+                        placeholder="Markdown wird unterstützt — # Überschrift, **fett**, {…}"
+                        className="input min-h-[70px] w-full resize-y !py-2 text-sm"
+                      />
+                    </div>
+                  )}
+                  {b.type === "image" && (
+                    <div>
+                      <textarea
+                        value={b.imageUrls}
+                        onChange={(e) => updateBlock(b.id, { imageUrls: e.target.value })}
+                        rows={2}
+                        placeholder={"https://… (eine Bild-URL pro Zeile, max. 10 — mehrere = Galerie)"}
+                        className="input w-full resize-y !py-2 font-mono text-xs"
+                      />
+                    </div>
+                  )}
+                  {b.type === "separator" && (
+                    <label className="flex items-center gap-2 text-sm text-ink-muted">
+                      <input
+                        type="checkbox"
+                        checked={b.large}
+                        onChange={(e) => updateBlock(b.id, { large: e.target.checked })}
+                        className="h-4 w-4 rounded border-line accent-brand"
+                      />
+                      Großer Abstand
+                    </label>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => addBlock("text")} className="btn-secondary !px-3 !py-1.5 text-xs">
+              + Text
+            </button>
+            <button type="button" onClick={() => addBlock("image")} className="btn-secondary !px-3 !py-1.5 text-xs">
+              + Bild
+            </button>
+            <button type="button" onClick={() => addBlock("separator")} className="btn-secondary !px-3 !py-1.5 text-xs">
+              + Trennlinie
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-bg-elevated/40 px-3 py-2.5">
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={blocksAccentEnabled}
+                onChange={(e) => setBlocksAccentEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-line accent-brand"
+              />
+              Container mit Akzentleiste
+            </label>
+            {blocksAccentEnabled && (
+              <input
+                type="color"
+                value={blocksAccentColor}
+                onChange={(e) => setBlocksAccentColor(e.target.value)}
+                className="h-8 w-16 cursor-pointer rounded-lg border border-line bg-bg-elevated"
+              />
+            )}
+            <span className="text-xs text-ink-subtle">
+              fasst alle Blöcke zusammen — wie die farbige Leiste bei Embeds
+            </span>
           </div>
         </div>
       )}
@@ -722,6 +1000,20 @@ export function ComposeForm({
                 thumbnailUrl: embedThumb.trim() || undefined,
                 footerText: embedFooter.trim() || undefined,
               }}
+            />
+          }
+        />
+      )}
+      {tab === "blocks" && (
+        <MessagePreview
+          text=""
+          botName={bot.name}
+          botAvatarUrl={bot.avatarUrl}
+          emptyText={null}
+          embed={
+            <BlocksBody
+              drafts={blockDrafts}
+              accentColor={blocksAccentEnabled ? blocksAccentColor : null}
             />
           }
         />

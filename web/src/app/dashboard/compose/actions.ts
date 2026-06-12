@@ -24,6 +24,17 @@ export interface PollSpec {
   allowMultiselect: boolean;
 }
 
+// Baukasten-Nachricht (Components V2) — Spec muss zur Bot-Seite passen.
+export type MessageBlock =
+  | { type: "text"; content: string }
+  | { type: "image"; urls: string[] }
+  | { type: "separator"; large?: boolean };
+
+export interface BlocksSpec {
+  blocks: MessageBlock[];
+  accentColor?: number | null;
+}
+
 async function discordId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   return (session?.user as { discordId?: string } | undefined)?.discordId ?? null;
@@ -71,6 +82,18 @@ export async function sendPoll(input: BaseInput & { poll: PollSpec }): Promise<R
   const r = await callBot<unknown>("/api/messages/send", {
     method: "POST",
     body: { type: "poll", channelId: input.channelId, poll: input.poll, sentBy },
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/dashboard/compose");
+  return { ok: true };
+}
+
+export async function sendBlocks(input: BaseInput & { blocks: BlocksSpec }): Promise<Result> {
+  const sentBy = await discordId();
+  if (!sentBy) return { ok: false, error: "Nicht eingeloggt." };
+  const r = await callBot<unknown>("/api/messages/send", {
+    method: "POST",
+    body: { type: "blocks", channelId: input.channelId, blocks: input.blocks, sentBy },
   });
   if (!r.ok) return { ok: false, error: r.error };
   revalidatePath("/dashboard/compose");

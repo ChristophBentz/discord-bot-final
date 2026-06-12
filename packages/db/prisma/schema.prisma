@@ -152,11 +152,12 @@ model BotMessage {
   id        Int      @id @default(autoincrement())
   channelId String
   messageId String   @unique
-  type      String // "text" | "embed" | "poll" | "file"
-  content   String?
-  embedJson String? // serialized EmbedSpec
-  pollJson  String? // nur zur Anzeige — Polls können nicht editiert werden
-  fileName  String?
+  type       String // "text" | "embed" | "poll" | "file" | "blocks"
+  content    String?
+  embedJson  String? // serialized EmbedSpec
+  pollJson   String? // nur zur Anzeige — Polls können nicht editiert werden
+  blocksJson String? // serialized BlocksSpec (Baukasten / Components V2)
+  fileName   String?
   sentBy    String?
   sentAt    DateTime  @default(now())
   editedAt  DateTime?

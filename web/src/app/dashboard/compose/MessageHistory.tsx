@@ -10,7 +10,7 @@ export interface MessageRow {
   channelId: string;
   channelName: string | null;
   messageId: string;
-  type: "text" | "embed" | "poll" | "file";
+  type: "text" | "embed" | "poll" | "file" | "blocks";
   content: string | null;
   embed: EmbedSpec | null;
   pollQuestion: string | null;
@@ -24,6 +24,7 @@ const TYPE_LABEL: Record<MessageRow["type"], string> = {
   embed: "📋 Embed",
   poll: "📊 Umfrage",
   file: "📎 Datei",
+  blocks: "🧱 Baukasten",
 };
 
 export function MessageHistory({
@@ -95,7 +96,9 @@ export function MessageHistory({
                 ? m.pollQuestion ?? "(Umfrage)"
                 : m.type === "file"
                   ? `📎 ${m.fileName ?? "Datei"}` + (m.content ? ` — ${m.content}` : "")
-                  : m.content ?? "(leer)";
+                  : m.type === "blocks"
+                    ? (m.content ?? "(Baukasten-Nachricht)")
+                    : m.content ?? "(leer)";
           return (
             <li
               key={m.id}
