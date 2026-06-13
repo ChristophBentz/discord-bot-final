@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
 import { resolveAccent } from "@/lib/accent";
 import { canAccessDashboard } from "@/lib/access";
+import { StaleDeploymentReloader } from "@/components/StaleDeploymentReloader";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -25,6 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen">
+      <StaleDeploymentReloader />
       <Sidebar
         serverName={serverName}
         memberCount={memberCount}
