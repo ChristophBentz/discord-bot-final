@@ -53,6 +53,31 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
   const isOwner = verifyProfileToken(userId, member.profileTokenVersion, key);
   const showFull = member.profilePublic || isOwner;
 
+  // Geburtstag: anzeigen wenn gesetzt, erlaubt und Profil voll sichtbar (oder Owner).
+  const MONTHS_DE = [
+    "Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember",
+  ];
+  let birthdayText: string | null = null;
+  let isBirthdayToday = false;
+  if (member.birthdayDay && member.birthdayMonth && (member.birthdayShow || isOwner)) {
+    birthdayText = `${member.birthdayDay}. ${MONTHS_DE[member.birthdayMonth - 1]}`;
+    if (member.birthdayYear && member.birthdayShowAge) {
+      const today = new Date();
+      let age = today.getFullYear() - member.birthdayYear;
+      if (
+        today.getMonth() + 1 < member.birthdayMonth ||
+        (today.getMonth() + 1 === member.birthdayMonth && today.getDate() < member.birthdayDay)
+      ) {
+        age -= 1;
+      }
+      if (age >= 0) birthdayText += ` · ${age} Jahre`;
+    }
+    const now = new Date();
+    isBirthdayToday =
+      now.getDate() === member.birthdayDay && now.getMonth() + 1 === member.birthdayMonth;
+  }
+
   // Hülle für privaten Modus (Außenstehende)
   if (!showFull) {
     return (
@@ -177,12 +202,50 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
           </div>
         </header>
 
+        {/* Geburtstag */}
+        {birthdayText && (
+          <section
+            className={`flex items-center gap-3 rounded-2xl border p-4 ${
+              isBirthdayToday
+                ? "border-brand/40 bg-brand/[0.08]"
+                : "border-line bg-bg-card"
+            }`}
+          >
+            <span
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                isBirthdayToday ? "bg-brand/20 text-brand" : "bg-bg-elevated text-ink-muted"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-8H4v8M4 16h16M2 21h20M12 4a2 2 0 0 0-2 2c0 1.5 2 4 2 4s2-2.5 2-4a2 2 0 0 0-2-2z" />
+                <path d="M6 13V9a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4" />
+              </svg>
+            </span>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+                Geburtstag
+              </div>
+              <div className="text-sm font-semibold text-ink">
+                {birthdayText}
+                {isBirthdayToday && <span className="ml-2 text-brand">🎉 Heute!</span>}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Owner-Panel: nur sichtbar mit gültigem Token */}
         {isOwner && (
           <OwnerPanel
             userId={userId}
             ownerKey={key!}
             isPublic={member.profilePublic}
+            birthday={{
+              hasBirthday: Boolean(member.birthdayDay && member.birthdayMonth),
+              hasYear: Boolean(member.birthdayYear),
+              show: member.birthdayShow,
+              showAge: member.birthdayShowAge,
+              announce: member.birthdayAnnounce,
+            }}
           />
         )}
 

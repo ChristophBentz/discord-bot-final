@@ -58,6 +58,13 @@ model Config {
   // funktionieren nur noch für Owner + freigegebene Mitglieder.
   restrictCommandsToAllowlist Boolean @default(false)
 
+  // Geburtstage
+  birthdayEnabled   Boolean @default(false)
+  birthdayChannelId String?
+  birthdayMessage   String? // {user} {age} Platzhalter; leer = Standard
+  birthdayPingRoleId String? // optionale Rolle, die zum Geburtstag gepingt wird
+  birthdayLastRun   String? // Datums-Key (YYYY-MM-DD) der letzten Ankündigung — verhindert Doppelposts
+
   // Welcome / Leave
   welcomeEnabled   Boolean @default(false)
   welcomeChannelId String?
@@ -484,12 +491,20 @@ model Member {
   isProtected        Boolean   @default(false) // Owner / Admin / Mod — vor Kick/Ban/Timeout geschützt
   // Öffentliches Profil unter /u/[userId]. Wenn false sehen Fremde nur Name+Avatar.
   profilePublic      Boolean   @default(true)
+  // Geburtstag — Tag/Monat (Jahr optional). Vom User via /geburtstag gesetzt.
+  birthdayDay        Int?
+  birthdayMonth      Int?
+  birthdayYear       Int?
+  birthdayShow       Boolean   @default(true) // im öffentlichen Profil zeigen
+  birthdayShowAge    Boolean   @default(true) // Alter zeigen (nur wenn Jahr gesetzt)
+  birthdayAnnounce   Boolean   @default(true) // im Geburtstags-Channel ankündigen
   // Wird inkrementiert via /profil reset — invalidiert alte Magic-Links.
   profileTokenVersion Int      @default(0)
   lastSyncAt         DateTime  @default(now())
 
   @@index([displayName])
   @@index([inServer])
+  @@index([birthdayMonth, birthdayDay])
 }
 
 // Synchronisierte Server-Rollen.

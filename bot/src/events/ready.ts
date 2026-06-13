@@ -23,6 +23,7 @@ import { startRssScheduler } from "../features/rss/service.js";
 import { startServerStatsScheduler } from "../features/serverStats/service.js";
 import { syncInviteCache } from "../features/invites/service.js";
 import { startApiServer } from "../api/server.js";
+import { startBirthdayScheduler } from "../features/birthday/service.js";
 
 const event: BotEvent<Events.ClientReady> = {
   name: Events.ClientReady,
@@ -35,6 +36,7 @@ const event: BotEvent<Events.ClientReady> = {
     await initMusicPlayer(client);
     startFreeGamesScheduler(client);
     startRssScheduler(client);
+    startBirthdayScheduler(client);
     startApiServer(client);
     await syncMembers(client);
     startPeriodicMemberSync(client);

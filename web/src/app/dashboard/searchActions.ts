@@ -78,6 +78,12 @@ const PAGES: PageEntry[] = [
     keywords: ["erfolge", "auszeichnung", "badge", "trophy", "trophäe"],
   },
   {
+    title: "Geburtstage",
+    subtitle: "Geburtstags-Ankündigungen",
+    href: "/dashboard/birthdays",
+    keywords: ["geburtstag", "birthday", "geburtstage", "feiern", "geboren", "alter"],
+  },
+  {
     title: "Server-Stats",
     subtitle: "Live-Counter-Channels",
     href: "/dashboard/server-stats",

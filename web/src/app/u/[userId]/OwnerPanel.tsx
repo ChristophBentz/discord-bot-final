@@ -1,19 +1,42 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setProfileVisibility } from "./actions";
+import { setProfileVisibility, setBirthdayPrivacy, type BirthdayPrivacyKey } from "./actions";
+
+interface BirthdayState {
+  hasBirthday: boolean;
+  hasYear: boolean;
+  show: boolean;
+  showAge: boolean;
+  announce: boolean;
+}
 
 interface Props {
   userId: string;
   ownerKey: string;
   isPublic: boolean;
+  birthday: BirthdayState;
 }
 
-export function OwnerPanel({ userId, ownerKey, isPublic: initialPublic }: Props) {
+export function OwnerPanel({ userId, ownerKey, isPublic: initialPublic, birthday }: Props) {
   const [isPublic, setIsPublic] = useState(initialPublic);
+  const [bday, setBday] = useState(birthday);
   const [pending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggleBirthday(field: BirthdayPrivacyKey, current: boolean, set: (v: boolean) => void) {
+    setError(null);
+    const next = !current;
+    set(next);
+    startTransition(async () => {
+      const res = await setBirthdayPrivacy(userId, ownerKey, field, next);
+      if (!res.ok) {
+        set(current);
+        setError(res.error ?? "Fehler beim Speichern");
+      }
+    });
+  }
 
   function toggle() {
     setError(null);
@@ -93,6 +116,44 @@ export function OwnerPanel({ userId, ownerKey, isPublic: initialPublic }: Props)
         )}
       </div>
 
+      {/* Geburtstags-Privatsphäre */}
+      {bday.hasBirthday ? (
+        <div className="mt-5 border-t border-line pt-4">
+          <h3 className="text-sm font-semibold text-ink">Geburtstag</h3>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Gesetzt per <code className="rounded bg-bg-elevated px-1 py-0.5">/geburtstag</code>.
+            Steuere hier, was sichtbar ist.
+          </p>
+          <div className="mt-3 space-y-1.5">
+            <PrivacyRow
+              label="Auf meinem Profil anzeigen"
+              checked={bday.show}
+              onToggle={() => toggleBirthday("birthdayShow", bday.show, (v) => setBday((b) => ({ ...b, show: v })))}
+              disabled={pending}
+            />
+            {bday.hasYear && (
+              <PrivacyRow
+                label="Alter anzeigen"
+                checked={bday.showAge}
+                onToggle={() => toggleBirthday("birthdayShowAge", bday.showAge, (v) => setBday((b) => ({ ...b, showAge: v })))}
+                disabled={pending}
+              />
+            )}
+            <PrivacyRow
+              label="Im Geburtstags-Channel angekündigt werden"
+              checked={bday.announce}
+              onToggle={() => toggleBirthday("birthdayAnnounce", bday.announce, (v) => setBday((b) => ({ ...b, announce: v })))}
+              disabled={pending}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 border-t border-line pt-4 text-xs text-ink-subtle">
+          Noch kein Geburtstag gesetzt — nutze in Discord{" "}
+          <code className="rounded bg-bg-elevated px-1 py-0.5">/geburtstag setzen</code>.
+        </div>
+      )}
+
       {error && (
         <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
           {error}
@@ -105,5 +166,39 @@ export function OwnerPanel({ userId, ownerKey, isPublic: initialPublic }: Props)
         neuen erzeugen — der alte ist sofort ungültig.
       </p>
     </div>
+  );
+}
+
+function PrivacyRow({
+  label,
+  checked,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className="flex w-full items-center justify-between gap-3 rounded-lg border border-line bg-bg-elevated/40 px-3 py-2 text-left text-sm transition-colors hover:bg-bg-hover disabled:opacity-60"
+    >
+      <span className="text-ink">{label}</span>
+      <span
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-emerald-500" : "bg-zinc-600"
+        }`}
+      >
+        <span
+          className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-4" : ""
+          }`}
+        />
+      </span>
+    </button>
   );
 }
