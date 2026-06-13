@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setProfileVisibility, setBirthdayPrivacy, type BirthdayPrivacyKey } from "./actions";
+import { setProfileVisibility, setBirthdayPrivacy, type PrivacyKey } from "./actions";
 
 interface BirthdayState {
   hasBirthday: boolean;
@@ -11,21 +11,36 @@ interface BirthdayState {
   announce: boolean;
 }
 
+interface GiveawayState {
+  hasEntries: boolean;
+  showEntries: boolean;
+  showWins: boolean;
+  winDm: boolean;
+}
+
 interface Props {
   userId: string;
   ownerKey: string;
   isPublic: boolean;
   birthday: BirthdayState;
+  giveaway: GiveawayState;
 }
 
-export function OwnerPanel({ userId, ownerKey, isPublic: initialPublic, birthday }: Props) {
+export function OwnerPanel({
+  userId,
+  ownerKey,
+  isPublic: initialPublic,
+  birthday,
+  giveaway,
+}: Props) {
   const [isPublic, setIsPublic] = useState(initialPublic);
   const [bday, setBday] = useState(birthday);
+  const [gw, setGw] = useState(giveaway);
   const [pending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function toggleBirthday(field: BirthdayPrivacyKey, current: boolean, set: (v: boolean) => void) {
+  function togglePrivacy(field: PrivacyKey, current: boolean, set: (v: boolean) => void) {
     setError(null);
     const next = !current;
     set(next);
@@ -37,6 +52,7 @@ export function OwnerPanel({ userId, ownerKey, isPublic: initialPublic, birthday
       }
     });
   }
+  const toggleBirthday = togglePrivacy;
 
   function toggle() {
     setError(null);
@@ -153,6 +169,32 @@ export function OwnerPanel({ userId, ownerKey, isPublic: initialPublic, birthday
           <code className="rounded bg-bg-elevated px-1 py-0.5">/geburtstag setzen</code>.
         </div>
       )}
+
+      {/* Giveaway-Privatsphäre */}
+      <div className="mt-5 border-t border-line pt-4">
+        <h3 className="text-sm font-semibold text-ink">Giveaways</h3>
+        <p className="mt-0.5 text-xs text-ink-muted">Was zu deinen Verlosungen sichtbar ist.</p>
+        <div className="mt-3 space-y-1.5">
+          <PrivacyRow
+            label="Teilnahmen auf dem Profil zeigen"
+            checked={gw.showEntries}
+            onToggle={() => togglePrivacy("giveawayShowEntries", gw.showEntries, (v) => setGw((g) => ({ ...g, showEntries: v })))}
+            disabled={pending}
+          />
+          <PrivacyRow
+            label="Gewinne auf dem Profil zeigen"
+            checked={gw.showWins}
+            onToggle={() => togglePrivacy("giveawayShowWins", gw.showWins, (v) => setGw((g) => ({ ...g, showWins: v })))}
+            disabled={pending}
+          />
+          <PrivacyRow
+            label="DM erhalten, wenn ich gewinne"
+            checked={gw.winDm}
+            onToggle={() => togglePrivacy("giveawayWinDm", gw.winDm, (v) => setGw((g) => ({ ...g, winDm: v })))}
+            disabled={pending}
+          />
+        </div>
+      </div>
 
       {error && (
         <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">

@@ -33,12 +33,21 @@ export async function setProfileVisibility(
   return { ok: true };
 }
 
-export type BirthdayPrivacyKey = "birthdayShow" | "birthdayShowAge" | "birthdayAnnounce";
+export type PrivacyKey =
+  | "birthdayShow"
+  | "birthdayShowAge"
+  | "birthdayAnnounce"
+  | "giveawayShowEntries"
+  | "giveawayShowWins"
+  | "giveawayWinDm";
+
+// Alias für Abwärtskompatibilität.
+export type BirthdayPrivacyKey = PrivacyKey;
 
 export async function setBirthdayPrivacy(
   userId: string,
   key: string,
-  field: BirthdayPrivacyKey,
+  field: PrivacyKey,
   value: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
   const auth = await verifyOwner(userId, key);

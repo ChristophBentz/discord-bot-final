@@ -48,6 +48,14 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
       getConfig(),
     ]);
 
+  // Giveaway-Teilnahmen + Gewinne
+  const giveawayEntries = await prisma.giveawayEntry.findMany({
+    where: { userId },
+    include: { giveaway: { select: { prize: true, ended: true, endsAt: true } } },
+    orderBy: { enteredAt: "desc" },
+  });
+  const giveawayWins = giveawayEntries.filter((e) => e.isWinner);
+
   if (!member) notFound();
 
   const isOwner = verifyProfileToken(userId, member.profileTokenVersion, key);
@@ -229,6 +237,41 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
           </section>
         )}
 
+        {/* Giveaways — Teilnahmen + Gewinne (je nach Privatsphäre) */}
+        {((member.giveawayShowEntries || isOwner) && giveawayEntries.length > 0) ||
+        ((member.giveawayShowWins || isOwner) && giveawayWins.length > 0) ? (
+          <section className="rounded-2xl border border-line bg-bg-card p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold">Giveaways</h2>
+              <div className="flex gap-2 text-xs">
+                {(member.giveawayShowEntries || isOwner) && (
+                  <span className="rounded-full bg-bg-elevated px-2.5 py-1 text-ink-muted">
+                    {giveawayEntries.length} Teilnahmen
+                  </span>
+                )}
+                {(member.giveawayShowWins || isOwner) && (
+                  <span className="rounded-full bg-brand-subtle px-2.5 py-1 font-medium text-brand">
+                    🏆 {giveawayWins.length} gewonnen
+                  </span>
+                )}
+              </div>
+            </div>
+            {(member.giveawayShowWins || isOwner) && giveawayWins.length > 0 && (
+              <ul className="mt-4 space-y-1.5">
+                {giveawayWins.slice(0, 10).map((e) => (
+                  <li
+                    key={e.id}
+                    className="flex items-center gap-2 rounded-lg bg-bg-elevated/40 px-3 py-2 text-sm"
+                  >
+                    <span className="text-brand">🏆</span>
+                    <span className="font-medium text-ink">{e.giveaway.prize}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : null}
+
         {/* Owner-Panel: nur sichtbar mit gültigem Token */}
         {isOwner && (
           <OwnerPanel
@@ -241,6 +284,12 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
               show: member.birthdayShow,
               showAge: member.birthdayShowAge,
               announce: member.birthdayAnnounce,
+            }}
+            giveaway={{
+              hasEntries: giveawayEntries.length > 0,
+              showEntries: member.giveawayShowEntries,
+              showWins: member.giveawayShowWins,
+              winDm: member.giveawayWinDm,
             }}
           />
         )}

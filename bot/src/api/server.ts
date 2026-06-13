@@ -67,6 +67,13 @@ import {
   handleSelfRoleSync,
   handleSelfRoleDeleteMessage,
 } from "./routes/selfRoles.js";
+import {
+  handleCreateGiveaway,
+  handleEndGiveaway,
+  handleRerollGiveaway,
+  handleDeleteGiveaway,
+  type CreateGiveawayBody,
+} from "./routes/giveaways.js";
 import { getMemberPresence, handleRefreshProfile } from "./routes/profile.js";
 import {
   handleSendMessage,
@@ -365,6 +372,31 @@ export function startApiServer(client: Client): void {
       if (req.method === "POST" && rssCheckMatch) {
         const feedId = Number(rssCheckMatch[1]!);
         const result = await handleRssCheck(client, feedId);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/giveaways — Giveaway erstellen + Nachricht posten
+      if (req.method === "POST" && url.pathname === "/api/giveaways") {
+        const body = await readJson<CreateGiveawayBody>(req);
+        if (!body) return void fail(res, 400, "Body ist kein valides JSON");
+        const result = await handleCreateGiveaway(client, body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/giveaways/:id/end | /reroll | DELETE /api/giveaways/:id
+      const gaMatch = url.pathname.match(/^\/api\/giveaways\/(\d+)(?:\/(end|reroll))?$/);
+      if (gaMatch) {
+        const gid = Number(gaMatch[1]!);
+        const action = gaMatch[2];
+        let result;
+        if (req.method === "POST" && action === "end") result = await handleEndGiveaway(client, gid);
+        else if (req.method === "POST" && action === "reroll") result = await handleRerollGiveaway(client, gid);
+        else if (req.method === "DELETE" && !action) result = await handleDeleteGiveaway(client, gid);
+        else return void fail(res, 404, "not found");
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

@@ -498,6 +498,10 @@ model Member {
   birthdayShow       Boolean   @default(true) // im öffentlichen Profil zeigen
   birthdayShowAge    Boolean   @default(true) // Alter zeigen (nur wenn Jahr gesetzt)
   birthdayAnnounce   Boolean   @default(true) // im Geburtstags-Channel ankündigen
+  // Giveaway-Privatsphäre
+  giveawayShowEntries Boolean  @default(true) // Teilnahmen im Profil zeigen
+  giveawayShowWins    Boolean  @default(true) // Gewinne im Profil zeigen
+  giveawayWinDm       Boolean  @default(true) // DM bei Gewinn erhalten
   // Wird inkrementiert via /profil reset — invalidiert alte Magic-Links.
   profileTokenVersion Int      @default(0)
   lastSyncAt         DateTime  @default(now())
@@ -538,6 +542,41 @@ model BlockedRole {
 model AllowlistedUser {
   userId    String   @id
   createdAt DateTime @default(now())
+}
+
+// Giveaways — vom Dashboard erstellt, Bot postet/verwaltet die Nachricht.
+model Giveaway {
+  id             Int      @id @default(autoincrement())
+  channelId      String
+  messageId      String? // gesetzt, sobald die Giveaway-Nachricht gepostet wurde
+  prize          String
+  description    String?
+  winnerCount    Int      @default(1)
+  hostId         String // wer das Giveaway erstellt hat
+  // Teilnahme-Kriterien (alle optional)
+  minLevel       Int?
+  requiredRoleId String?
+  minMemberDays  Int?
+  endsAt         DateTime
+  ended          Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  entries GiveawayEntry[]
+
+  @@index([ended, endsAt])
+}
+
+model GiveawayEntry {
+  id         Int      @id @default(autoincrement())
+  giveawayId Int
+  userId     String
+  isWinner   Boolean  @default(false)
+  enteredAt  DateTime @default(now())
+
+  giveaway Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+
+  @@unique([giveawayId, userId])
+  @@index([userId])
 }
 
 // Vom Bot synchronisiert — alle Text-fähigen Server-Channels.

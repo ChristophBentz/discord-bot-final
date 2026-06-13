@@ -84,6 +84,12 @@ const PAGES: PageEntry[] = [
     keywords: ["geburtstag", "birthday", "geburtstage", "feiern", "geboren", "alter"],
   },
   {
+    title: "Giveaways",
+    subtitle: "Verlosungen mit Teilnahme-Button",
+    href: "/dashboard/giveaways",
+    keywords: ["giveaway", "giveaways", "verlosung", "gewinnspiel", "gewinnen", "preis", "verlosen"],
+  },
+  {
     title: "Server-Stats",
     subtitle: "Live-Counter-Channels",
     href: "/dashboard/server-stats",
