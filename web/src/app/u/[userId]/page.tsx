@@ -121,44 +121,40 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
 
   return (
     <main className="min-h-screen bg-bg-base pb-16">
-      {/* Banner */}
-      <div className="relative h-48 w-full overflow-hidden">
-        {member.bannerUrl ? (
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${member.bannerUrl})` }}
-          />
-        ) : member.accentColor ? (
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(135deg, #${member.accentColor
-                .toString(16)
-                .padStart(6, "0")} 0%, #1a0b2e 100%)`,
-            }}
-          />
-        ) : (
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `
-                radial-gradient(120% 140% at 100% 0%, rgb(var(--accent-to) / 0.55), transparent 60%),
-                radial-gradient(120% 140% at 0% 100%, rgb(var(--accent-from) / 0.55), transparent 55%),
-                linear-gradient(135deg, #11111a 0%, rgb(var(--accent-from) / 0.25) 100%)
-              `,
-            }}
-          />
-        )}
-        {/* Sanfter Übergang vom Banner zur Page-Hintergrundfarbe */}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
-          style={{ background: "linear-gradient(to bottom, transparent, #0a0a0f)" }}
-        />
-      </div>
+      <div className="mx-auto max-w-4xl px-6">
+        {/* Banner — auf Inhaltsbreite begrenzt, Discord-Ratio (~5:1 als Header-Strip) */}
+        <div className="relative mt-6 h-40 w-full overflow-hidden rounded-2xl border border-line sm:h-48">
+          {member.bannerUrl ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${member.bannerUrl})` }}
+            />
+          ) : member.accentColor ? (
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(135deg, #${member.accentColor
+                  .toString(16)
+                  .padStart(6, "0")} 0%, #1a0b2e 100%)`,
+              }}
+            />
+          ) : (
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `
+                  radial-gradient(120% 140% at 100% 0%, rgb(var(--accent-to) / 0.55), transparent 60%),
+                  radial-gradient(120% 140% at 0% 100%, rgb(var(--accent-from) / 0.55), transparent 55%),
+                  linear-gradient(135deg, #11111a 0%, rgb(var(--accent-from) / 0.25) 100%)
+                `,
+              }}
+            />
+          )}
+        </div>
 
-      <div className="relative z-10 mx-auto -mt-20 max-w-4xl px-6 space-y-8">
-        {/* Header */}
-        <header className="flex flex-wrap items-end gap-5">
+        <div className="relative z-10 -mt-16 space-y-8">
+          {/* Header */}
+          <header className="flex flex-wrap items-end gap-5">
           <div className="shrink-0">
             {member.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -375,6 +371,7 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
           {" · "}Tippe <code className="rounded bg-bg-elevated px-1 py-0.5 text-[11px]">/profil</code>{" "}
           in Discord für deinen Bearbeiten-Link
         </footer>
+        </div>
       </div>
     </main>
   );
