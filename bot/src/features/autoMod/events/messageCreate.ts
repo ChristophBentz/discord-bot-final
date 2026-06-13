@@ -2,6 +2,7 @@ import { EmbedBuilder, Events, type Message, type TextChannel } from "discord.js
 import { prisma, type Config } from "@repo/db";
 import type { BotEvent } from "../../../lib/types.js";
 import { logger } from "../../../lib/logger.js";
+import { appealUrl } from "../../../lib/appealToken.js";
 import {
   findBadWord,
   findForbiddenInvite,
@@ -347,6 +348,13 @@ async function handleScamImage(
           `Auf dem Server **${config.guildName ?? "dem Server"}** hast du ein als Scam/verboten markiertes Bild gepostet. ${actionText}`,
         )
         .setTimestamp(new Date());
+      // Bei Ban: Entbannungsantrag-Link mitschicken (gleiches Appeal-System wie manuelle Bans)
+      if (action === "ban") {
+        dmEmbed.addFields({
+          name: "Einspruch einlegen",
+          value: `Du kannst [hier einen Entbannungsantrag stellen](${appealUrl(message.author.id)}). Heb dir den Link auf — darüber siehst du auch den Status deines Antrags.`,
+        });
+      }
       if (config.guildIconUrl) dmEmbed.setThumbnail(config.guildIconUrl);
       await message.author.send({ embeds: [dmEmbed] });
       dmSent = true;
@@ -361,7 +369,7 @@ async function handleScamImage(
   if (action === "ban") {
     try {
       await message.guild!.members.ban(message.author.id, {
-        reason: `AutoMod: Scam-Bild (${match.label})`,
+        reason: `AutoMod (automatisch): Verbotenes Scam-Bild – „${match.label}"`,
         deleteMessageSeconds: 60 * 60, // letzte Stunde Nachrichten mitlöschen
       });
       actionOk = true;
@@ -375,7 +383,7 @@ async function handleScamImage(
       try {
         await member.timeout(
           config.autoModImageTimeoutMinutes * 60 * 1000,
-          `AutoMod: Scam-Bild (${match.label})`,
+          `AutoMod (automatisch): Verbotenes Scam-Bild – „${match.label}"`,
         );
         actionOk = true;
         actionResult = `Timeout für ${config.autoModImageTimeoutMinutes} Min`;
