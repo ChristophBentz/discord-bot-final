@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
+import { MessagePreview } from "@/components/MessagePreview";
 import {
   createGiveaway,
   endGiveaway,
@@ -40,6 +41,7 @@ interface Props {
   channels: ChannelOption[];
   roles: RoleOption[];
   giveaways: GiveawayRow[];
+  bot: { name: string; avatarUrl: string | null };
 }
 
 // Werte in Sekunden.
@@ -55,7 +57,7 @@ const DURATIONS = [
   { label: "1 Woche", value: 604800 },
 ];
 
-export function GiveawayManager({ channels, roles, giveaways }: Props) {
+export function GiveawayManager({ channels, roles, giveaways, bot }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
@@ -392,6 +394,31 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
           )}
         </div>
 
+        {/* Live-Vorschau wie im Discord */}
+        <MessagePreview
+          text=""
+          botName={bot.name}
+          botAvatarUrl={bot.avatarUrl}
+          emptyText={null}
+          embed={
+            <GiveawayPreviewBody
+              prize={prize}
+              description={description}
+              imageSrc={imageFile?.dataUrl ?? (imageUrl.trim() || null)}
+              winnerCount={winnerCount}
+              durationLabel={DURATIONS.find((d) => d.value === duration)?.label ?? `${duration}s`}
+              criteria={[
+                minLevel ? `Mindestens Level ${minLevel}` : "",
+                requiredRoleId ? `Rolle @${roles.find((r) => r.roleId === requiredRoleId)?.name ?? "?"} erforderlich` : "",
+                minMemberDays ? `Seit mind. ${minMemberDays} Tagen dabei` : "",
+              ].filter(Boolean)}
+              bonus={bonusRoles
+                .filter((b) => b.roleId && b.extra > 0)
+                .map((b) => ({ name: roles.find((r) => r.roleId === b.roleId)?.name ?? "?", extra: b.extra }))}
+            />
+          }
+        />
+
         <div className="flex items-center justify-end gap-3">
           {feedback && (
             <span className={`text-sm ${feedback.kind === "ok" ? "text-emerald-400" : "text-rose-400"}`}>
@@ -446,6 +473,75 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
           </ul>
         </section>
       )}
+    </div>
+  );
+}
+
+// Discord-Embed-Nachbildung für die Vorschau im Formular.
+function GiveawayPreviewBody({
+  prize,
+  description,
+  imageSrc,
+  winnerCount,
+  durationLabel,
+  criteria,
+  bonus,
+}: {
+  prize: string;
+  description: string;
+  imageSrc: string | null;
+  winnerCount: number;
+  durationLabel: string;
+  criteria: string[];
+  bonus: { name: string; extra: number }[];
+}) {
+  return (
+    <div className="max-w-[440px] rounded border-l-[3px] border-brand bg-bg-elevated/60 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-brand">🎉 GIVEAWAY</div>
+      <div className="mt-1 text-base font-bold text-ink">{prize || "— Preis —"}</div>
+      {description && (
+        <div className="mt-1 whitespace-pre-wrap break-words text-sm text-ink-muted">{description}</div>
+      )}
+      <div className="mt-2 text-sm text-ink-muted">Klick auf <strong>🎉 Teilnehmen</strong>, um mitzumachen!</div>
+      <div className="mt-2 space-y-0.5 text-xs text-ink-muted">
+        <div>
+          <span className="font-semibold text-ink">Endet:</span> in {durationLabel}
+        </div>
+        <div>
+          <span className="font-semibold text-ink">Gewinner:</span> {winnerCount} &nbsp;•&nbsp;{" "}
+          <span className="font-semibold text-ink">Teilnehmer:</span> 0
+        </div>
+      </div>
+      {criteria.length > 0 && (
+        <div className="mt-2 text-xs text-ink-muted">
+          <div className="font-semibold text-ink">Bedingungen</div>
+          {criteria.map((c, i) => (
+            <div key={i}>🔹 {c}</div>
+          ))}
+        </div>
+      )}
+      <div className="mt-2 rounded bg-bg-card/60 p-2 text-xs text-ink-muted">
+        <div className="font-semibold text-ink">🎲 So wird ausgelost</div>
+        {bonus.length > 0 ? (
+          <>
+            <div>Gewichtete Verlosung — jeder hat 1 Los, bestimmte Rollen mehr:</div>
+            {bonus.map((b, i) => (
+              <div key={i}>🎟️ @{b.name} · +{b.extra}</div>
+            ))}
+          </>
+        ) : (
+          <div>Faire Zufallsziehung — jeder Teilnehmer hat genau 1 Los, gleiche Chance.</div>
+        )}
+      </div>
+      {imageSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageSrc} alt="" className="mt-2 max-h-56 w-full rounded border border-line object-cover" />
+      )}
+      <div className="mt-3">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white">
+          🎉 Teilnehmen
+        </span>
+      </div>
     </div>
   );
 }

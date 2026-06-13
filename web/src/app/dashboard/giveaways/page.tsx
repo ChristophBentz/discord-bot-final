@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import { getConfig, prisma } from "@repo/db";
 import { FeatureHero } from "@/components/FeatureHero";
 import { GiveawayManager, type GiveawayRow } from "./GiveawayManager";
 
@@ -13,7 +13,7 @@ function parseBonus(json: string | null): { roleId: string; extra: number }[] {
 }
 
 export default async function GiveawaysPage() {
-  const [giveaways, channels, roles] = await Promise.all([
+  const [giveaways, channels, roles, config] = await Promise.all([
     prisma.giveaway.findMany({
       orderBy: [{ ended: "asc" }, { endsAt: "desc" }],
       include: {
@@ -25,6 +25,7 @@ export default async function GiveawaysPage() {
     }),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
     prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
+    getConfig(),
   ]);
 
   const channelById = new Map(channels.map((c) => [c.channelId, c.name]));
@@ -112,6 +113,7 @@ export default async function GiveawaysPage() {
         }))}
         roles={roles.map((r) => ({ roleId: r.roleId, name: r.name, color: r.color }))}
         giveaways={rows}
+        bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
       />
     </div>
   );
