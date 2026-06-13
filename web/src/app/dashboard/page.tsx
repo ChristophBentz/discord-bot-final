@@ -3,6 +3,7 @@ import { StatCard } from "@/components/StatCard";
 import { ModuleCard } from "@/components/ModuleCard";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { OpenTicketsCard, type OpenTicketItem } from "@/components/OpenTicketsCard";
+import { OpenAppealsCard, type OpenAppealItem } from "@/components/OpenAppealsCard";
 
 // SVG-Icons als kleine Helper.
 const stroke = {
@@ -107,8 +108,16 @@ function formatVoiceTime(seconds: number): string {
 
 export default async function DashboardOverview() {
   const config = await getConfig();
-  const [stats, recentUsers, openTickets, selfRoleCount, commandCount, rssCount, achievementCount] =
-    await Promise.all([
+  const [
+    stats,
+    recentUsers,
+    openTickets,
+    openAppeals,
+    selfRoleCount,
+    commandCount,
+    rssCount,
+    achievementCount,
+  ] = await Promise.all([
     prisma.levelUser.aggregate({
       _sum: { messageCount: true, voiceSeconds: true, xp: true },
       _count: true,
@@ -130,16 +139,22 @@ export default async function DashboardOverview() {
         },
       },
     }),
+    prisma.banAppeal.findMany({
+      where: { status: "pending" },
+      orderBy: { createdAt: "desc" },
+      take: 15,
+    }),
     prisma.selfRolePanel.count(),
     prisma.customCommand.count(),
     prisma.rssFeed.count(),
     prisma.achievement.count(),
   ]);
 
-  // Avatare aus der Member-Tabelle dazujoinen (für Activity + offene Tickets)
+  // Avatare aus der Member-Tabelle dazujoinen (für Activity + offene Tickets + Anträge)
   const allUserIds = [
     ...recentUsers.map((u) => u.userId),
     ...openTickets.map((t) => t.userId),
+    ...openAppeals.map((a) => a.userId),
   ];
   const members = await prisma.member.findMany({
     where: { userId: { in: allUserIds } },
@@ -158,6 +173,18 @@ export default async function DashboardOverview() {
       messageCount: t._count.messages,
       createdAt: t.createdAt,
       lastActivity: t.messages[0]?.createdAt ?? t.createdAt,
+    };
+  });
+
+  const openAppealItems: OpenAppealItem[] = openAppeals.map((a) => {
+    const m = memberById.get(a.userId);
+    return {
+      id: a.id,
+      userId: a.userId,
+      userName: m?.displayName ?? a.username ?? `User ${a.userId.slice(-4)}`,
+      userAvatarUrl: m?.avatarUrl ?? null,
+      banReason: a.banReason,
+      createdAt: a.createdAt,
     };
   });
 
@@ -359,6 +386,7 @@ export default async function DashboardOverview() {
 
       {/* Right rail */}
       <aside className="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] flex flex-col gap-4 overflow-hidden">
+        <OpenAppealsCard appeals={openAppealItems} />
         <OpenTicketsCard tickets={openTicketItems} />
         <div className="min-h-0 flex-1">
           <ActivityFeed items={activity} />
