@@ -102,7 +102,12 @@ async function tick(client: Client): Promise<void> {
       where: { id: 1 },
       select: { birthdayLastRun: true },
     });
-    if (config?.birthdayLastRun === today) return; // heute schon angekündigt
+    if (config?.birthdayLastRun === today) {
+      // Heute schon angekündigt — trotzdem den Tick aufzeichnen, damit Bot Health
+      // einen aktuellen Zeitstempel zeigt statt „nie gelaufen".
+      recordSchedulerRun("Geburtstage", { ok: true, details: "heute bereits geprüft" });
+      return;
+    }
 
     const { posted } = await announceBirthdays(client);
     await prisma.config.update({ where: { id: 1 }, data: { birthdayLastRun: today } });

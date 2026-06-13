@@ -338,9 +338,12 @@ async function tick(client: Client): Promise<void> {
     for (const g of due) {
       await drawWinners(client, g.id);
     }
-    if (due.length > 0) {
-      recordSchedulerRun("Giveaways", { ok: true, details: `${due.length} beendet` });
-    }
+    // Bei jedem Tick aufzeichnen (auch ohne fällige Giveaways), damit Bot Health
+    // einen aktuellen „zuletzt geprüft"-Zeitstempel zeigt.
+    recordSchedulerRun("Giveaways", {
+      ok: true,
+      details: due.length > 0 ? `${due.length} beendet` : "keine fällig",
+    });
   } catch (err) {
     recordSchedulerRun("Giveaways", { ok: false, details: String(err) });
     logger.error({ err }, "Giveaway-Scheduler-Fehler");
