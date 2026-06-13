@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { MusicForm } from "./MusicForm";
 import { DjRoleEditor, type DjRoleOption } from "./DjRoleEditor";
 import { PlayerPanel } from "./PlayerPanel";

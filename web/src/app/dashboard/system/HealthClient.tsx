@@ -99,10 +99,32 @@ export function HealthClient({ initial }: { initial: HealthData | null }) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Fehler");
       }
     }
-    const interval = setInterval(poll, 5000);
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (!interval) interval = setInterval(poll, 10000);
+    };
+    const stop = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    // Sofort laden (sonst 10s leer), dann periodisch — pausiert im Hintergrund-Tab.
+    const onVisibility = () => {
+      if (document.hidden) stop();
+      else {
+        void poll();
+        start();
+      }
+    };
+    void poll();
+    if (!document.hidden) start();
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 

@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { FeedManager } from "./FeedManager";
 
 export default async function RssPage() {

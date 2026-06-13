@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { PublicFooter } from "@/components/PublicFooter";
 import { verifyProfileToken } from "@/lib/profileToken";
@@ -31,14 +31,11 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
 
   if (!/^\d{17,20}$/.test(userId)) notFound();
 
-  const [member, levelUser, totalLevelUsers, higherRanked, achievements, unlockedAchievements, config] =
+  const [member, levelUser, totalLevelUsers, achievements, unlockedAchievements, config] =
     await Promise.all([
       prisma.member.findUnique({ where: { userId } }),
       prisma.levelUser.findUnique({ where: { userId } }),
       prisma.levelUser.count(),
-      prisma.levelUser.findUnique({ where: { userId } }).then(async (l) =>
-        l ? prisma.levelUser.count({ where: { xp: { gt: l.xp } } }) : 0,
-      ),
       prisma.achievement.findMany({ orderBy: { id: "asc" } }),
       prisma.userAchievement.findMany({
         where: { userId },
@@ -47,6 +44,11 @@ export default async function PublicProfile({ params, searchParams }: PageProps)
       }),
       getConfig(),
     ]);
+
+  // Rang aus dem bereits geladenen levelUser berechnen (statt es erneut zu laden).
+  const higherRanked = levelUser
+    ? await prisma.levelUser.count({ where: { xp: { gt: levelUser.xp } } })
+    : 0;
 
   // Giveaway-Teilnahmen + Gewinne
   const giveawayEntries = await prisma.giveawayEntry.findMany({

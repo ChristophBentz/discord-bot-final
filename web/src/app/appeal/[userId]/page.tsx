@@ -1,4 +1,4 @@
-import { prisma, getConfig } from "@repo/db";
+import { prisma, getConfig } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { PublicFooter } from "@/components/PublicFooter";
 import { verifyAppealToken } from "@/lib/appealToken";

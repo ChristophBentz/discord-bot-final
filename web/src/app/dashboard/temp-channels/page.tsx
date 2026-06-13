@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { TempChannelForm } from "./TempChannelForm";
 import type { TriggerRow } from "./TriggerEditor";
 import { FeatureHero } from "@/components/FeatureHero";

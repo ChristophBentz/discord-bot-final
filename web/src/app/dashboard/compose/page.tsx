@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { DashboardTabs } from "@/components/DashboardTabs";
 import { ComposeForm } from "./ComposeForm";
 import { MessageHistory, type MessageRow } from "./MessageHistory";

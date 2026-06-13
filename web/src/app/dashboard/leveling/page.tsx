@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { LevelingForm } from "./LevelingForm";
 import { FeatureHero } from "@/components/FeatureHero";
 import { DashboardTabs } from "@/components/DashboardTabs";

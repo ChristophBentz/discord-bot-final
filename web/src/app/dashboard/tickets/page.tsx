@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { SettingsForm } from "./SettingsForm";
 import { DashboardTabs } from "@/components/DashboardTabs";
 import { LiveRefresh } from "@/components/LiveRefresh";

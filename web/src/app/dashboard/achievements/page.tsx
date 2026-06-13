@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { CreateAchievementForm } from "./CreateAchievementForm";
 import { AchievementCard, type AchievementItem } from "./AchievementCard";
 import { NotifySettingsForm } from "./NotifySettingsForm";

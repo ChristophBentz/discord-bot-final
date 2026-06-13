@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { LoggingForm } from "./LoggingForm";
 
 export default async function LoggingPage() {

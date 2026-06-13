@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { AutoModManager, type WordRow } from "./AutoModManager";
 import type { InviteRow } from "./WhitelistEditor";
 import type { ExcludedChannelRow } from "./ExclusionEditor";

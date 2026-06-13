@@ -3,12 +3,31 @@ import { MembersTable, type MemberRow, type RoleOption } from "./MembersTable";
 
 export default async function MembersPage() {
   const [members, roles, levelUsers] = await Promise.all([
+    // Nur die in der Tabelle genutzten Felder laden — spart das Mitziehen großer
+    // ungenutzter Spalten (Banner, Birthday-Felder, Token-Version …) pro Member.
     prisma.member.findMany({
       where: { inServer: true },
       orderBy: { displayName: "asc" },
+      select: {
+        userId: true,
+        displayName: true,
+        username: true,
+        avatarUrl: true,
+        joinedAt: true,
+        roleIds: true,
+        isBot: true,
+      },
     }),
     prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
-    prisma.levelUser.findMany(),
+    prisma.levelUser.findMany({
+      select: {
+        userId: true,
+        level: true,
+        xp: true,
+        messageCount: true,
+        voiceSeconds: true,
+      },
+    }),
   ]);
 
   const rolesById = new Map(roles.map((r) => [r.roleId, r]));

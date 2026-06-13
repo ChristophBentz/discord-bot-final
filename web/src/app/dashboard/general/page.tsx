@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getConfig } from "@repo/db";
+import { getConfig } from "@/lib/db";
 import { DashboardTabs } from "@/components/DashboardTabs";
 import { BotStatusForm } from "./BotStatusForm";
 import { BotIdentityForm } from "./BotIdentityForm";

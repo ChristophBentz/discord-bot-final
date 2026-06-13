@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { FreeGamesForm } from "./FreeGamesForm";
 import { PostHistory } from "./PostHistory";
 import { FeatureHero } from "@/components/FeatureHero";

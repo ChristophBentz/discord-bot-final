@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import Link from "next/link";
 import { PublicFooter } from "@/components/PublicFooter";
 import { progressFromXp, type Curve } from "../u/[userId]/levelCurve";

@@ -353,6 +353,8 @@ model Warning {
   createdAt   DateTime @default(now())
 
   @@index([userId])
+  // "neueste Warnungen"-Listen sortieren global über createdAt.
+  @@index([createdAt])
 }
 
 // Protokoll von Mod-Aktionen (Kick, Timeout, Voice-Move/-Disconnect) fürs Dashboard.
@@ -388,6 +390,11 @@ model LevelUser {
   messageCount Int      @default(0)
   voiceSeconds Int      @default(0)
   lastMessage  DateTime @default(now())
+
+  // xp: Leaderboard-Sortierung + Rang-Zählung (count where xp > x) auf jedem Profil.
+  // lastMessage: "zuletzt aktiv"-Sortierung + 7-Tage-Aktivitätszählung.
+  @@index([xp])
+  @@index([lastMessage])
 }
 
 // Rollen, die bei einem bestimmten Level vergeben werden.
@@ -628,6 +635,8 @@ model ChannelActivity {
   @@id([userId, channelId, date])
   @@index([userId, date])
   @@index([channelId])
+  // Top-Channels-Analytics filtert nur auf date (über alle User) → eigener Index.
+  @@index([date])
 }
 
 // Pro-Stunde-Aktivität pro User (für Heat-Map mit Tageszeit-Buckets).

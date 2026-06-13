@@ -10,6 +10,7 @@ import { WarnButton } from "./WarnButton";
 import { TimeoutButton } from "./TimeoutButton";
 import { KickButton } from "./KickButton";
 import { BanButton } from "./BanButton";
+import { BannerRefresher } from "./BannerRefresher";
 import {
   AchievementsPanel,
   type UnlockedAchievement,
@@ -92,7 +93,25 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
   since.setDate(since.getDate() - 29);
   const sinceKey = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, "0")}-${String(since.getDate()).padStart(2, "0")}`;
 
-  const [member, allRoles, levelUser, warnings, notes, activity, inviteUse] = await Promise.all([
+  // Lieblings-Channels: letzte 7 Tage.
+  const sinceWeek = new Date();
+  sinceWeek.setDate(sinceWeek.getDate() - 6);
+  const sinceWeekKey = `${sinceWeek.getFullYear()}-${String(sinceWeek.getMonth() + 1).padStart(2, "0")}-${String(sinceWeek.getDate()).padStart(2, "0")}`;
+
+  // Alle voneinander unabhängigen Queries parallel statt seriell.
+  const [
+    member,
+    allRoles,
+    levelUser,
+    warnings,
+    notes,
+    activity,
+    inviteUse,
+    blockedRoleRows,
+    channelTotals,
+    unlockedRows,
+    allAchievements,
+  ] = await Promise.all([
     prisma.member.findUnique({ where: { userId } }),
     prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
     prisma.levelUser.findUnique({ where: { userId } }),
@@ -103,12 +122,24 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
       orderBy: [{ date: "asc" }, { hour: "asc" }],
     }),
     prisma.inviteUse.findFirst({ where: { userId }, orderBy: { joinedAt: "desc" } }),
+    prisma.blockedRole.findMany({ select: { roleId: true } }),
+    prisma.channelActivity.groupBy({
+      by: ["channelId"],
+      where: { userId, date: { gte: sinceWeekKey } },
+      _sum: { messages: true },
+      orderBy: { _sum: { messages: "desc" } },
+      take: 5,
+    }),
+    prisma.userAchievement.findMany({
+      where: { userId },
+      include: { achievement: true },
+      orderBy: { awardedAt: "desc" },
+    }),
+    prisma.achievement.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   // Gesperrte Rollen (Owner-Liste) für die Picker-Ausblendung.
-  const blockedRoleIds = new Set(
-    (await prisma.blockedRole.findMany({ select: { roleId: true } })).map((b) => b.roleId),
-  );
+  const blockedRoleIds = new Set(blockedRoleRows.map((b) => b.roleId));
 
   const inviter = inviteUse?.inviterId
     ? await prisma.member.findUnique({
@@ -118,17 +149,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     : null;
   const inviterLabel = inviter?.displayName ?? (inviteUse?.inviterId ? `User ${inviteUse.inviterId.slice(-4)}` : null);
 
-  // Lieblings-Channels: letzte 7 Tage, gruppiert.
-  const sinceWeek = new Date();
-  sinceWeek.setDate(sinceWeek.getDate() - 6);
-  const sinceWeekKey = `${sinceWeek.getFullYear()}-${String(sinceWeek.getMonth() + 1).padStart(2, "0")}-${String(sinceWeek.getDate()).padStart(2, "0")}`;
-  const channelTotals = await prisma.channelActivity.groupBy({
-    by: ["channelId"],
-    where: { userId, date: { gte: sinceWeekKey } },
-    _sum: { messages: true },
-    orderBy: { _sum: { messages: "desc" } },
-    take: 5,
-  });
+  // channelDefs hängt von channelTotals ab → muss danach laufen.
   const channelDefs = await prisma.guildChannel.findMany({
     where: { channelId: { in: channelTotals.map((c) => c.channelId) } },
   });
@@ -146,15 +167,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     voiceSeconds: c.voiceSeconds,
   }));
 
-  // Achievements: erworben + alle zum manuellen Vergeben
-  const [unlockedRows, allAchievements] = await Promise.all([
-    prisma.userAchievement.findMany({
-      where: { userId },
-      include: { achievement: true },
-      orderBy: { awardedAt: "desc" },
-    }),
-    prisma.achievement.findMany({ orderBy: { name: "asc" } }),
-  ]);
+  // Achievements (oben parallel geladen): erworben + alle zum manuellen Vergeben
   const unlockedIds = new Set(unlockedRows.map((u) => u.achievementId));
   const unlocked: UnlockedAchievement[] = unlockedRows.map((u) => ({
     id: u.achievement.id,
@@ -175,26 +188,13 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
 
   if (!member) notFound();
 
-  // Banner + Accent-Color lazy refreshen: nur wenn noch nie geholt oder älter als 7 Tage
+  // Banner + Accent-Color nachladen, wenn noch nie geholt oder >7 Tage alt.
+  // Wird NICHT blockierend im Render geholt (war ein 30s-POST), sondern vom
+  // BannerRefresher-Client nach dem Mount im Hintergrund — die Action
+  // revalidiert die Seite, sobald der frische Banner da ist.
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const needsBannerRefresh =
     !member.bannerRefreshedAt || member.bannerRefreshedAt.getTime() < sevenDaysAgo;
-  if (needsBannerRefresh) {
-    const res = await callBot<{ bannerUrl: string | null }>(
-      `/api/members/${userId}/refresh-profile`,
-      { method: "POST" },
-    );
-    if (res.ok) {
-      // frisch aus DB nachladen damit die neuen Werte verfügbar sind
-      const fresh = await prisma.member.findUnique({ where: { userId } });
-      if (fresh) {
-        member.bannerUrl = fresh.bannerUrl;
-        member.accentColor = fresh.accentColor;
-        member.bannerRefreshedAt = fresh.bannerRefreshedAt;
-        member.avatarUrl = fresh.avatarUrl;
-      }
-    }
-  }
 
   let rank = 0;
   let totalRanked = 0;
@@ -289,6 +289,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      {needsBannerRefresh && <BannerRefresher userId={userId} />}
       {/* Banner + Identity Card */}
       <section className="card overflow-hidden p-0">
         {/* Banner — User-Banner falls Nitro, sonst Accent-Color-Gradient, sonst Default */}

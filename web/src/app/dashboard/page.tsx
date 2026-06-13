@@ -1,4 +1,4 @@
-import { getConfig, prisma } from "@repo/db";
+import { getConfig, prisma } from "@/lib/db";
 import { StatCard } from "@/components/StatCard";
 import { ModuleCard } from "@/components/ModuleCard";
 import { ActivityFeed } from "@/components/ActivityFeed";

@@ -29,18 +29,17 @@ export default async function TicketDetailPage({
   });
   if (!ticket) notFound();
 
-  const member = await prisma.member.findUnique({
-    where: { userId: ticket.userId },
-    select: { displayName: true, avatarUrl: true, username: true },
+  // Ticket-Ersteller + alle Message-Autoren in EINER Query laden (statt zwei seriellen).
+  const memberIds = Array.from(
+    new Set([ticket.userId, ...ticket.messages.map((m) => m.authorId)]),
+  );
+  const relatedMembers = await prisma.member.findMany({
+    where: { userId: { in: memberIds } },
+    select: { userId: true, displayName: true, avatarUrl: true, username: true },
   });
-
-  // Avatare für alle Message-Autoren (User + Mods, die in der Member-Tabelle sind)
-  const authorIds = Array.from(new Set(ticket.messages.map((m) => m.authorId)));
-  const authorMembers = await prisma.member.findMany({
-    where: { userId: { in: authorIds } },
-    select: { userId: true, avatarUrl: true },
-  });
-  const avatarById = new Map(authorMembers.map((m) => [m.userId, m.avatarUrl]));
+  const memberById = new Map(relatedMembers.map((m) => [m.userId, m]));
+  const member = memberById.get(ticket.userId) ?? null;
+  const avatarById = new Map(relatedMembers.map((m) => [m.userId, m.avatarUrl]));
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
