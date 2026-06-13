@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useDialog } from "@/components/DialogProvider";
 import { addMemberNote, deleteMemberNote } from "./actions";
 
 export interface Note {
@@ -16,6 +17,7 @@ function formatDate(iso: string): string {
 }
 
 export function NotesPanel({ userId, notes }: { userId: string; notes: Note[] }) {
+  const dialog = useDialog();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -34,8 +36,16 @@ export function NotesPanel({ userId, notes }: { userId: string; notes: Note[] })
     });
   };
 
-  const onDelete = (noteId: number) => {
-    if (!confirm("Diese Notiz löschen?")) return;
+  const onDelete = async (noteId: number) => {
+    if (
+      !(await dialog.confirm({
+        title: "Notiz löschen",
+        message: "Diese Notiz wird dauerhaft entfernt.",
+        confirmLabel: "Löschen",
+        danger: true,
+      }))
+    )
+      return;
     startTransition(async () => {
       await deleteMemberNote(noteId, userId);
     });

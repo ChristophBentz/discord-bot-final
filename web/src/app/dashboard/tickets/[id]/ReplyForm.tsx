@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useDialog } from "@/components/DialogProvider";
 import { closeTicket, replyToTicket } from "../actions";
 
 export function ReplyForm({ ticketId, closed }: { ticketId: number; closed: boolean }) {
   const router = useRouter();
+  const dialog = useDialog();
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"reply" | "close" | null>(null);
@@ -33,8 +35,15 @@ export function ReplyForm({ ticketId, closed }: { ticketId: number; closed: bool
     });
   };
 
-  const onClose = () => {
-    if (!confirm("Ticket schließen?")) return;
+  const onClose = async () => {
+    if (
+      !(await dialog.confirm({
+        title: "Ticket schließen",
+        message: "Der Ersteller kann danach nicht mehr antworten.",
+        confirmLabel: "Schließen",
+      }))
+    )
+      return;
     setError(null);
     setPending("close");
     startTransition(async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useDialog } from "@/components/DialogProvider";
 import { removeTimeout, unbanMember } from "./actions";
 
 export interface TimeoutEntry {
@@ -31,12 +32,20 @@ function timeUntil(epochMs: number): string {
 }
 
 export function TimeoutList({ items }: { items: TimeoutEntry[] }) {
+  const dialog = useDialog();
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleRemove = (userId: string) => {
-    if (!confirm("Timeout aufheben?")) return;
+  const handleRemove = async (userId: string) => {
+    if (
+      !(await dialog.confirm({
+        title: "Timeout aufheben",
+        message: "Der User kann danach wieder schreiben.",
+        confirmLabel: "Aufheben",
+      }))
+    )
+      return;
     setError(null);
     setPendingId(userId);
     startTransition(async () => {
@@ -93,12 +102,20 @@ export function TimeoutList({ items }: { items: TimeoutEntry[] }) {
 }
 
 export function BanList({ items }: { items: BanEntry[] }) {
+  const dialog = useDialog();
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleUnban = (userId: string) => {
-    if (!confirm("Ban aufheben?")) return;
+  const handleUnban = async (userId: string) => {
+    if (
+      !(await dialog.confirm({
+        title: "Ban aufheben",
+        message: "Der User kann dem Server danach wieder beitreten.",
+        confirmLabel: "Entbannen",
+      }))
+    )
+      return;
     setError(null);
     setPendingId(userId);
     startTransition(async () => {

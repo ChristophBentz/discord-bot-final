@@ -7,6 +7,7 @@ import { TopBar } from "@/components/TopBar";
 import { resolveAccent } from "@/lib/accent";
 import { canAccessDashboard } from "@/lib/access";
 import { StaleDeploymentReloader } from "@/components/StaleDeploymentReloader";
+import { DialogProvider } from "@/components/DialogProvider";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -25,19 +26,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const serverIconUrl = config.guildIconUrl;
 
   return (
-    <div className="flex min-h-screen">
-      <StaleDeploymentReloader />
-      <Sidebar
-        serverName={serverName}
-        memberCount={memberCount}
-        serverIconUrl={serverIconUrl}
-        accent={resolveAccent(config.accentFrom, config.accentTo)}
-        isOwner={isOwner}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar serverName={serverName} />
-        <main className="flex-1 p-8">{children}</main>
+    <DialogProvider>
+      <div className="flex min-h-screen">
+        <StaleDeploymentReloader />
+        <Sidebar
+          serverName={serverName}
+          memberCount={memberCount}
+          serverIconUrl={serverIconUrl}
+          accent={resolveAccent(config.accentFrom, config.accentTo)}
+          isOwner={isOwner}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar serverName={serverName} />
+          <main className="flex-1 p-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </DialogProvider>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useDialog } from "@/components/DialogProvider";
 import { deleteAchievement } from "./actions";
 
 export interface AchievementItem {
@@ -32,10 +33,19 @@ const TRIGGER_TONE: Record<string, string> = {
 
 export function AchievementCard({ a }: { a: AchievementItem }) {
   const router = useRouter();
+  const dialog = useDialog();
   const [isPending, startTransition] = useTransition();
 
-  const onDelete = () => {
-    if (!confirm(`Achievement "${a.name}" löschen?`)) return;
+  const onDelete = async () => {
+    if (
+      !(await dialog.confirm({
+        title: "Achievement löschen",
+        message: `„${a.name}" wird dauerhaft entfernt.`,
+        confirmLabel: "Löschen",
+        danger: true,
+      }))
+    )
+      return;
     startTransition(async () => {
       await deleteAchievement(a.id);
       router.refresh();

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useDialog } from "@/components/DialogProvider";
 import { CommandEditor } from "./CommandEditor";
 import { deleteCommand, type CommandFormState } from "./actions";
 
@@ -73,6 +74,7 @@ function formatRelative(iso: string): string {
 
 export function CommandsManager({ commands, roles, roleMap, bot }: Props) {
   const router = useRouter();
+  const dialog = useDialog();
   const [editing, setEditing] = useState<CommandSummary | "new" | null>(null);
   const [deletingName, setDeletingName] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -86,8 +88,16 @@ export function CommandsManager({ commands, roles, roleMap, bot }: Props) {
     );
   }, [commands, query]);
 
-  function confirmDelete(name: string) {
-    if (!confirm(`Command /${name} wirklich löschen?`)) return;
+  async function confirmDelete(name: string) {
+    if (
+      !(await dialog.confirm({
+        title: "Command löschen",
+        message: `Der Command /${name} wird dauerhaft entfernt.`,
+        confirmLabel: "Löschen",
+        danger: true,
+      }))
+    )
+      return;
     setDeletingName(name);
     startTransition(async () => {
       await deleteCommand(name);

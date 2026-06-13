@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
 import { MessagePreview } from "@/components/MessagePreview";
+import { useDialog } from "@/components/DialogProvider";
 import {
   createGiveaway,
   endGiveaway,
@@ -59,6 +60,7 @@ const DURATIONS = [
 
 export function GiveawayManager({ channels, roles, giveaways, bot }: Props) {
   const router = useRouter();
+  const dialog = useDialog();
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -137,15 +139,35 @@ export function GiveawayManager({ channels, roles, giveaways, bot }: Props) {
     });
   };
 
-  const runAction = (id: number, fn: (id: number) => Promise<{ ok: boolean; error?: string }>, confirmMsg?: string) => {
-    if (confirmMsg && !confirm(confirmMsg)) return;
-    setBusyId(id);
-    startTransition(async () => {
-      const res = await fn(id);
-      if (!res.ok) setFeedback({ kind: "error", msg: res.error ?? "Fehler" });
-      setBusyId(null);
-      router.refresh();
-    });
+  const runAction = (
+    id: number,
+    fn: (id: number) => Promise<{ ok: boolean; error?: string }>,
+    confirmMsg?: string,
+  ) => {
+    const run = () => {
+      setBusyId(id);
+      startTransition(async () => {
+        const res = await fn(id);
+        if (!res.ok) setFeedback({ kind: "error", msg: res.error ?? "Fehler" });
+        setBusyId(null);
+        router.refresh();
+      });
+    };
+    if (!confirmMsg) {
+      run();
+      return;
+    }
+    const isDelete = /löschen/i.test(confirmMsg);
+    void dialog
+      .confirm({
+        title: isDelete ? "Giveaway löschen" : "Aktion bestätigen",
+        message: confirmMsg,
+        confirmLabel: isDelete ? "Löschen" : "Bestätigen",
+        danger: isDelete,
+      })
+      .then((ok) => {
+        if (ok) run();
+      });
   };
 
   const active = giveaways.filter((g) => !g.ended);

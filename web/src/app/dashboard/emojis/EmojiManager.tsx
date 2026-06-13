@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDialog } from "@/components/DialogProvider";
 import { deleteEmoji, renameEmoji, uploadEmoji, type EmojiItem } from "./actions";
 import { fileNameToEmojiName, processImageForEmoji, type ResizeResult } from "./imageResize";
 
@@ -25,6 +26,7 @@ function fmtKB(bytes: number): string {
 }
 
 export function EmojiManager({ initial }: { initial: EmojiItem[] }) {
+  const dialog = useDialog();
   const [emojis, setEmojis] = useState<EmojiItem[]>(initial);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [search, setSearch] = useState("");
@@ -104,18 +106,33 @@ export function EmojiManager({ initial }: { initial: EmojiItem[] }) {
     setQueue((q) => q.filter((i) => i.status !== "done"));
   };
 
-  const onDelete = async (id: string) => {
-    if (!confirm("Wirklich löschen?")) return;
+  const onDelete = async (id: string, emojiName: string) => {
+    if (
+      !(await dialog.confirm({
+        title: "Emoji löschen",
+        message: `:${emojiName}: wird vom Server entfernt.`,
+        confirmLabel: "Löschen",
+        danger: true,
+      }))
+    )
+      return;
     const r = await deleteEmoji(id);
     if (r.ok) {
       setEmojis((e) => e.filter((x) => x.id !== id));
     } else {
-      alert("Löschen fehlgeschlagen: " + r.error);
+      await dialog.alert({ title: "Löschen fehlgeschlagen", message: r.error, danger: true });
     }
   };
 
   const onRename = async (id: string, oldName: string) => {
-    const name = prompt(`Neuer Name für :${oldName}:`, oldName);
+    const name = await dialog.prompt({
+      title: "Emoji umbenennen",
+      label: "Neuer Name",
+      defaultValue: oldName,
+      placeholder: "emoji_name",
+      maxLength: 32,
+      confirmLabel: "Umbenennen",
+    });
     if (!name || name === oldName) return;
     const r = await renameEmoji(id, name);
     if (r.ok) {
@@ -125,7 +142,7 @@ export function EmojiManager({ initial }: { initial: EmojiItem[] }) {
           .sort((a, b) => a.name.localeCompare(b.name)),
       );
     } else {
-      alert("Umbenennen fehlgeschlagen: " + r.error);
+      await dialog.alert({ title: "Umbenennen fehlgeschlagen", message: r.error, danger: true });
     }
   };
 
@@ -257,7 +274,7 @@ export function EmojiManager({ initial }: { initial: EmojiItem[] }) {
                 key={e.id}
                 emoji={e}
                 onRename={() => onRename(e.id, e.name)}
-                onDelete={() => onDelete(e.id)}
+                onDelete={() => onDelete(e.id, e.name)}
               />
             ))}
           </div>

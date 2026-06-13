@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useDialog } from "@/components/DialogProvider";
 import { approveAppeal, denyAppeal, deleteAppeal } from "./actions";
 
 export interface AppealEntry {
@@ -29,6 +30,7 @@ interface UserGroup {
 }
 
 export function AppealsList({ items }: { items: AppealEntry[] }) {
+  const dialog = useDialog();
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [noteFor, setNoteFor] = useState<{ id: number; mode: "approve" | "deny" } | null>(null);
@@ -62,8 +64,16 @@ export function AppealsList({ items }: { items: AppealEntry[] }) {
     });
   };
 
-  const remove = (id: number, hint: string) => {
-    if (!confirm(hint)) return;
+  const remove = async (id: number, hint: string) => {
+    if (
+      !(await dialog.confirm({
+        title: "Antrag löschen",
+        message: hint,
+        confirmLabel: "Löschen",
+        danger: true,
+      }))
+    )
+      return;
     setError(null);
     setPendingId(id);
     startTransition(async () => {
