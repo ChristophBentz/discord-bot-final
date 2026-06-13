@@ -5,10 +5,13 @@ import { logger } from "../../../lib/logger.js";
 import {
   findBadWord,
   findForbiddenInvite,
+  findScamImage,
   hasAutoModBypassRole,
   isChannelExcluded,
   trackForSpam,
 } from "../service.js";
+
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
 
 interface Violation {
   rule: string;
@@ -52,7 +55,6 @@ const event: BotEvent<Events.MessageCreate> = {
   async execute(message) {
     if (!message.guild) return;
     if (message.author.bot) return;
-    if (!message.content) return;
 
     try {
       const config = await prisma.config.findUnique({ where: { id: 1 } });
@@ -73,6 +75,23 @@ const event: BotEvent<Events.MessageCreate> = {
           return;
         }
       }
+
+      // Scam-Bild-Erkennung (auch bei Nachrichten ganz ohne Text)
+      if (config.autoModImageEnabled && message.attachments.size > 0) {
+        const imageUrls = [...message.attachments.values()]
+          .filter((a) => (a.contentType?.startsWith("image/") ?? false) || IMAGE_EXT.test(a.name ?? ""))
+          .map((a) => a.url);
+        if (imageUrls.length > 0) {
+          const match = await findScamImage(imageUrls, config.autoModImageThreshold);
+          if (match) {
+            await handleScamImage(message, config, match);
+            return; // behandelt, keine weiteren Checks
+          }
+        }
+      }
+
+      // Ab hier nur Text-basierte Checks → ohne Text nichts zu tun.
+      if (!message.content) return;
 
       // Anti-Spam separat behandeln (eigene Action: Timeout statt nur löschen)
       if (config.autoModSpamEnabled) {
@@ -294,6 +313,118 @@ async function handleSpam(
       dmSent,
     },
     "AutoMod: Spam-Detection ausgelöst",
+  );
+}
+
+// Bei Scam-Bild: Nachricht löschen, konfigurierte Action (Timeout/Ban/Delete), DM + Log.
+async function handleScamImage(
+  message: Message,
+  config: Config,
+  match: { label: string; distance: number },
+): Promise<void> {
+  const action = config.autoModImageAction; // "timeout" | "ban" | "delete"
+  const member = message.member;
+
+  // Nachricht immer löschen (best-effort)
+  await message.delete().catch((err) => {
+    logger.warn({ err }, "AutoMod: Konnte Scam-Bild nicht löschen");
+  });
+
+  // DM VOR Ban senden (nach dem Ban sind keine DMs mehr zustellbar)
+  let dmSent = false;
+  if (config.autoModDM) {
+    try {
+      const actionText =
+        action === "ban"
+          ? "Du wurdest vom Server gebannt."
+          : action === "timeout"
+            ? `Du wurdest für ${config.autoModImageTimeoutMinutes} Minuten stummgeschaltet.`
+            : "Deine Nachricht wurde entfernt.";
+      const dmEmbed = new EmbedBuilder()
+        .setColor(0xed4245)
+        .setTitle("🚫 Verbotenes Bild erkannt")
+        .setDescription(
+          `Auf dem Server **${config.guildName ?? "dem Server"}** hast du ein als Scam/verboten markiertes Bild gepostet. ${actionText}`,
+        )
+        .setTimestamp(new Date());
+      if (config.guildIconUrl) dmEmbed.setThumbnail(config.guildIconUrl);
+      await message.author.send({ embeds: [dmEmbed] });
+      dmSent = true;
+    } catch {
+      /* DMs zu */
+    }
+  }
+
+  // Action ausführen
+  let actionOk = false;
+  let actionResult = "Nur gelöscht";
+  if (action === "ban") {
+    try {
+      await message.guild!.members.ban(message.author.id, {
+        reason: `AutoMod: Scam-Bild (${match.label})`,
+        deleteMessageSeconds: 60 * 60, // letzte Stunde Nachrichten mitlöschen
+      });
+      actionOk = true;
+      actionResult = "Gebannt";
+    } catch (err) {
+      logger.warn({ err, userId: message.author.id }, "AutoMod: Ban fehlgeschlagen");
+      actionResult = "Ban fehlgeschlagen";
+    }
+  } else if (action === "timeout") {
+    if (member) {
+      try {
+        await member.timeout(
+          config.autoModImageTimeoutMinutes * 60 * 1000,
+          `AutoMod: Scam-Bild (${match.label})`,
+        );
+        actionOk = true;
+        actionResult = `Timeout für ${config.autoModImageTimeoutMinutes} Min`;
+      } catch (err) {
+        logger.warn({ err, userId: message.author.id }, "AutoMod: Timeout fehlgeschlagen");
+        actionResult = "Timeout fehlgeschlagen";
+      }
+    }
+  } else {
+    actionOk = true; // "delete" — Löschen ist die Action
+  }
+
+  // Log
+  if (config.logChannelId) {
+    try {
+      const channel = await message.client.channels
+        .fetch(config.logChannelId)
+        .catch(() => null);
+      if (channel?.isTextBased() && "send" in channel) {
+        const embed = new EmbedBuilder()
+          .setColor(0xed4245)
+          .setAuthor({
+            name: message.author.username,
+            iconURL: message.author.displayAvatarURL({ size: 64 }),
+          })
+          .setTitle("AutoMod: Scam-Bild erkannt")
+          .setDescription(`<@${message.author.id}> in <#${message.channelId}>`)
+          .addFields(
+            { name: "Erkanntes Bild", value: match.label, inline: true },
+            { name: "Abweichung", value: `${match.distance} Bit`, inline: true },
+            { name: "Action", value: actionResult, inline: true },
+            {
+              name: "DM-Status",
+              value: dmSent ? "✅ Zugestellt" : "❌ Nicht zustellbar",
+              inline: true,
+            },
+          )
+          .setTimestamp(new Date())
+          .setFooter({ text: `User-ID: ${message.author.id}` });
+        await (channel as TextChannel).send({ embeds: [embed] });
+      }
+    } catch (err) {
+      logger.warn({ err }, "Scam-Bild-Log fehlgeschlagen");
+    }
+  }
+
+  logger.info(
+    { userId: message.author.id, label: match.label, distance: match.distance, action, actionOk, dmSent },
+    "AutoMod: Scam-Bild behandelt",
   );
 }
 

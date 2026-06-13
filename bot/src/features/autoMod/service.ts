@@ -1,5 +1,6 @@
 import { prisma } from "@repo/db";
 import { env } from "../../lib/env.js";
+import { computeImageHash, hammingDistance } from "./imageHash.js";
 
 // Wortliste mit kurzer Cache-Zeit, damit Dashboard-Änderungen schnell greifen.
 let cached: { words: string[]; loadedAt: number } | null = null;
@@ -14,6 +15,54 @@ async function loadWords(): Promise<string[]> {
 
 export function invalidateBlacklistCache(): void {
   cached = null;
+}
+
+// ─── Scam-Bild-Erkennung ────────────────────────────────────────────────────
+let cachedImages: { rows: { id: number; hash: string; label: string }[]; loadedAt: number } | null = null;
+
+async function loadBlockedImages(): Promise<{ id: number; hash: string; label: string }[]> {
+  if (cachedImages && Date.now() - cachedImages.loadedAt < CACHE_TTL_MS) return cachedImages.rows;
+  const rows = await prisma.blockedImage.findMany({ select: { id: true, hash: true, label: true } });
+  cachedImages = { rows, loadedAt: Date.now() };
+  return rows;
+}
+
+export function invalidateBlockedImageCache(): void {
+  cachedImages = null;
+}
+
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Prüft die Bild-Anhänge einer Nachricht gegen die hinterlegten Scam-Bilder.
+ * Liefert das erste passende BlockedImage (innerhalb der Hamming-Schwelle) oder null.
+ */
+export async function findScamImage(
+  attachmentUrls: string[],
+  threshold: number,
+): Promise<{ label: string; distance: number } | null> {
+  const blocked = await loadBlockedImages();
+  if (blocked.length === 0) return null;
+
+  for (const url of attachmentUrls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const len = Number(res.headers.get("content-length") ?? 0);
+      if (len > MAX_IMAGE_BYTES) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > MAX_IMAGE_BYTES) continue;
+      const hash = await computeImageHash(buf);
+      if (!hash) continue;
+      for (const b of blocked) {
+        const distance = hammingDistance(hash, b.hash);
+        if (distance <= threshold) return { label: b.label, distance };
+      }
+    } catch {
+      /* Bild nicht ladbar/dekodierbar → überspringen */
+    }
+  }
+  return null;
 }
 
 // Whitelist-Cache (jetzt nach Guild-ID).

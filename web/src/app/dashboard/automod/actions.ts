@@ -4,6 +4,7 @@ import { prisma } from "@repo/db";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { callBot } from "@/lib/botApi";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -34,6 +35,38 @@ export async function addWord(formData: FormData): Promise<Result> {
     return { ok: false, error: "Wort steht bereits auf der Liste." };
   }
 
+  revalidatePath("/dashboard/automod");
+  return { ok: true };
+}
+
+// ─── Scam-Bilder ────────────────────────────────────────────────────────────
+export async function addBlockedImage(input: {
+  imageBase64: string;
+  label: string;
+}): Promise<Result> {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
+  const label = input.label.trim().slice(0, 100) || "Unbenannt";
+  if (!input.imageBase64) return { ok: false, error: "Kein Bild ausgewählt." };
+
+  const session = await getServerSession(authOptions);
+  const addedBy = (session?.user as { discordId?: string } | undefined)?.discordId ?? "";
+
+  const r = await callBot("/api/automod/images", {
+    method: "POST",
+    body: { imageBase64: input.imageBase64, label, addedBy },
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/dashboard/automod");
+  return { ok: true };
+}
+
+export async function removeBlockedImage(id: number): Promise<Result> {
+  const auth = await requireAuth();
+  if (auth) return auth;
+  const r = await callBot(`/api/automod/images/${id}`, { method: "DELETE" });
+  if (!r.ok) return { ok: false, error: r.error };
   revalidatePath("/dashboard/automod");
   return { ok: true };
 }
@@ -201,6 +234,14 @@ export async function saveAutoModSettings(formData: FormData): Promise<Result> {
   const spamTimeoutMinutes = clampInt(formData.get("autoModSpamTimeoutMinutes"), 5, 1, 1440);
   const exclusionsEnabled = formData.get("autoModExcludedChannelsEnabled") === "on";
 
+  const imageEnabled = formData.get("autoModImageEnabled") === "on";
+  const imageActionRaw = String(formData.get("autoModImageAction") ?? "timeout");
+  const imageAction = ["timeout", "ban", "delete"].includes(imageActionRaw)
+    ? imageActionRaw
+    : "timeout";
+  const imageTimeoutMinutes = clampInt(formData.get("autoModImageTimeoutMinutes"), 60, 1, 40320);
+  const imageThreshold = clampInt(formData.get("autoModImageThreshold"), 10, 0, 32);
+
   const data = {
     autoModEnabled: enabled,
     autoModDM: dm,
@@ -213,6 +254,10 @@ export async function saveAutoModSettings(formData: FormData): Promise<Result> {
     autoModSpamSeconds: spamSeconds,
     autoModSpamTimeoutMinutes: spamTimeoutMinutes,
     autoModExcludedChannelsEnabled: exclusionsEnabled,
+    autoModImageEnabled: imageEnabled,
+    autoModImageAction: imageAction,
+    autoModImageTimeoutMinutes: imageTimeoutMinutes,
+    autoModImageThreshold: imageThreshold,
   };
 
   await prisma.config.upsert({

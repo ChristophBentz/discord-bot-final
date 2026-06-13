@@ -3,17 +3,20 @@ import { AutoModManager, type WordRow } from "./AutoModManager";
 import type { InviteRow } from "./WhitelistEditor";
 import type { ExcludedChannelRow } from "./ExclusionEditor";
 import type { BypassRoleOption } from "./BypassRoleEditor";
+import type { BlockedImageRow } from "./ScamImageEditor";
 
 export default async function AutoModPage() {
-  const [config, words, invites, excluded, allChannelsRaw, bypassRows, allRoles] = await Promise.all([
-    getConfig(),
-    prisma.blacklistedWord.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.whitelistedInvite.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.autoModExcludedChannel.findMany({ orderBy: { addedAt: "desc" } }),
-    prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
-    prisma.autoModBypassRole.findMany({ select: { roleId: true } }),
-    prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
-  ]);
+  const [config, words, invites, excluded, allChannelsRaw, bypassRows, allRoles, blockedImagesRaw] =
+    await Promise.all([
+      getConfig(),
+      prisma.blacklistedWord.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.whitelistedInvite.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.autoModExcludedChannel.findMany({ orderBy: { addedAt: "desc" } }),
+      prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
+      prisma.autoModBypassRole.findMany({ select: { roleId: true } }),
+      prisma.guildRole.findMany({ orderBy: { position: "desc" } }),
+      prisma.blockedImage.findMany({ orderBy: { createdAt: "desc" } }),
+    ]);
   const inviteRows: InviteRow[] = invites.map((i) => ({
     id: i.id,
     guildId: i.guildId,
@@ -50,14 +53,20 @@ export default async function AutoModPage() {
     createdAt: w.createdAt.toISOString(),
   }));
 
+  const blockedImages: BlockedImageRow[] = blockedImagesRaw.map((b) => ({
+    id: b.id,
+    label: b.label,
+    thumbnail: b.thumbnail,
+  }));
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
         <div className="text-xs font-semibold uppercase tracking-wider text-brand">Moderation</div>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">AutoMod</h1>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          Automatischer Filter für Spam, Mass-Mentions, verbotene Wörter und Discord-Invites.
-          Pro Regel separat ein- und ausschaltbar.
+          Automatischer Filter für Spam, Mass-Mentions, verbotene Wörter, Discord-Invites und
+          bekannte Scam-Bilder. Pro Regel separat ein- und ausschaltbar.
         </p>
       </header>
 
@@ -74,6 +83,10 @@ export default async function AutoModPage() {
           autoModSpamSeconds: config.autoModSpamSeconds,
           autoModSpamTimeoutMinutes: config.autoModSpamTimeoutMinutes,
           autoModExcludedChannelsEnabled: config.autoModExcludedChannelsEnabled,
+          autoModImageEnabled: config.autoModImageEnabled,
+          autoModImageAction: config.autoModImageAction,
+          autoModImageTimeoutMinutes: config.autoModImageTimeoutMinutes,
+          autoModImageThreshold: config.autoModImageThreshold,
         }}
         words={wordRows}
         inviteWhitelist={inviteRows}
@@ -81,6 +94,7 @@ export default async function AutoModPage() {
         allChannels={allChannels}
         bypassRoles={bypassRoles}
         availableRoles={availableRoles}
+        blockedImages={blockedImages}
       />
     </div>
   );

@@ -64,6 +64,11 @@ import {
 } from "./routes/bot.js";
 import { handleRssCheck, handleRssTest, type TestBody as RssTestBody } from "./routes/rss.js";
 import {
+  handleAddBlockedImage,
+  handleDeleteBlockedImage,
+  type AddBlockedImageBody,
+} from "./routes/autoMod.js";
+import {
   handleSelfRoleSync,
   handleSelfRoleDeleteMessage,
 } from "./routes/selfRoles.js";
@@ -409,6 +414,24 @@ export function startApiServer(client: Client): void {
         else if (req.method === "POST" && action === "reroll") result = await handleRerollGiveaway(client, gid);
         else if (req.method === "DELETE" && !action) result = await handleDeleteGiveaway(client, gid);
         else return void fail(res, 404, "not found");
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/automod/images — Scam-Bild hinterlegen (Hash + Thumbnail via jimp)
+      if (req.method === "POST" && url.pathname === "/api/automod/images") {
+        const body = (await readJson<AddBlockedImageBody>(req)) ?? {};
+        const result = await handleAddBlockedImage(body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // DELETE /api/automod/images/:id — Scam-Bild entfernen
+      const blockedImgMatch = url.pathname.match(/^\/api\/automod\/images\/(\d+)$/);
+      if (req.method === "DELETE" && blockedImgMatch) {
+        const result = await handleDeleteBlockedImage(Number(blockedImgMatch[1]!));
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

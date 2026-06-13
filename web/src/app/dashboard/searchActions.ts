@@ -51,7 +51,7 @@ const PAGES: PageEntry[] = [
     title: "AutoMod",
     subtitle: "Automatische Moderation",
     href: "/dashboard/automod",
-    keywords: ["spam", "filter", "antispam", "mass-mention", "invite"],
+    keywords: ["spam", "filter", "antispam", "mass-mention", "invite", "scam", "scambild", "scam-bild", "betrug", "bild", "image", "phishing", "wortfilter"],
   },
   {
     title: "Audit Logs",

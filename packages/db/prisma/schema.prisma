@@ -90,6 +90,12 @@ model Config {
   autoModSpamTimeoutMinutes Int     @default(5)
   autoModExcludedChannelsEnabled Boolean @default(false)
 
+  // Scam-Bild-Erkennung (perceptual hashing gegen hinterlegte BlockedImage-Hashes)
+  autoModImageEnabled        Boolean @default(false)
+  autoModImageAction         String  @default("timeout") // "timeout" | "ban" | "delete"
+  autoModImageTimeoutMinutes Int     @default(60)
+  autoModImageThreshold      Int     @default(10) // max. Hamming-Distanz für einen Treffer
+
   // Leveling
   levelingEnabled    Boolean @default(false)
   levelUpChannelId   String?
@@ -542,6 +548,18 @@ model BlockedRole {
 model AllowlistedUser {
   userId    String   @id
   createdAt DateTime @default(now())
+}
+
+// Hinterlegte Scam-Bilder für die AutoMod-Bilderkennung.
+model BlockedImage {
+  id          Int      @id @default(autoincrement())
+  hash        String // perceptual hash (dHash, 16 Hex-Zeichen)
+  label       String // vom Mod vergebener Name
+  thumbnail   String? // kleines Vorschau-Thumbnail (data-URL) fürs Dashboard
+  addedBy     String
+  createdAt   DateTime @default(now())
+
+  @@index([hash])
 }
 
 // Giveaways — vom Dashboard erstellt, Bot postet/verwaltet die Nachricht.

@@ -8,6 +8,7 @@ import { addWord, removeWord, saveAutoModSettings } from "./actions";
 import { WhitelistEditor, type InviteRow } from "./WhitelistEditor";
 import { ExclusionEditor, type ExcludedChannelRow } from "./ExclusionEditor";
 import { BypassRoleEditor, type BypassRoleOption } from "./BypassRoleEditor";
+import { ScamImageEditor, type BlockedImageRow } from "./ScamImageEditor";
 import type { ChannelOption } from "@/components/ChannelPicker";
 
 export interface WordRow {
@@ -28,6 +29,10 @@ interface Initial {
   autoModSpamSeconds: number;
   autoModSpamTimeoutMinutes: number;
   autoModExcludedChannelsEnabled: boolean;
+  autoModImageEnabled: boolean;
+  autoModImageAction: string;
+  autoModImageTimeoutMinutes: number;
+  autoModImageThreshold: number;
 }
 
 interface Props {
@@ -38,9 +43,10 @@ interface Props {
   allChannels: ChannelOption[];
   bypassRoles: BypassRoleOption[];
   availableRoles: BypassRoleOption[];
+  blockedImages: BlockedImageRow[];
 }
 
-type ModalKey = "bypass" | "invites" | "exclusions" | "words";
+type ModalKey = "bypass" | "invites" | "exclusions" | "words" | "images";
 
 export function AutoModManager({
   initial,
@@ -50,6 +56,7 @@ export function AutoModManager({
   allChannels,
   bypassRoles,
   availableRoles,
+  blockedImages,
 }: Props) {
   const [autoModOn, setAutoModOn] = useState(initial.autoModEnabled);
   const [dmOn, setDmOn] = useState(initial.autoModDM);
@@ -57,6 +64,7 @@ export function AutoModManager({
   const [inviteOn, setInviteOn] = useState(initial.autoModBlockInvites);
   const [mentionOn, setMentionOn] = useState(initial.autoModMassMentionEnabled);
   const [spamOn, setSpamOn] = useState(initial.autoModSpamEnabled);
+  const [imageOn, setImageOn] = useState(initial.autoModImageEnabled);
   const [exclusionsOn, setExclusionsOn] = useState(initial.autoModExcludedChannelsEnabled);
   const [wordsOn, setWordsOn] = useState(words.length > 0); // konzeptuell: wenn Wörter da, ist Filter "an"
 
@@ -64,6 +72,9 @@ export function AutoModManager({
   const [spamMsg, setSpamMsg] = useState(initial.autoModSpamMessages);
   const [spamSec, setSpamSec] = useState(initial.autoModSpamSeconds);
   const [spamTimeout, setSpamTimeout] = useState(initial.autoModSpamTimeoutMinutes);
+  const [imageAction, setImageAction] = useState(initial.autoModImageAction);
+  const [imageTimeout, setImageTimeout] = useState(initial.autoModImageTimeoutMinutes);
+  const [imageThreshold, setImageThreshold] = useState(initial.autoModImageThreshold);
 
   const [modal, setModal] = useState<ModalKey | null>(null);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; msg: string } | null>(null);
@@ -74,8 +85,9 @@ export function AutoModManager({
     inviteOn,
     mentionOn,
     spamOn,
+    imageOn,
   ].filter(Boolean).length;
-  const totalRules = 4;
+  const totalRules = 5;
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -260,6 +272,65 @@ export function AutoModManager({
               </div>
             )}
           </RuleCard>
+
+          <div className="sm:col-span-2">
+            <RuleCard
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="9" cy="9" r="2" />
+                  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                </svg>
+              }
+              title="Scam-Bilder"
+              description="Hinterlegte Betrugs-Bilder werden erkannt und automatisch geahndet — auch ohne Text."
+              enabled={imageOn}
+              toggleName="autoModImageEnabled"
+              onToggleChange={setImageOn}
+              tone="sky"
+              stat={`${blockedImages.length} ${blockedImages.length === 1 ? "Bild" : "Bilder"} hinterlegt`}
+              onManage={() => setModal("images")}
+              manageLabel="Bilder verwalten"
+            >
+              {imageOn && (
+                <div className="mt-4 space-y-3 rounded-xl border border-line bg-bg-card/50 p-3">
+                  {/* Aktion */}
+                  <div>
+                    <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-subtle">
+                      Aktion bei Treffer
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <ActionOption label="Timeout" value="timeout" current={imageAction} onSelect={setImageAction} />
+                      <ActionOption label="Bannen" value="ban" current={imageAction} onSelect={setImageAction} />
+                      <ActionOption label="Nur löschen" value="delete" current={imageAction} onSelect={setImageAction} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {imageAction === "timeout" && (
+                      <NumberField
+                        label="Timeout"
+                        suffix="Min"
+                        value={imageTimeout}
+                        min={1}
+                        max={40320}
+                        onChange={setImageTimeout}
+                        compact
+                      />
+                    )}
+                    <NumberField
+                      label="Empfindlichkeit"
+                      hint="max. Bit-Abweichung (kleiner = strenger)"
+                      value={imageThreshold}
+                      min={0}
+                      max={32}
+                      onChange={setImageThreshold}
+                      compact
+                    />
+                  </div>
+                </div>
+              )}
+            </RuleCard>
+          </div>
         </div>
 
         {/* Globale Optionen */}
@@ -304,6 +375,9 @@ export function AutoModManager({
       <input type="hidden" name="autoModSpamMessages" value={spamMsg} />
       <input type="hidden" name="autoModSpamSeconds" value={spamSec} />
       <input type="hidden" name="autoModSpamTimeoutMinutes" value={spamTimeout} />
+      <input type="hidden" name="autoModImageAction" value={imageAction} />
+      <input type="hidden" name="autoModImageTimeoutMinutes" value={imageTimeout} />
+      <input type="hidden" name="autoModImageThreshold" value={imageThreshold} />
       {!autoModOn && (
         <>
           <input type="hidden" name="autoModDM" value={dmOn ? "on" : ""} />
@@ -315,6 +389,7 @@ export function AutoModManager({
             value={mentionOn ? "on" : ""}
           />
           <input type="hidden" name="autoModSpamEnabled" value={spamOn ? "on" : ""} />
+          <input type="hidden" name="autoModImageEnabled" value={imageOn ? "on" : ""} />
           <input
             type="hidden"
             name="autoModExcludedChannelsEnabled"
@@ -370,7 +445,44 @@ export function AutoModManager({
         </p>
         <ExclusionEditor channels={excludedChannels} allChannels={allChannels} />
       </Modal>
+
+      <Modal open={modal === "images"} onClose={() => setModal(null)} title="Scam-Bilder" width="lg">
+        <p className="mb-4 text-sm text-ink-muted">
+          Lade Bilder hoch, die als Scam/Betrug bekannt sind. Postet jemand ein optisch
+          (nahezu) identisches Bild, greift automatisch die oben gewählte Aktion — auch
+          wenn das Bild leicht verkleinert oder neu komprimiert wurde.
+        </p>
+        <ScamImageEditor images={blockedImages} />
+      </Modal>
     </form>
+  );
+}
+
+// ─── Action-Auswahl (Timeout / Ban / Delete) ───────────────────────────────
+function ActionOption({
+  label,
+  value,
+  current,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  current: string;
+  onSelect: (v: string) => void;
+}) {
+  const active = current === value;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className={`rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${
+        active
+          ? "border-brand bg-brand/10 text-brand"
+          : "border-line bg-bg-elevated/60 text-ink-muted hover:border-line-strong hover:text-ink"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -455,7 +567,7 @@ interface RuleCardProps {
   toggleName?: string;
   onToggleChange?: (v: boolean) => void;
   stat?: string;
-  tone: "rose" | "amber" | "purple";
+  tone: "rose" | "amber" | "purple" | "sky";
   onManage?: () => void;
   manageLabel?: string;
   children?: ReactNode;
@@ -479,14 +591,18 @@ function RuleCard({
       ? "border-rose-500/30 bg-rose-500/[0.04]"
       : tone === "amber"
         ? "border-amber-500/30 bg-amber-500/[0.04]"
-        : "border-purple-500/30 bg-purple-500/[0.04]"
+        : tone === "sky"
+          ? "border-sky-500/30 bg-sky-500/[0.04]"
+          : "border-purple-500/30 bg-purple-500/[0.04]"
     : "border-line bg-bg-elevated/40";
   const iconClass = enabled
     ? tone === "rose"
       ? "bg-rose-500/15 text-rose-400"
       : tone === "amber"
         ? "bg-amber-500/15 text-amber-400"
-        : "bg-purple-500/15 text-purple-400"
+        : tone === "sky"
+          ? "bg-sky-500/15 text-sky-400"
+          : "bg-purple-500/15 text-purple-400"
     : "bg-zinc-500/10 text-zinc-500";
 
   return (
