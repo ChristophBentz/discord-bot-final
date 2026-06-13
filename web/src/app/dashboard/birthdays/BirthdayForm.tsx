@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
+import { MessagePreview } from "@/components/MessagePreview";
 import { saveBirthdaySettings } from "./actions";
 
 interface Initial {
@@ -23,10 +24,12 @@ export function BirthdayForm({
   initial,
   channels,
   roles,
+  bot,
 }: {
   initial: Initial;
   channels: ChannelOption[];
   roles: RoleOption[];
+  bot: { name: string; avatarUrl: string | null };
 }) {
   const [enabled, setEnabled] = useState(initial.birthdayEnabled);
   const [channelId, setChannelId] = useState(initial.birthdayChannelId ?? "");
@@ -44,9 +47,13 @@ export function BirthdayForm({
     });
   };
 
-  const previewMessage = (message.trim() || DEFAULT_MESSAGE)
-    .replaceAll("{user}", "@Max")
-    .replaceAll("{age}", " 🎂 21 Jahre!");
+  // Vorschau: Ping + Markdown-fähige Nachricht, wie sie der Bot postet.
+  const pingPrefix = pingRoleId ? `<@&${pingRoleId}> ` : "";
+  const previewMessage =
+    pingPrefix +
+    (message.trim() || DEFAULT_MESSAGE)
+      .replaceAll("{user}", "<@123>")
+      .replaceAll("{age}", " 🎂 21 Jahre!");
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -131,12 +138,11 @@ export function BirthdayForm({
               </p>
             </div>
 
-            <div className="rounded-xl border border-line bg-bg-elevated/40 p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
-                Vorschau
-              </div>
-              <div className="mt-1.5 whitespace-pre-wrap text-sm text-ink">{previewMessage}</div>
-            </div>
+            <MessagePreview
+              text={previewMessage}
+              botName={bot.name}
+              botAvatarUrl={bot.avatarUrl}
+            />
           </div>
         )}
       </section>

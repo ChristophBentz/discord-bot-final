@@ -103,6 +103,7 @@ export default async function BirthdaysPage() {
                   position: c.position,
                 }))}
                 roles={roles.map((r) => ({ roleId: r.roleId, name: r.name, color: r.color }))}
+                bot={{ name: config.botName ?? "Bot", avatarUrl: config.botAvatarUrl }}
               />
             ),
           },
