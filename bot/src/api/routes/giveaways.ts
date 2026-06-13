@@ -1,5 +1,5 @@
 import type { Client, TextChannel } from "discord.js";
-import { PermissionFlagsBits } from "discord.js";
+import { AttachmentBuilder, PermissionFlagsBits } from "discord.js";
 import { prisma } from "@repo/db";
 import { buildGiveawayMessage, drawWinners, refreshGiveawayMessage, rerollSingleWinner, type BonusRole } from "../../features/giveaway/service.js";
 
@@ -12,6 +12,9 @@ export interface CreateGiveawayBody {
   prize?: string;
   description?: string;
   rewardCode?: string;
+  imageUrl?: string;
+  imageBase64?: string;
+  imageFileName?: string;
   winnerCount?: number;
   durationSeconds?: number;
   minLevel?: number | null;
@@ -63,12 +66,27 @@ export async function handleCreateGiveaway(
     .filter((b) => b && SNOWFLAKE.test(b.roleId) && Number.isFinite(b.extra) && b.extra > 0)
     .map((b) => ({ roleId: b.roleId, extra: Math.min(100, Math.floor(b.extra)) }));
 
+  // Bild: entweder eine direkte URL oder ein Upload (als Attachment posten,
+  // danach die Discord-CDN-URL speichern, damit spätere Edits es behalten).
+  const directUrl = (body.imageUrl ?? "").trim();
+  if (directUrl && !/^https?:\/\/\S+$/i.test(directUrl)) {
+    return { ok: false, error: "Bild-URL muss mit http(s) beginnen." };
+  }
+  let uploadAttachment: AttachmentBuilder | null = null;
+  if (body.imageBase64 && body.imageFileName) {
+    const buf = Buffer.from(body.imageBase64, "base64");
+    if (buf.length > 8 * 1024 * 1024) return { ok: false, error: "Bild größer als 8 MB." };
+    const ext = (body.imageFileName.split(".").pop() ?? "png").replace(/[^a-z0-9]/gi, "").toLowerCase() || "png";
+    uploadAttachment = new AttachmentBuilder(buf, { name: `giveaway.${ext}` });
+  }
+
   const endsAt = new Date(Date.now() + durationSec * 1000);
   const giveaway = await prisma.giveaway.create({
     data: {
       channelId,
       prize,
       description: (body.description ?? "").trim().slice(0, 1000) || null,
+      imageUrl: directUrl || null, // Upload-URL folgt nach dem Post
       rewardCode: (body.rewardCode ?? "").trim().slice(0, 2000) || null,
       bonusRolesJson: bonusRoles.length ? JSON.stringify(bonusRoles) : null,
       winnerCount,
@@ -81,8 +99,20 @@ export async function handleCreateGiveaway(
     include: { entries: { select: { userId: true, isWinner: true, tickets: true } } },
   });
 
-  const msg = await c.channel.send(buildGiveawayMessage(giveaway));
-  await prisma.giveaway.update({ where: { id: giveaway.id }, data: { messageId: msg.id } });
+  const built = buildGiveawayMessage(giveaway);
+  if (uploadAttachment) {
+    // Erst-Post mit Attachment, Embed referenziert es.
+    built.embeds[0]!.setImage(`attachment://${uploadAttachment.name}`);
+    const msg = await c.channel.send({ ...built, files: [uploadAttachment] });
+    const cdnUrl = msg.attachments.first()?.url ?? null;
+    await prisma.giveaway.update({
+      where: { id: giveaway.id },
+      data: { messageId: msg.id, imageUrl: cdnUrl },
+    });
+  } else {
+    const msg = await c.channel.send(built);
+    await prisma.giveaway.update({ where: { id: giveaway.id }, data: { messageId: msg.id } });
+  }
   return { ok: true, id: giveaway.id };
 }
 

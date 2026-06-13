@@ -69,6 +69,8 @@ export function buildGiveawayMessage(g: GiveawayWithEntries): {
     .setTitle(g.prize)
     .setFooter({ text: `Giveaway #${g.id} · Hosted by Team` });
 
+  if (g.imageUrl) embed.setImage(g.imageUrl);
+
   // Transparenz: erklären, wie ausgelost wird.
   const drawLines: string[] = [];
   if (bonusRoles.length > 0) {

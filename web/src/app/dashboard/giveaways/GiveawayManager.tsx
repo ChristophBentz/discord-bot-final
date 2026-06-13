@@ -66,12 +66,29 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
   const [prize, setPrize] = useState("");
   const [description, setDescription] = useState("");
   const [rewardCode, setRewardCode] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<{ name: string; dataUrl: string } | null>(null);
   const [winnerCount, setWinnerCount] = useState(1);
   const [duration, setDuration] = useState(86400);
   const [minLevel, setMinLevel] = useState("");
   const [requiredRoleId, setRequiredRoleId] = useState("");
   const [minMemberDays, setMinMemberDays] = useState("");
   const [bonusRoles, setBonusRoles] = useState<{ roleId: string; extra: number }[]>([]);
+
+  const onImageFile = (file: File | null) => {
+    if (!file) return setImageFile(null);
+    if (!file.type.startsWith("image/")) {
+      setFeedback({ kind: "error", msg: "Nur Bilddateien erlaubt." });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setFeedback({ kind: "error", msg: "Bild größer als 8 MB." });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setImageFile({ name: file.name, dataUrl: reader.result as string });
+    reader.readAsDataURL(file);
+  };
 
   const addBonusRole = () => setBonusRoles((p) => [...p, { roleId: "", extra: 1 }]);
   const updateBonusRole = (i: number, patch: Partial<{ roleId: string; extra: number }>) =>
@@ -89,6 +106,9 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
         prize: prize.trim(),
         description: description.trim() || undefined,
         rewardCode: rewardCode.trim() || undefined,
+        imageUrl: !imageFile && imageUrl.trim() ? imageUrl.trim() : undefined,
+        imageBase64: imageFile ? imageFile.dataUrl.split(",")[1] : undefined,
+        imageFileName: imageFile?.name,
         winnerCount,
         durationSeconds: duration,
         minLevel: minLevel ? Math.max(1, parseInt(minLevel)) : null,
@@ -101,6 +121,8 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
         setPrize("");
         setDescription("");
         setRewardCode("");
+        setImageUrl("");
+        setImageFile(null);
         setMinLevel("");
         setRequiredRoleId("");
         setMinMemberDays("");
@@ -168,6 +190,58 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
             placeholder="Details zum Gewinn, Regeln, …"
             className="input min-h-[60px] w-full resize-y"
           />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink">
+            Bild (optional)
+          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-bg-elevated/60 px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:border-brand/40 hover:text-ink">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+              Bild hochladen
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  onImageFile(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            <span className="text-xs text-ink-subtle">oder</span>
+            <input
+              value={imageUrl}
+              onChange={(e) => {
+                setImageUrl(e.target.value);
+                if (e.target.value) setImageFile(null);
+              }}
+              disabled={!!imageFile}
+              placeholder="Bild-URL (https://…)"
+              className="input flex-1 disabled:opacity-50"
+            />
+          </div>
+          {(imageFile || imageUrl.trim()) && (
+            <div className="mt-2 flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageFile?.dataUrl ?? imageUrl}
+                alt=""
+                className="max-h-32 rounded-lg border border-line object-contain"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setImageFile(null);
+                  setImageUrl("");
+                }}
+                className="text-xs text-ink-subtle hover:text-rose-400"
+              >
+                Entfernen
+              </button>
+            </div>
+          )}
         </div>
 
         <div>

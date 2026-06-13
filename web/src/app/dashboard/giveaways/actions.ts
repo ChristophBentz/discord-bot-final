@@ -11,6 +11,9 @@ export interface CreateInput {
   prize: string;
   description?: string;
   rewardCode?: string;
+  imageUrl?: string;
+  imageBase64?: string;
+  imageFileName?: string;
   winnerCount: number;
   durationSeconds: number;
   minLevel?: number | null;
