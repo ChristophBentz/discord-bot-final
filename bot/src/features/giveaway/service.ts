@@ -14,7 +14,8 @@ import { env } from "../../lib/env.js";
 
 const BRAND_COLOR = 0xa855f7;
 const ENDED_COLOR = 0x4b5563;
-const CHECK_INTERVAL_MS = 60 * 1000; // jede Minute auf abgelaufene Giveaways prüfen
+// Häufig prüfen, damit auch kurze Test-Giveaways (z.B. 30s) zeitnah enden.
+const CHECK_INTERVAL_MS = 10 * 1000;
 
 interface GiveawayWithEntries extends Giveaway {
   entries: { userId: string; isWinner: boolean }[];
@@ -28,41 +29,48 @@ export function buildGiveawayMessage(g: GiveawayWithEntries): {
   const entryCount = g.entries.length;
   const winners = g.entries.filter((e) => e.isWinner).map((e) => e.userId);
 
+  const endTs = Math.floor(g.endsAt.getTime() / 1000);
+  const criteria: string[] = [];
+  if (g.minLevel) criteria.push(`🔹 Mindestens **Level ${g.minLevel}**`);
+  if (g.requiredRoleId) criteria.push(`🔹 Rolle <@&${g.requiredRoleId}> erforderlich`);
+  if (g.minMemberDays) criteria.push(`🔹 Seit mind. **${g.minMemberDays} Tagen** dabei`);
+
   const embed = new EmbedBuilder()
     .setColor(g.ended ? ENDED_COLOR : BRAND_COLOR)
-    .setTitle(`🎉 ${g.prize}`)
-    .setFooter({ text: `Giveaway #${g.id}` })
-    .setTimestamp(g.endsAt);
-
-  if (g.description) embed.setDescription(g.description);
-
-  const criteria: string[] = [];
-  if (g.minLevel) criteria.push(`• Mindestens **Level ${g.minLevel}**`);
-  if (g.requiredRoleId) criteria.push(`• Rolle <@&${g.requiredRoleId}> erforderlich`);
-  if (g.minMemberDays) criteria.push(`• Seit mind. **${g.minMemberDays} Tagen** auf dem Server`);
+    .setAuthor({ name: g.ended ? "Giveaway · beendet" : "🎉 GIVEAWAY" })
+    .setTitle(g.prize)
+    .setFooter({ text: `Giveaway #${g.id} · Hosted by Team` });
 
   if (!g.ended) {
-    embed.addFields(
-      { name: "Endet", value: `<t:${Math.floor(g.endsAt.getTime() / 1000)}:R>`, inline: true },
-      { name: "Gewinner", value: String(g.winnerCount), inline: true },
-      { name: "Teilnehmer", value: String(entryCount), inline: true },
-    );
-    if (criteria.length) embed.addFields({ name: "Teilnahme-Bedingungen", value: criteria.join("\n") });
-    embed.addFields({ name: "​", value: "Klick auf 🎉 zum Teilnehmen!" });
+    const lines = [
+      g.description ? `${g.description}\n` : "",
+      `Klick auf **🎉 Teilnehmen**, um mitzumachen!`,
+      "",
+      `**Endet:** <t:${endTs}:R> · <t:${endTs}:f>`,
+      `**Gewinner:** ${g.winnerCount}  •  **Teilnehmer:** ${entryCount}`,
+      criteria.length ? `\n**Bedingungen**\n${criteria.join("\n")}` : "",
+    ];
+    embed.setDescription(lines.filter((l) => l !== "").join("\n")).setTimestamp(g.endsAt);
   } else {
-    embed.addFields(
-      { name: "Beendet", value: `<t:${Math.floor(g.endsAt.getTime() / 1000)}:R>`, inline: true },
-      { name: "Teilnehmer", value: String(entryCount), inline: true },
-      {
-        name: winners.length > 0 ? "Gewinner 🏆" : "Ergebnis",
-        value: winners.length > 0 ? winners.map((id) => `<@${id}>`).join(", ") : "Keine gültigen Teilnehmer.",
-      },
+    const winnerLine =
+      winners.length > 0
+        ? `🏆 **${winners.length === 1 ? "Gewinner" : "Gewinner"}:** ${winners.map((id) => `<@${id}>`).join(", ")}`
+        : "Leider gab es keine gültigen Teilnehmer.";
+    embed.setDescription(
+      [
+        g.description ? `${g.description}\n` : "",
+        winnerLine,
+        "",
+        `Beendet <t:${endTs}:R> · ${entryCount} Teilnehmer`,
+      ]
+        .filter((l) => l !== "")
+        .join("\n"),
     );
   }
 
   const button = new ButtonBuilder()
     .setCustomId(`giveaway:enter:${g.id}`)
-    .setStyle(ButtonStyle.Primary)
+    .setStyle(g.ended ? ButtonStyle.Secondary : ButtonStyle.Success)
     .setEmoji("🎉")
     .setLabel(g.ended ? "Beendet" : "Teilnehmen")
     .setDisabled(g.ended);
@@ -157,7 +165,8 @@ export async function drawWinners(client: Client, id: number): Promise<{ winners
       .catch(() => null);
   }
 
-  // Optionale DM an Gewinner (nur wenn deren giveawayWinDm an ist)
+  // Optionale DM an Gewinner (nur wenn deren giveawayWinDm an ist).
+  // Ein hinterlegter Reward-Code wird direkt in der DM mitgeschickt.
   for (const userId of winners) {
     const member = await prisma.member.findUnique({
       where: { userId },
@@ -166,12 +175,14 @@ export async function drawWinners(client: Client, id: number): Promise<{ winners
     if (member && !member.giveawayWinDm) continue;
     try {
       const user = await client.users.fetch(userId);
+      const codeBlock = g.rewardCode
+        ? `\n\n**Dein Code:**\n\`\`\`\n${g.rewardCode}\n\`\`\``
+        : "\nMelde dich beim Team, um deinen Gewinn zu erhalten.";
       await user.send(
-        `🎉 Glückwunsch! Du hast bei einem Giveaway **${g.prize}** gewonnen.\n` +
-          `Melde dich beim Team, um deinen Gewinn zu erhalten.`,
+        `🎉 Glückwunsch! Du hast bei einem Giveaway **${g.prize}** gewonnen.${codeBlock}`,
       );
     } catch {
-      /* DMs gesperrt — ignorieren */
+      /* DMs gesperrt — ignorieren; Host sieht den Code im Dashboard */
     }
   }
 

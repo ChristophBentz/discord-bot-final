@@ -551,6 +551,9 @@ model Giveaway {
   messageId      String? // gesetzt, sobald die Giveaway-Nachricht gepostet wurde
   prize          String
   description    String?
+  // Optionaler Gewinn-Code (z.B. Key/Gutschein) — wird dem Gewinner per DM
+  // zugeschickt und ist im Dashboard sichtbar. Nicht öffentlich im Channel.
+  rewardCode     String?
   winnerCount    Int      @default(1)
   hostId         String // wer das Giveaway erstellt hat
   // Teilnahme-Kriterien (alle optional)

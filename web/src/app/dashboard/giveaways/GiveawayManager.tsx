@@ -17,6 +17,7 @@ export interface GiveawayRow {
   channelName: string | null;
   prize: string;
   description: string | null;
+  rewardCode: string | null;
   winnerCount: number;
   minLevel: number | null;
   requiredRoleName: string | null;
@@ -33,14 +34,17 @@ interface Props {
   giveaways: GiveawayRow[];
 }
 
+// Werte in Sekunden.
 const DURATIONS = [
-  { label: "30 Minuten", value: 30 },
-  { label: "1 Stunde", value: 60 },
-  { label: "6 Stunden", value: 360 },
-  { label: "12 Stunden", value: 720 },
-  { label: "1 Tag", value: 1440 },
-  { label: "3 Tage", value: 4320 },
-  { label: "1 Woche", value: 10080 },
+  { label: "30 Sekunden (Test)", value: 30 },
+  { label: "5 Minuten", value: 300 },
+  { label: "30 Minuten", value: 1800 },
+  { label: "1 Stunde", value: 3600 },
+  { label: "6 Stunden", value: 21600 },
+  { label: "12 Stunden", value: 43200 },
+  { label: "1 Tag", value: 86400 },
+  { label: "3 Tage", value: 259200 },
+  { label: "1 Woche", value: 604800 },
 ];
 
 export function GiveawayManager({ channels, roles, giveaways }: Props) {
@@ -53,8 +57,9 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
   const [channelId, setChannelId] = useState("");
   const [prize, setPrize] = useState("");
   const [description, setDescription] = useState("");
+  const [rewardCode, setRewardCode] = useState("");
   const [winnerCount, setWinnerCount] = useState(1);
-  const [duration, setDuration] = useState(1440);
+  const [duration, setDuration] = useState(86400);
   const [minLevel, setMinLevel] = useState("");
   const [requiredRoleId, setRequiredRoleId] = useState("");
   const [minMemberDays, setMinMemberDays] = useState("");
@@ -69,8 +74,9 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
         channelId,
         prize: prize.trim(),
         description: description.trim() || undefined,
+        rewardCode: rewardCode.trim() || undefined,
         winnerCount,
-        durationMinutes: duration,
+        durationSeconds: duration,
         minLevel: minLevel ? Math.max(1, parseInt(minLevel)) : null,
         requiredRoleId: requiredRoleId || null,
         minMemberDays: minMemberDays ? Math.max(1, parseInt(minMemberDays)) : null,
@@ -79,6 +85,7 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
         setFeedback({ kind: "ok", msg: "Giveaway gestartet!" });
         setPrize("");
         setDescription("");
+        setRewardCode("");
         setMinLevel("");
         setRequiredRoleId("");
         setMinMemberDays("");
@@ -145,6 +152,23 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
             placeholder="Details zum Gewinn, Regeln, …"
             className="input min-h-[60px] w-full resize-y"
           />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink">
+            Gewinn-Code (optional)
+          </label>
+          <input
+            value={rewardCode}
+            onChange={(e) => setRewardCode(e.target.value)}
+            maxLength={500}
+            placeholder="z.B. ein Key oder Gutscheincode"
+            className="input font-mono"
+          />
+          <p className="mt-1 text-xs text-ink-subtle">
+            Wird dem Gewinner privat per DM zugeschickt (nie öffentlich im Channel). Hier im
+            Dashboard bleibt er sichtbar, falls du ihn manuell weitergeben musst.
+          </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -321,6 +345,12 @@ function GiveawayCard({
             <div className="mt-1.5 text-xs">
               <span className="text-ink-subtle">Gewinner: </span>
               <span className="font-medium text-ink">{g.winners.map((w) => w.name).join(", ")}</span>
+            </div>
+          )}
+          {g.rewardCode && (
+            <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-bg-elevated px-2 py-1 text-xs">
+              <span className="text-ink-subtle">Code:</span>
+              <code className="font-mono text-ink">{g.rewardCode}</code>
             </div>
           )}
         </div>

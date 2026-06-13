@@ -10,8 +10,9 @@ export interface CreateInput {
   channelId: string;
   prize: string;
   description?: string;
+  rewardCode?: string;
   winnerCount: number;
-  durationMinutes: number;
+  durationSeconds: number;
   minLevel?: number | null;
   requiredRoleId?: string | null;
   minMemberDays?: number | null;

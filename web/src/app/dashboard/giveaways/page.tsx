@@ -34,6 +34,7 @@ export default async function GiveawaysPage() {
     channelName: channelById.get(g.channelId) ?? null,
     prize: g.prize,
     description: g.description,
+    rewardCode: g.rewardCode,
     winnerCount: g.winnerCount,
     minLevel: g.minLevel,
     requiredRoleName: g.requiredRoleId ? (roleById.get(g.requiredRoleId) ?? null) : null,

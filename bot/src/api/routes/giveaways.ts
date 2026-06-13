@@ -11,8 +11,9 @@ export interface CreateGiveawayBody {
   channelId?: string;
   prize?: string;
   description?: string;
+  rewardCode?: string;
   winnerCount?: number;
-  durationMinutes?: number;
+  durationSeconds?: number;
   minLevel?: number | null;
   requiredRoleId?: string | null;
   minMemberDays?: number | null;
@@ -47,8 +48,8 @@ export async function handleCreateGiveaway(
   if (!prize) return { ok: false, error: "Preis darf nicht leer sein." };
   if (prize.length > 200) return { ok: false, error: "Preis max. 200 Zeichen." };
   const winnerCount = Math.max(1, Math.min(50, Math.floor(body.winnerCount ?? 1)));
-  const duration = Math.max(1, Math.floor(body.durationMinutes ?? 0));
-  if (!duration) return { ok: false, error: "Dauer fehlt." };
+  const durationSec = Math.max(10, Math.floor(body.durationSeconds ?? 0));
+  if (!durationSec) return { ok: false, error: "Dauer fehlt." };
   if (body.requiredRoleId && !SNOWFLAKE.test(body.requiredRoleId)) {
     return { ok: false, error: "Ungültige Rollen-ID." };
   }
@@ -56,12 +57,13 @@ export async function handleCreateGiveaway(
   const c = await postableChannel(client, channelId);
   if (!c.ok) return c;
 
-  const endsAt = new Date(Date.now() + duration * 60_000);
+  const endsAt = new Date(Date.now() + durationSec * 1000);
   const giveaway = await prisma.giveaway.create({
     data: {
       channelId,
       prize,
       description: (body.description ?? "").trim().slice(0, 1000) || null,
+      rewardCode: (body.rewardCode ?? "").trim().slice(0, 500) || null,
       winnerCount,
       hostId: body.hostId ?? "dashboard",
       minLevel: body.minLevel ?? null,
