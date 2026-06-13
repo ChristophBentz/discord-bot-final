@@ -1,7 +1,7 @@
 import type { Client, TextChannel } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import { prisma } from "@repo/db";
-import { buildGiveawayMessage, drawWinners, refreshGiveawayMessage } from "../../features/giveaway/service.js";
+import { buildGiveawayMessage, drawWinners, refreshGiveawayMessage, rerollSingleWinner, type BonusRole } from "../../features/giveaway/service.js";
 
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -17,6 +17,7 @@ export interface CreateGiveawayBody {
   minLevel?: number | null;
   requiredRoleId?: string | null;
   minMemberDays?: number | null;
+  bonusRoles?: BonusRole[];
   hostId?: string;
 }
 
@@ -57,13 +58,19 @@ export async function handleCreateGiveaway(
   const c = await postableChannel(client, channelId);
   if (!c.ok) return c;
 
+  // Bonus-Rollen säubern (gültige Snowflake + positive Extra-Lose).
+  const bonusRoles = (body.bonusRoles ?? [])
+    .filter((b) => b && SNOWFLAKE.test(b.roleId) && Number.isFinite(b.extra) && b.extra > 0)
+    .map((b) => ({ roleId: b.roleId, extra: Math.min(100, Math.floor(b.extra)) }));
+
   const endsAt = new Date(Date.now() + durationSec * 1000);
   const giveaway = await prisma.giveaway.create({
     data: {
       channelId,
       prize,
       description: (body.description ?? "").trim().slice(0, 1000) || null,
-      rewardCode: (body.rewardCode ?? "").trim().slice(0, 500) || null,
+      rewardCode: (body.rewardCode ?? "").trim().slice(0, 2000) || null,
+      bonusRolesJson: bonusRoles.length ? JSON.stringify(bonusRoles) : null,
       winnerCount,
       hostId: body.hostId ?? "dashboard",
       minLevel: body.minLevel ?? null,
@@ -71,7 +78,7 @@ export async function handleCreateGiveaway(
       minMemberDays: body.minMemberDays ?? null,
       endsAt,
     },
-    include: { entries: { select: { userId: true, isWinner: true } } },
+    include: { entries: { select: { userId: true, isWinner: true, tickets: true } } },
   });
 
   const msg = await c.channel.send(buildGiveawayMessage(giveaway));
@@ -99,6 +106,17 @@ export async function handleRerollGiveaway(
   if (!g.ended) return { ok: false, error: "Giveaway läuft noch — erst beenden." };
   const { winners } = await drawWinners(client, id);
   return { ok: true, winners };
+}
+
+export async function handleRerollWinner(
+  client: Client,
+  id: number,
+  userId: string,
+): Promise<Result<{ newWinner: string | null }>> {
+  if (!SNOWFLAKE.test(userId)) return { ok: false, error: "Ungültige User-ID." };
+  const res = await rerollSingleWinner(client, id, userId);
+  if (!res.ok) return res;
+  return { ok: true, newWinner: res.newWinner };
 }
 
 export async function handleDeleteGiveaway(

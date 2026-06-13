@@ -71,6 +71,7 @@ import {
   handleCreateGiveaway,
   handleEndGiveaway,
   handleRerollGiveaway,
+  handleRerollWinner,
   handleDeleteGiveaway,
   type CreateGiveawayBody,
 } from "./routes/giveaways.js";
@@ -382,6 +383,17 @@ export function startApiServer(client: Client): void {
         const body = await readJson<CreateGiveawayBody>(req);
         if (!body) return void fail(res, 400, "Body ist kein valides JSON");
         const result = await handleCreateGiveaway(client, body);
+        if (result.ok) ok(res, result);
+        else fail(res, 400, result.error);
+        return;
+      }
+
+      // POST /api/giveaways/:id/reroll-winner — einen einzelnen Gewinner ersetzen
+      const gaWinnerMatch = url.pathname.match(/^\/api\/giveaways\/(\d+)\/reroll-winner$/);
+      if (req.method === "POST" && gaWinnerMatch) {
+        const gid = Number(gaWinnerMatch[1]!);
+        const body = await readJson<{ userId?: string }>(req);
+        const result = await handleRerollWinner(client, gid, body?.userId ?? "");
         if (result.ok) ok(res, result);
         else fail(res, 400, result.error);
         return;

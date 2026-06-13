@@ -16,6 +16,7 @@ export interface CreateInput {
   minLevel?: number | null;
   requiredRoleId?: string | null;
   minMemberDays?: number | null;
+  bonusRoles?: { roleId: string; extra: number }[];
 }
 
 export async function createGiveaway(input: CreateInput): Promise<Result> {
@@ -45,6 +46,18 @@ export async function rerollGiveaway(id: number): Promise<Result> {
   const auth = await requireAuth();
   if (auth) return auth;
   const r = await callBot(`/api/giveaways/${id}/reroll`, { method: "POST" });
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/dashboard/giveaways");
+  return { ok: true };
+}
+
+export async function rerollWinner(id: number, userId: string): Promise<Result> {
+  const auth = await requireAuth();
+  if (auth) return auth;
+  const r = await callBot(`/api/giveaways/${id}/reroll-winner`, {
+    method: "POST",
+    body: { userId },
+  });
   if (!r.ok) return { ok: false, error: r.error };
   revalidatePath("/dashboard/giveaways");
   return { ok: true };

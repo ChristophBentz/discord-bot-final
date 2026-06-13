@@ -3,7 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChannelPicker, type ChannelOption } from "@/components/ChannelPicker";
-import { createGiveaway, endGiveaway, rerollGiveaway, deleteGiveaway } from "./actions";
+import {
+  createGiveaway,
+  endGiveaway,
+  rerollGiveaway,
+  rerollWinner,
+  deleteGiveaway,
+} from "./actions";
 
 interface RoleOption {
   roleId: string;
@@ -22,10 +28,12 @@ export interface GiveawayRow {
   minLevel: number | null;
   requiredRoleName: string | null;
   minMemberDays: number | null;
+  bonusRoles: { roleName: string; extra: number }[];
   endsAt: string;
   ended: boolean;
   entryCount: number;
-  winners: { userId: string; name: string }[];
+  totalTickets: number;
+  winners: { userId: string; name: string; dmStatus: string | null; code: string | null }[];
 }
 
 interface Props {
@@ -63,6 +71,12 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
   const [minLevel, setMinLevel] = useState("");
   const [requiredRoleId, setRequiredRoleId] = useState("");
   const [minMemberDays, setMinMemberDays] = useState("");
+  const [bonusRoles, setBonusRoles] = useState<{ roleId: string; extra: number }[]>([]);
+
+  const addBonusRole = () => setBonusRoles((p) => [...p, { roleId: "", extra: 1 }]);
+  const updateBonusRole = (i: number, patch: Partial<{ roleId: string; extra: number }>) =>
+    setBonusRoles((p) => p.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
+  const removeBonusRole = (i: number) => setBonusRoles((p) => p.filter((_, idx) => idx !== i));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +94,7 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
         minLevel: minLevel ? Math.max(1, parseInt(minLevel)) : null,
         requiredRoleId: requiredRoleId || null,
         minMemberDays: minMemberDays ? Math.max(1, parseInt(minMemberDays)) : null,
+        bonusRoles: bonusRoles.filter((b) => b.roleId && b.extra > 0),
       });
       if (res.ok) {
         setFeedback({ kind: "ok", msg: "Giveaway gestartet!" });
@@ -89,6 +104,7 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
         setMinLevel("");
         setRequiredRoleId("");
         setMinMemberDays("");
+        setBonusRoles([]);
         setWinnerCount(1);
         router.refresh();
       } else {
@@ -156,18 +172,20 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink">
-            Gewinn-Code (optional)
+            Gewinn-Code(s) (optional)
           </label>
-          <input
+          <textarea
             value={rewardCode}
             onChange={(e) => setRewardCode(e.target.value)}
-            maxLength={500}
-            placeholder="z.B. ein Key oder Gutscheincode"
-            className="input font-mono"
+            rows={2}
+            maxLength={2000}
+            placeholder={"Ein Code pro Zeile — bei mehreren Gewinnern bekommt jeder einen eigenen."}
+            className="input min-h-[56px] w-full resize-y font-mono text-xs"
           />
           <p className="mt-1 text-xs text-ink-subtle">
-            Wird dem Gewinner privat per DM zugeschickt (nie öffentlich im Channel). Hier im
-            Dashboard bleibt er sichtbar, falls du ihn manuell weitergeben musst.
+            Wird dem Gewinner privat per DM zugeschickt (nie öffentlich im Channel). Bei mehreren
+            Gewinnern: <strong>ein Code pro Zeile</strong>, jeder bekommt einen anderen. Im
+            Dashboard bleiben die Codes für dich sichtbar.
           </p>
         </div>
 
@@ -241,6 +259,65 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
           </div>
         </div>
 
+        {/* Bonus-Lose nach Rolle — Transparenz */}
+        <div className="rounded-xl border border-line bg-bg-elevated/40 p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+              Bonus-Lose nach Rolle (optional)
+            </div>
+            <button
+              type="button"
+              onClick={addBonusRole}
+              className="rounded-md border border-line bg-bg-elevated/60 px-2 py-0.5 text-xs text-ink-muted hover:border-brand/40 hover:text-ink"
+            >
+              + Rolle
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-ink-subtle">
+            Standard: jeder hat <strong>1 Los</strong>. Hier kannst du Rollen extra Lose geben
+            (z.B. Booster) — das erhöht ihre Gewinnchance. Wird im Giveaway transparent angezeigt.
+          </p>
+          {bonusRoles.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {bonusRoles.map((b, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <select
+                    value={b.roleId}
+                    onChange={(e) => updateBonusRole(i, { roleId: e.target.value })}
+                    className="input !py-2 flex-1 text-sm"
+                  >
+                    <option value="">— Rolle wählen —</option>
+                    {roles.map((r) => (
+                      <option key={r.roleId} value={r.roleId}>
+                        @{r.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-1 text-sm text-ink-muted">
+                    +
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={b.extra}
+                      onChange={(e) => updateBonusRole(i, { extra: Math.max(1, parseInt(e.target.value) || 1) })}
+                      className="input !w-16 !py-2 text-sm"
+                    />
+                    Lose
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeBonusRole(i)}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-subtle hover:bg-rose-500/15 hover:text-rose-400"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-end gap-3">
           {feedback && (
             <span className={`text-sm ${feedback.kind === "ok" ? "text-emerald-400" : "text-rose-400"}`}>
@@ -285,7 +362,10 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
                 key={g.id}
                 g={g}
                 busy={busyId === g.id && isPending}
-                onReroll={() => runAction(g.id, rerollGiveaway, `Neue Gewinner für „${g.prize}" auslosen?`)}
+                onReroll={() => runAction(g.id, rerollGiveaway, `ALLE Gewinner für „${g.prize}" neu auslosen?`)}
+                onRerollWinner={(uid) =>
+                  runAction(g.id, (id) => rerollWinner(id, uid), `Diesen Gewinner ersetzen (neuen aus dem Pool ziehen)?`)
+                }
                 onDelete={() => runAction(g.id, deleteGiveaway, `Giveaway „${g.prize}" löschen?`)}
               />
             ))}
@@ -296,17 +376,25 @@ export function GiveawayManager({ channels, roles, giveaways }: Props) {
   );
 }
 
+const DM_BADGE: Record<string, { label: string; cls: string }> = {
+  sent: { label: "DM ✓", cls: "bg-emerald-500/15 text-emerald-400" },
+  failed: { label: "DM fehlgeschlagen", cls: "bg-rose-500/15 text-rose-400" },
+  disabled: { label: "keine DM gewünscht", cls: "bg-bg-elevated text-ink-subtle" },
+};
+
 function GiveawayCard({
   g,
   busy,
   onEnd,
   onReroll,
+  onRerollWinner,
   onDelete,
 }: {
   g: GiveawayRow;
   busy: boolean;
   onEnd?: () => void;
   onReroll?: () => void;
+  onRerollWinner?: (userId: string) => void;
   onDelete?: () => void;
 }) {
   const criteria: string[] = [];
@@ -317,7 +405,7 @@ function GiveawayCard({
   return (
     <li className={`card p-4 ${busy ? "opacity-50" : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-base font-semibold">🎉 {g.prize}</span>
             <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[11px] text-ink-subtle">
@@ -326,6 +414,8 @@ function GiveawayCard({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
             <span>{g.entryCount} Teilnehmer</span>
+            <span>·</span>
+            <span>{g.totalTickets} Lose</span>
             <span>·</span>
             <span>{g.winnerCount} Gewinner</span>
             {!g.ended && (
@@ -341,16 +431,58 @@ function GiveawayCard({
               </>
             )}
           </div>
-          {g.ended && g.winners.length > 0 && (
-            <div className="mt-1.5 text-xs">
-              <span className="text-ink-subtle">Gewinner: </span>
-              <span className="font-medium text-ink">{g.winners.map((w) => w.name).join(", ")}</span>
+
+          {/* Bonus-Lose transparent */}
+          {g.bonusRoles.length > 0 && (
+            <div className="mt-1.5 text-xs text-ink-subtle">
+              Bonus-Lose: {g.bonusRoles.map((b) => `@${b.roleName} +${b.extra}`).join(", ")}
             </div>
           )}
-          {g.rewardCode && (
+
+          {/* Gewinner mit DM-Status, Code und Einzel-Reroll */}
+          {g.ended && g.winners.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {g.winners.map((w) => {
+                const badge = w.dmStatus ? DM_BADGE[w.dmStatus] : null;
+                return (
+                  <li
+                    key={w.userId}
+                    className="flex flex-wrap items-center gap-2 rounded-lg bg-bg-elevated/40 px-2.5 py-1.5 text-xs"
+                  >
+                    <span className="font-medium text-ink">🏆 {w.name}</span>
+                    {badge && (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>
+                        {badge.label}
+                      </span>
+                    )}
+                    {w.code && (
+                      <span className="inline-flex items-center gap-1 rounded bg-bg-card px-1.5 py-0.5">
+                        <span className="text-ink-subtle">Code:</span>
+                        <code className="font-mono text-ink">{w.code}</code>
+                      </span>
+                    )}
+                    {onRerollWinner && (
+                      <button
+                        type="button"
+                        onClick={() => onRerollWinner(w.userId)}
+                        disabled={busy}
+                        title="Diesen Gewinner ersetzen"
+                        className="ml-auto rounded border border-line px-1.5 py-0.5 text-[10px] text-ink-subtle hover:border-brand/40 hover:text-ink"
+                      >
+                        ↻ ersetzen
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* Codes vor dem Ende (Vorrat) */}
+          {!g.ended && g.rewardCode && (
             <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-bg-elevated px-2 py-1 text-xs">
-              <span className="text-ink-subtle">Code:</span>
-              <code className="font-mono text-ink">{g.rewardCode}</code>
+              <span className="text-ink-subtle">Codes hinterlegt:</span>
+              <code className="font-mono text-ink">{g.rewardCode.split("\n").filter(Boolean).length}</code>
             </div>
           )}
         </div>

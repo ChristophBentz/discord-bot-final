@@ -2,11 +2,25 @@ import { prisma } from "@repo/db";
 import { FeatureHero } from "@/components/FeatureHero";
 import { GiveawayManager, type GiveawayRow } from "./GiveawayManager";
 
+function parseBonus(json: string | null): { roleId: string; extra: number }[] {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json) as { roleId: string; extra: number }[];
+    return Array.isArray(arr) ? arr.filter((b) => b?.roleId && Number.isFinite(b.extra)) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function GiveawaysPage() {
   const [giveaways, channels, roles] = await Promise.all([
     prisma.giveaway.findMany({
       orderBy: [{ ended: "asc" }, { endsAt: "desc" }],
-      include: { entries: { select: { userId: true, isWinner: true } } },
+      include: {
+        entries: {
+          select: { userId: true, isWinner: true, tickets: true, dmStatus: true, assignedCode: true },
+        },
+      },
       take: 50,
     }),
     prisma.guildChannel.findMany({ orderBy: { position: "asc" } }),
@@ -39,12 +53,22 @@ export default async function GiveawaysPage() {
     minLevel: g.minLevel,
     requiredRoleName: g.requiredRoleId ? (roleById.get(g.requiredRoleId) ?? null) : null,
     minMemberDays: g.minMemberDays,
+    bonusRoles: parseBonus(g.bonusRolesJson).map((b) => ({
+      roleName: roleById.get(b.roleId) ?? `Rolle ${b.roleId.slice(-4)}`,
+      extra: b.extra,
+    })),
     endsAt: g.endsAt.toISOString(),
     ended: g.ended,
     entryCount: g.entries.length,
+    totalTickets: g.entries.reduce((s, e) => s + (e.tickets ?? 1), 0),
     winners: g.entries
       .filter((e) => e.isWinner)
-      .map((e) => ({ userId: e.userId, name: nameById.get(e.userId) ?? `User ${e.userId.slice(-4)}` })),
+      .map((e) => ({
+        userId: e.userId,
+        name: nameById.get(e.userId) ?? `User ${e.userId.slice(-4)}`,
+        dmStatus: e.dmStatus,
+        code: e.assignedCode,
+      })),
   }));
 
   const activeCount = rows.filter((g) => !g.ended).length;

@@ -2,7 +2,7 @@ import { Events, MessageFlags, type Interaction } from "discord.js";
 import { prisma } from "@repo/db";
 import type { BotEvent } from "../../../lib/types.js";
 import { logger } from "../../../lib/logger.js";
-import { checkEligibility, refreshGiveawayMessage } from "../service.js";
+import { checkEligibility, computeTickets, parseBonusRoles, refreshGiveawayMessage } from "../service.js";
 
 const event: BotEvent<Events.InteractionCreate> = {
   name: Events.InteractionCreate,
@@ -47,9 +47,26 @@ const event: BotEvent<Events.InteractionCreate> = {
         return;
       }
 
-      await prisma.giveawayEntry.create({ data: { giveawayId: id, userId: member.id } });
+      // Lose berechnen (Basis 1 + Bonus-Rollen) und transparent zurückmelden.
+      const bonusRoles = parseBonusRoles(giveaway.bonusRolesJson);
+      const tickets = computeTickets(member, bonusRoles);
+
+      await prisma.giveawayEntry.create({
+        data: { giveawayId: id, userId: member.id, tickets },
+      });
       await refreshGiveawayMessage(interaction.client, id);
-      await reply("✅ Du nimmst jetzt teil! Viel Glück 🍀");
+
+      if (tickets > 1) {
+        const bonusLines = bonusRoles
+          .filter((b) => member.roles.cache.has(b.roleId))
+          .map((b) => `+${b.extra} für <@&${b.roleId}>`);
+        await reply(
+          `✅ Du nimmst jetzt teil mit **${tickets} Losen** 🍀\n` +
+            `(1 Basis-Los${bonusLines.length ? ", " + bonusLines.join(", ") : ""}) — mehr Lose = höhere Chance.`,
+        );
+      } else {
+        await reply("✅ Du nimmst jetzt teil mit **1 Los** 🍀 — alle haben die gleiche Chance.");
+      }
     } catch (err) {
       logger.error({ err }, "Giveaway-Teilnahme-Fehler");
       if (!interaction.replied) {

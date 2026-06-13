@@ -18,7 +18,33 @@ const ENDED_COLOR = 0x4b5563;
 const CHECK_INTERVAL_MS = 10 * 1000;
 
 interface GiveawayWithEntries extends Giveaway {
-  entries: { userId: string; isWinner: boolean }[];
+  entries: { userId: string; isWinner: boolean; tickets: number }[];
+}
+
+export interface BonusRole {
+  roleId: string;
+  extra: number;
+}
+
+export function parseBonusRoles(json: string | null): BonusRole[] {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json) as BonusRole[];
+    return Array.isArray(arr)
+      ? arr.filter((b) => b && typeof b.roleId === "string" && Number.isFinite(b.extra))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Wie viele Lose hat dieser Member? Basis 1 + Bonus aller passenden Rollen. */
+export function computeTickets(member: GuildMember, bonusRoles: BonusRole[]): number {
+  let tickets = 1;
+  for (const b of bonusRoles) {
+    if (member.roles.cache.has(b.roleId)) tickets += Math.max(0, Math.floor(b.extra));
+  }
+  return Math.max(1, tickets);
 }
 
 /** Baut Embed + Teilnahme-Button für eine Giveaway-Nachricht. */
@@ -28,6 +54,8 @@ export function buildGiveawayMessage(g: GiveawayWithEntries): {
 } {
   const entryCount = g.entries.length;
   const winners = g.entries.filter((e) => e.isWinner).map((e) => e.userId);
+  const totalTickets = g.entries.reduce((s, e) => s + (e.tickets ?? 1), 0);
+  const bonusRoles = parseBonusRoles(g.bonusRolesJson);
 
   const endTs = Math.floor(g.endsAt.getTime() / 1000);
   const criteria: string[] = [];
@@ -41,6 +69,18 @@ export function buildGiveawayMessage(g: GiveawayWithEntries): {
     .setTitle(g.prize)
     .setFooter({ text: `Giveaway #${g.id} · Hosted by Team` });
 
+  // Transparenz: erklären, wie ausgelost wird.
+  const drawLines: string[] = [];
+  if (bonusRoles.length > 0) {
+    drawLines.push(
+      "Gewichtete Verlosung — jeder hat **1 Los**, bestimmte Rollen bekommen Bonus-Lose:",
+    );
+    for (const b of bonusRoles) drawLines.push(`🎟️ <@&${b.roleId}> · **+${b.extra}**`);
+    drawLines.push("Mehr Lose = höhere Gewinnchance. Pro Teilnehmer wird aber nur einmal gewonnen.");
+  } else {
+    drawLines.push("Faire Zufallsziehung — jeder Teilnehmer hat **genau 1 Los**, gleiche Chance für alle.");
+  }
+
   if (!g.ended) {
     const lines = [
       g.description ? `${g.description}\n` : "",
@@ -51,6 +91,10 @@ export function buildGiveawayMessage(g: GiveawayWithEntries): {
       criteria.length ? `\n**Bedingungen**\n${criteria.join("\n")}` : "",
     ];
     embed.setDescription(lines.filter((l) => l !== "").join("\n")).setTimestamp(g.endsAt);
+    embed.addFields({
+      name: "🎲 So wird ausgelost",
+      value: drawLines.join("\n") + (totalTickets > 0 ? `\n\n_Aktuell ${totalTickets} Lose im Topf._` : ""),
+    });
   } else {
     const winnerLine =
       winners.length > 0
@@ -110,7 +154,7 @@ export async function checkEligibility(
 async function fetchGiveaway(id: number): Promise<GiveawayWithEntries | null> {
   return prisma.giveaway.findUnique({
     where: { id },
-    include: { entries: { select: { userId: true, isWinner: true } } },
+    include: { entries: { select: { userId: true, isWinner: true, tickets: true } } },
   });
 }
 
@@ -125,29 +169,91 @@ export async function refreshGiveawayMessage(client: Client, id: number): Promis
   await msg.edit(buildGiveawayMessage(g)).catch((err) => logger.warn({ err, id }, "Giveaway-Edit fehlgeschlagen"));
 }
 
-/** Zieht zufällig Gewinner und benachrichtigt sie (DM, falls erlaubt). */
+/**
+ * Gewichtete Ziehung OHNE Zurücklegen: jeder Teilnehmer ist mit `tickets` Losen
+ * im Topf, kann aber nur einmal gewinnen. Zieht `count` eindeutige Gewinner aus
+ * dem `candidates`-Pool.
+ */
+function weightedDraw(
+  candidates: { userId: string; tickets: number }[],
+  count: number,
+): string[] {
+  const pool = candidates.map((c) => ({ userId: c.userId, tickets: Math.max(1, c.tickets) }));
+  const winners: string[] = [];
+  while (winners.length < count && pool.length > 0) {
+    const total = pool.reduce((s, c) => s + c.tickets, 0);
+    let r = Math.random() * total;
+    let idx = 0;
+    for (let i = 0; i < pool.length; i++) {
+      r -= pool[i]!.tickets;
+      if (r <= 0) {
+        idx = i;
+        break;
+      }
+    }
+    winners.push(pool[idx]!.userId);
+    pool.splice(idx, 1); // ohne Zurücklegen
+  }
+  return winners;
+}
+
+/** Schickt einem Gewinner die DM (falls erlaubt) und liefert den Status zurück. */
+async function notifyWinner(
+  client: Client,
+  userId: string,
+  prize: string,
+  code: string | null,
+): Promise<"sent" | "failed" | "disabled"> {
+  const member = await prisma.member.findUnique({
+    where: { userId },
+    select: { giveawayWinDm: true },
+  });
+  if (member && !member.giveawayWinDm) return "disabled";
+  try {
+    const user = await client.users.fetch(userId);
+    const codeBlock = code
+      ? `\n\n**Dein Code:**\n\`\`\`\n${code}\n\`\`\``
+      : "\nMelde dich beim Team, um deinen Gewinn zu erhalten.";
+    await user.send(`🎉 Glückwunsch! Du hast bei einem Giveaway **${prize}** gewonnen.${codeBlock}`);
+    return "sent";
+  } catch {
+    return "failed"; // DMs gesperrt — Host sieht den Code im Dashboard
+  }
+}
+
+/** Codes (eine Zeile pro Code) aus dem rewardCode-Feld. */
+function parseCodes(raw: string | null): string[] {
+  if (!raw) return [];
+  return raw.split("\n").map((c) => c.trim()).filter(Boolean);
+}
+
+/** Zieht (gewichtet) die Gewinner, weist Codes zu und benachrichtigt sie. */
 export async function drawWinners(client: Client, id: number): Promise<{ winners: string[] }> {
   const g = await fetchGiveaway(id);
   if (!g) return { winners: [] };
 
-  // Bei Reroll vorherige Gewinner zurücksetzen.
-  await prisma.giveawayEntry.updateMany({ where: { giveawayId: id }, data: { isWinner: false } });
+  // Vorherige Gewinner/Codes/DM-Status zurücksetzen (auch für Reroll).
+  await prisma.giveawayEntry.updateMany({
+    where: { giveawayId: id },
+    data: { isWinner: false, assignedCode: null, dmStatus: null },
+  });
 
-  const pool = g.entries.map((e) => e.userId);
-  // Fisher-Yates-Shuffle, dann die ersten winnerCount nehmen.
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
-  }
-  const winners = pool.slice(0, g.winnerCount);
+  const winners = weightedDraw(g.entries, g.winnerCount);
+  const codes = parseCodes(g.rewardCode);
 
-  if (winners.length > 0) {
-    await prisma.giveawayEntry.updateMany({
-      where: { giveawayId: id, userId: { in: winners } },
-      data: { isWinner: true },
+  await prisma.giveaway.update({ where: { id }, data: { ended: true } });
+
+  // Pro Gewinner: Code zuweisen, DM schicken, Status speichern.
+  for (let i = 0; i < winners.length; i++) {
+    const userId = winners[i]!;
+    const code = codes[i] ?? null;
+    const status = await notifyWinner(client, userId, g.prize, code);
+    await prisma.giveawayEntry.update({
+      where: { giveawayId_userId: { giveawayId: id, userId } },
+      data: { isWinner: true, assignedCode: code, dmStatus: status },
     });
   }
-  await prisma.giveaway.update({ where: { id }, data: { ended: true } });
+
   await refreshGiveawayMessage(client, id);
 
   // Gewinner-Ankündigung im Channel
@@ -165,28 +271,55 @@ export async function drawWinners(client: Client, id: number): Promise<{ winners
       .catch(() => null);
   }
 
-  // Optionale DM an Gewinner (nur wenn deren giveawayWinDm an ist).
-  // Ein hinterlegter Reward-Code wird direkt in der DM mitgeschickt.
-  for (const userId of winners) {
-    const member = await prisma.member.findUnique({
-      where: { userId },
-      select: { giveawayWinDm: true },
+  return { winners };
+}
+
+/** Ersetzt EINEN Gewinner durch einen neuen Teilnehmer (für „nicht reagiert"-Fälle). */
+export async function rerollSingleWinner(
+  client: Client,
+  id: number,
+  oldUserId: string,
+): Promise<{ ok: true; newWinner: string | null } | { ok: false; error: string }> {
+  const g = await fetchGiveaway(id);
+  if (!g) return { ok: false, error: "Giveaway nicht gefunden." };
+
+  const current = g.entries.filter((e) => e.isWinner).map((e) => e.userId);
+  if (!current.includes(oldUserId)) return { ok: false, error: "Dieser User ist kein Gewinner." };
+
+  // Kandidaten: Teilnehmer, die nicht bereits gewinnen.
+  const candidates = g.entries.filter((e) => !current.includes(e.userId));
+  const [newWinner] = weightedDraw(candidates, 1);
+
+  // Alten Gewinner entfernen
+  await prisma.giveawayEntry.update({
+    where: { giveawayId_userId: { giveawayId: id, userId: oldUserId } },
+    data: { isWinner: false, assignedCode: null, dmStatus: null },
+  });
+
+  let newWinnerId: string | null = null;
+  if (newWinner) {
+    newWinnerId = newWinner;
+    // Code des alten Gewinners übernehmen (falls zugewiesen).
+    const old = g.entries.find((e) => e.userId === oldUserId) as { assignedCode?: string } | undefined;
+    const code = (old?.assignedCode as string | undefined) ?? null;
+    const status = await notifyWinner(client, newWinner, g.prize, code);
+    await prisma.giveawayEntry.update({
+      where: { giveawayId_userId: { giveawayId: id, userId: newWinner } },
+      data: { isWinner: true, assignedCode: code, dmStatus: status },
     });
-    if (member && !member.giveawayWinDm) continue;
-    try {
-      const user = await client.users.fetch(userId);
-      const codeBlock = g.rewardCode
-        ? `\n\n**Dein Code:**\n\`\`\`\n${g.rewardCode}\n\`\`\``
-        : "\nMelde dich beim Team, um deinen Gewinn zu erhalten.";
-      await user.send(
-        `🎉 Glückwunsch! Du hast bei einem Giveaway **${g.prize}** gewonnen.${codeBlock}`,
-      );
-    } catch {
-      /* DMs gesperrt — ignorieren; Host sieht den Code im Dashboard */
+    const channel = await client.channels.fetch(g.channelId).catch(() => null);
+    if (channel?.isTextBased() && "send" in channel) {
+      await (channel as TextChannel)
+        .send({
+          content: `🔁 Neuer Gewinner für **${g.prize}**: <@${newWinner}> (ersetzt <@${oldUserId}>)`,
+          allowedMentions: { users: [newWinner] },
+        })
+        .catch(() => null);
     }
   }
 
-  return { winners };
+  await refreshGiveawayMessage(client, id);
+  return { ok: true, newWinner: newWinnerId };
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null;

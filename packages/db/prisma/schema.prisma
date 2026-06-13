@@ -551,9 +551,11 @@ model Giveaway {
   messageId      String? // gesetzt, sobald die Giveaway-Nachricht gepostet wurde
   prize          String
   description    String?
-  // Optionaler Gewinn-Code (z.B. Key/Gutschein) — wird dem Gewinner per DM
-  // zugeschickt und ist im Dashboard sichtbar. Nicht öffentlich im Channel.
+  // Gewinn-Code(s): eine Zeile pro Code. Mehrere Zeilen = ein eigener Code je
+  // Gewinner. Wird dem Gewinner per DM zugeschickt, nie öffentlich im Channel.
   rewardCode     String?
+  // Bonus-Lose pro Rolle als JSON: [{"roleId":"...","extra":2}] — Transparenz/Gewichtung.
+  bonusRolesJson String?
   winnerCount    Int      @default(1)
   hostId         String // wer das Giveaway erstellt hat
   // Teilnahme-Kriterien (alle optional)
@@ -570,11 +572,14 @@ model Giveaway {
 }
 
 model GiveawayEntry {
-  id         Int      @id @default(autoincrement())
-  giveawayId Int
-  userId     String
-  isWinner   Boolean  @default(false)
-  enteredAt  DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  giveawayId   Int
+  userId       String
+  tickets      Int      @default(1) // Anzahl Lose (Basis 1 + Bonus-Rollen) — transparent
+  isWinner     Boolean  @default(false)
+  assignedCode String? // bei Gewinn zugewiesener Code (aus der Code-Liste)
+  dmStatus     String? // "sent" | "failed" | "disabled" — Zustellungsstatus der Gewinn-DM
+  enteredAt    DateTime @default(now())
 
   giveaway Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
 
